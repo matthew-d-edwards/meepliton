@@ -1,7 +1,7 @@
 ---
 id: story-010
 title: Lobby page — view active rooms and start or join a game
-status: refined
+status: done
 created: 2026-03-14
 ---
 
@@ -15,14 +15,14 @@ The lobby is the product's front door — it needs to exist before the app is us
 
 ## Acceptance criteria
 
-- [ ] After sign-in the user is redirected to `/lobby`
-- [ ] The lobby shows a list of the user's active rooms, each with the game name, status badge (waiting / playing / finished), and a "Rejoin" button
-- [ ] An empty state is shown when the user has no rooms ("No active games — start one below")
-- [ ] A "Join a room" input accepts a 6-character code and navigates to `/room/{roomId}` on success
-- [ ] A "New game" section lists all registered games with name and description; clicking one creates a room and navigates to the room waiting screen
-- [ ] Invalid join codes show an inline error; the input accepts only alphanumeric characters
-- [ ] The page works at 375px; the join input and game cards have ≥44px tap targets
-- [ ] The page uses the Blade Runner design system throughout
+- [x] After sign-in the user is redirected to `/lobby`
+- [x] The lobby shows a list of the user's active rooms, each with the game name, status badge (waiting / playing / finished), and a "Rejoin" button
+- [x] An empty state is shown when the user has no rooms ("No active games — start one below")
+- [x] A "Join a room" input accepts a 6-character code and navigates to `/room/{roomId}` on success
+- [x] A "New game" section lists all registered games with name and description; clicking one creates a room and navigates to the room waiting screen
+- [x] Invalid join codes show an inline error; the input accepts only alphanumeric characters
+- [x] The page works at 375px; the join input and game cards have ≥44px tap targets
+- [x] The page uses the Blade Runner design system throughout
 
 ## Notes
 
