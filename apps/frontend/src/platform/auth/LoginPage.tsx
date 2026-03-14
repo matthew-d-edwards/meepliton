@@ -1,8 +1,10 @@
 import { useState, FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const next = searchParams.get('next') || '/lobby'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -17,7 +19,7 @@ export default function LoginPage() {
       body: JSON.stringify({ email, password }),
     })
     if (res.ok) {
-      navigate('/lobby')
+      navigate(next, { replace: true })
     } else {
       setError('Invalid email or password.')
     }

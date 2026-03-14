@@ -25,6 +25,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
   const [players, setPlayers] = useState<PlayerInfo[]>([])
   const [gameState, setGameState] = useState<unknown>(null)
   const [rejectedReason, setRejectedReason] = useState<string | null>(null)
+  const [roomNotFound, setRoomNotFound] = useState(false)
   const hubRef = useRef<signalR.HubConnection | null>(null)
 
   // Join by code if needed
@@ -35,8 +36,16 @@ export default function RoomPage({ join }: { join?: boolean }) {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }),
-      }).then(r => r.ok ? r.json() : null)
-        .then(r => r && navigate(`/room/${r.id}`, { replace: true }))
+      }).then(async r => {
+        if (r.status === 404) {
+          setRoomNotFound(true)
+          return
+        }
+        if (r.ok) {
+          const data = await r.json() as { id: string }
+          navigate(`/room/${data.id}`, { replace: true })
+        }
+      })
     }
   }, [join, code, navigate])
 
@@ -73,6 +82,16 @@ export default function RoomPage({ join }: { join?: boolean }) {
 
   async function startGame() {
     await fetch(`/api/rooms/${roomId}/start`, { method: 'POST', credentials: 'include' })
+  }
+
+  if (roomNotFound) {
+    return (
+      <main className="room-not-found">
+        <h2>Room not found</h2>
+        <p>This join link is invalid or the room no longer exists.</p>
+        <a href="/lobby">Back to lobby</a>
+      </main>
+    )
   }
 
   if (!room || !user) return <p>Loading…</p>
