@@ -116,6 +116,9 @@ Specialist agents run in isolated contexts with focused tool access. Claude dele
 | `ux` | UX designer | Building UI, reviewing design consistency, extracting components |
 | `tester` | QA engineer | After implementing game logic or fixing bugs |
 | `devops` | DevOps engineer | CI/CD, migrations, Azure infrastructure |
+| `trainer` | Continuous improvement | After stories complete, when agents produce poor output, or on a periodic sweep |
+| `docs` | Documentation and copy | After any feature lands, when docs feel stale, or before user-facing text ships |
+| `ally` | Inclusivity and accessibility | Before any UI ships, when adding new copy, or on a periodic accessibility sweep |
 
 **Recommended workflow for a new feature:**
 
@@ -126,9 +129,19 @@ Specialist agents run in isolated contexts with focused tool access. Claude dele
 4. /ui-design       → ux + frontend agree on any new screens
 5. tester           → write xUnit tests
 6. devops           → update CI if migrations added
+7. ally             → inclusivity and accessibility review before merge
+8. docs             → verify user-facing copy and docs are up to date
 ```
 
 For small changes (bug fix, minor text change): skip to step 3.
+
+**Periodic maintenance (run after every few stories or on a schedule):**
+
+```
+trainer  → post-mortem on recent work; improve agent and skill definitions
+docs     → full docs sweep for accuracy and consistency
+ally     → full accessibility and language sweep
+```
 
 ## Branch conventions
 
