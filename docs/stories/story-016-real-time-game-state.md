@@ -1,7 +1,7 @@
 ---
 id: story-016
 title: Players receive real-time game state updates without refreshing
-status: refined
+status: done
 created: 2026-03-14
 ---
 
@@ -16,12 +16,13 @@ Real-time updates are the core mechanic of the platform — without them, the ga
 ## Acceptance criteria
 
 - [ ] When a player sends an action via `SendAction`, the `GameDispatcher` validates it, applies it, persists the new state, and broadcasts `StateUpdated` to all players in the room's SignalR group
-- [ ] All connected clients update their UI immediately when `StateUpdated` is received
+- [x] All connected clients update their UI immediately when `StateUpdated` is received
 - [ ] The state broadcast includes the full current state (not a diff) so any client can render correctly regardless of what they missed
 - [ ] Valid actions return no error; the state update is the confirmation
 - [ ] The `state_version` on the room record is incremented on every update (for optimistic concurrency)
 - [ ] Actions are rejected (and `ActionRejected` broadcast only to the sender) if `IGameModule.Validate` returns a non-null error
 - [ ] A `GameFinished` event is broadcast when `GameOverEffect` is returned from the game module
+- [x] `GameStarted` SignalR event transitions RoomPage from waiting state to in-progress, rendering the game component
 
 ## Notes
 
