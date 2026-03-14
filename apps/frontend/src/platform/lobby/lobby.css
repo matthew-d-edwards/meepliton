@@ -1,0 +1,130 @@
+/* Lobby page layout */
+.lobby-page {
+  min-height: calc(100vh - var(--header-h));
+}
+
+.lobby-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+@media (max-width: 600px) {
+  .lobby-content {
+    padding: var(--space-5) var(--space-4);
+    gap: var(--space-6);
+  }
+}
+
+/* Section headers */
+.lobby-section-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: .68rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--edge-subtle);
+}
+
+/* Join form */
+.lobby-join-form {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.lobby-join-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.lobby-join-input {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.25rem;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  width: 180px;
+  text-align: center;
+}
+
+.lobby-join-error {
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  color: var(--status-error);
+}
+
+/* Rooms list */
+.lobby-rooms-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Game catalogue grid */
+.game-catalogue {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+
+.game-card-desc {
+  font-size: .8rem;
+  color: var(--text-muted);
+  margin: var(--space-2) 0 var(--space-3);
+  line-height: 1.5;
+}
+
+.game-card-footer {
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+/* Status badge (lobby-specific variant) */
+.status-badge {
+  font-family: var(--font-mono);
+  font-size: .6rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+
+.status-badge-waiting {
+  background: color-mix(in srgb, var(--neon-cyan) 15%, transparent);
+  color: var(--neon-cyan);
+  border: 1px solid color-mix(in srgb, var(--neon-cyan) 40%, transparent);
+}
+
+.status-badge-playing {
+  background: color-mix(in srgb, var(--neon-magenta) 15%, transparent);
+  color: var(--neon-magenta);
+  border: 1px solid color-mix(in srgb, var(--neon-magenta) 40%, transparent);
+}
+
+.status-badge-finished {
+  background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+  color: var(--text-muted);
+  border: 1px solid var(--edge-subtle);
+}
+
+/* Empty state */
+.lobby-empty {
+  padding: var(--space-6) 0;
+}
+
+.lobby-empty-text {
+  font-family: var(--font-mono);
+  font-size: .8rem;
+  color: var(--text-muted);
+}
