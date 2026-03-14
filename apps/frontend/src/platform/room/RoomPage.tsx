@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext'
 import { gameRegistry } from '../../games/registry'
 import type { GameContext, PlayerInfo } from '@meepliton/contracts'
 import { RoomWaitingScreen } from '@meepliton/ui'
+import { ThemeToggle } from '../theme/ThemeToggle'
 
 interface RoomData {
   id: string
@@ -102,6 +103,9 @@ export default function RoomPage({ join }: { join?: boolean }) {
 
   return (
     <div className="room-page">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 'var(--space-2) var(--space-4)' }}>
+        <ThemeToggle />
+      </div>
       {rejectedReason && (
         <div className="action-rejected-toast" role="alert">
           {rejectedReason}
