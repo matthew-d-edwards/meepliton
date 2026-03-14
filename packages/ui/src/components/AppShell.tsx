@@ -1,82 +1,107 @@
-import { ReactNode, ElementType } from 'react'
+import { ReactNode } from 'react'
 
-export interface AppShellUser {
+interface AppShellUser {
   displayName: string
 }
 
-export interface AppShellProps {
+interface AppShellProps {
+  /** The page content to render below the header */
   children: ReactNode
-  /** Authenticated user — if null the sign-out button is hidden */
+  /** Currently authenticated user — renders sign-out button when present */
   user: AppShellUser | null
-  /** Called when the user clicks the sign-out button */
+  /**
+   * Called when the user activates the sign-out button.
+   * The caller is responsible for signing out and redirecting.
+   */
   onSignOut: () => void
   /**
-   * Component used to wrap the logo text so the platform can pass a
-   * react-router `Link`. Receives an `href` prop pointing to `/lobby`.
-   * Defaults to a plain `<a>` tag.
+   * Slot for the logo link wrapper.
+   * Provide a component that wraps its children in a navigation link.
+   * If omitted, the logo renders as a plain <span>.
+   *
+   * Example:
+   *   logoLinkAs={({ children, className }) => (
+   *     <Link to="/lobby" className={className}>{children}</Link>
+   *   )}
    */
-  logoLinkAs?: ElementType<{ href: string; className: string; 'aria-label': string }>
+  logoLinkAs?: (props: { children: ReactNode; className: string }) => ReactNode
   /**
-   * Optional theme toggle element rendered in the header between the logo
-   * and the sign-out button. Story-011 fills this slot.
+   * Slot for the theme toggle button.
+   * Story-011 will pass a wired <ThemeToggle /> here.
+   * Until then, omit this prop and the slot is simply absent.
    */
   themeToggle?: ReactNode
 }
 
+/**
+ * AppShell — sticky platform header wrapping every page.
+ *
+ * Renders:
+ *  - Meepliton logo (links to /lobby when logoLinkAs is provided)
+ *  - Theme toggle slot (story-011 will fill this)
+ *  - Sign-out icon button (when user is authenticated)
+ *
+ * Uses global class names from tokens.css — no CSS Modules needed here
+ * because this is a platform chrome component, not a game component.
+ *
+ * Intentionally has no router dependency — callers pass logoLinkAs and
+ * handle sign-out/redirect themselves.
+ */
 export function AppShell({
   children,
   user,
   onSignOut,
-  logoLinkAs,
+  logoLinkAs: LogoLink,
   themeToggle,
 }: AppShellProps) {
-  const LogoLink = logoLinkAs ?? 'a'
+  const logo = LogoLink ? (
+    <LogoLink className="meepliton-logo">
+      MEEPL<em>ITON</em>
+    </LogoLink>
+  ) : (
+    <span className="meepliton-logo" aria-label="Meepliton">
+      MEEPL<em>ITON</em>
+    </span>
+  )
 
   return (
     <>
       <header className="meepliton-header" role="banner">
-        <div className="container meepliton-header-inner">
-          <LogoLink
-            href="/lobby"
-            className="meepliton-logo"
-            aria-label="Meepliton — go to lobby"
-          >
-            MEEPL<em>I</em>TON
-          </LogoLink>
+        {logo}
 
-          <div className="meepliton-header-actions">
-            {themeToggle}
+        <nav className="meepliton-header-actions" aria-label="Platform actions">
+          {/* Theme toggle slot — story-011 wires the logic */}
+          {themeToggle}
 
-            {user !== null && (
-              <button
-                type="button"
-                className="meepliton-signout-btn icon-btn"
-                onClick={onSignOut}
-                aria-label="Sign out"
-                title="Sign out"
+          {/* Sign-out — only shown when authenticated */}
+          {user && (
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={onSignOut}
+              aria-label={`Sign out (${user.displayName})`}
+              title={`Sign out (${user.displayName})`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                focusable="false"
               >
-                {/* Power / exit icon — inline SVG keeps it zero-dependency */}
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-                <span className="meepliton-signout-label">Sign out</span>
-              </button>
-            )}
-          </div>
-        </div>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
+          )}
+        </nav>
       </header>
 
       {children}

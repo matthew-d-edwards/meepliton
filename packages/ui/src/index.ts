@@ -1,5 +1,4 @@
 export { AppShell } from './components/AppShell'
-export type { AppShellProps, AppShellUser } from './components/AppShell'
 export { RoomWaitingScreen } from './components/RoomWaitingScreen'
 export { PlayerPresence } from './components/PlayerPresence'
 export { JoinCodeDisplay } from './components/JoinCodeDisplay'

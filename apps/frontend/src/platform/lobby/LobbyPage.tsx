@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 import './lobby.css'
 
 interface GameInfo {
@@ -76,7 +77,6 @@ export default function LobbyPage() {
   }
 
   function handleJoinInput(e: React.ChangeEvent<HTMLInputElement>) {
-    // allow only alphanumeric, uppercase
     const value = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
     setJoinCode(value)
     setJoinError(null)
@@ -115,8 +115,20 @@ export default function LobbyPage() {
 
   return (
     <div className="lobby-page">
+      <header className="lobby-header">
+        <span className="lobby-logo">MEEPLITON</span>
+        <div className="lobby-user">
+          {user?.displayName && (
+            <span className="lobby-username">{user.displayName}</span>
+          )}
+          <button className="btn btn-sm btn-danger" onClick={logout}>
+            Sign out
+          </button>
+        </div>
+      </header>
+
       <main className="lobby-content">
-        {/* ── JOIN A ROOM ── */}
+        {/* Join a room */}
         <section aria-label="Join a room">
           <h2 className="lobby-section-title">Join a room</h2>
           <div className="lobby-join">
@@ -147,20 +159,20 @@ export default function LobbyPage() {
                 disabled={joiningRoom || joinCode.length !== 6}
                 style={{ minHeight: '44px' }}
               >
-                {joiningRoom ? 'Joining…' : 'Join'}
+                {joiningRoom ? 'Joining\u2026' : 'Join'}
               </button>
             </form>
           </div>
         </section>
 
-        {/* ── ACTIVE ROOMS ── */}
+        {/* Active rooms */}
         <section aria-label="Your active rooms">
           <h2 className="lobby-section-title">Your rooms</h2>
           {loadingLobby ? (
-            <p className="lobby-empty-text">Loading…</p>
+            <p className="lobby-empty-text">Loading\u2026</p>
           ) : rooms.length === 0 ? (
             <div className="lobby-empty">
-              <p className="lobby-empty-text">No active games — start one below</p>
+              <p className="lobby-empty-text">No active games \u2014 start one below</p>
             </div>
           ) : (
             <ul className="lobby-rooms-list" data-stagger>
@@ -189,11 +201,11 @@ export default function LobbyPage() {
           )}
         </section>
 
-        {/* ── NEW GAME ── */}
+        {/* New game */}
         <section aria-label="Start a new game">
           <h2 className="lobby-section-title">New game</h2>
           {loadingLobby ? (
-            <p className="lobby-empty-text">Loading…</p>
+            <p className="lobby-empty-text">Loading\u2026</p>
           ) : games.length === 0 ? (
             <div className="lobby-empty">
               <p className="lobby-empty-text">No games available.</p>
@@ -206,7 +218,7 @@ export default function LobbyPage() {
                     <div className="game-card-name">{game.name}</div>
                     <p className="game-card-desc">{game.description}</p>
                     <div className="game-card-meta">
-                      {game.minPlayers}–{game.maxPlayers} players
+                      {game.minPlayers}\u2013{game.maxPlayers} players
                     </div>
                   </div>
                   <div className="game-card-footer">
@@ -215,7 +227,7 @@ export default function LobbyPage() {
                       onClick={() => createRoom(game.gameId)}
                       disabled={creatingGameId !== null}
                     >
-                      {creatingGameId === game.gameId ? 'Creating…' : 'Create room'}
+                      {creatingGameId === game.gameId ? 'Creating\u2026' : 'Create room'}
                     </button>
                   </div>
                 </li>
