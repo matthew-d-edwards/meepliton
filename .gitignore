@@ -68,6 +68,7 @@ appsettings.Development.json
 # Claude personal settings — never commit
 .claude/settings.local.json
 .claude/settings.local.yml
+.claude/worktrees/
 
 # IDE
 .vscode/
