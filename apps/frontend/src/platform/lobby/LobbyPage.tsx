@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
 
 interface GameInfo { id: string; name: string; description: string; minPlayers: number; maxPlayers: number }
 interface RoomInfo  { id: string; gameId: string; joinCode: string; status: string }
 
 export default function LobbyPage() {
-  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [games, setGames] = useState<GameInfo[]>([])
   const [myRooms, setMyRooms] = useState<RoomInfo[]>([])
@@ -47,12 +45,6 @@ export default function LobbyPage() {
 
   return (
     <main className="lobby-page">
-      <header className="lobby-header">
-        <h1>Meepliton</h1>
-        <span>{user?.displayName}</span>
-        <button onClick={logout}>Sign out</button>
-      </header>
-
       <section className="lobby-join">
         <form onSubmit={handleJoin}>
           <input

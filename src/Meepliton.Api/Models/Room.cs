@@ -12,11 +12,12 @@ public class Room
     public int     StateVersion { get; set; } = 0;
     public JsonDocument? GameState   { get; set; }
     public JsonDocument? GameOptions { get; set; }
-    public DateTimeOffset CreatedAt  { get; set; } = DateTimeOffset.UtcNow;
-    public DateTimeOffset? ExpiresAt { get; set; }
+    public DateTimeOffset  CreatedAt  { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset  UpdatedAt  { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ExpiresAt  { get; set; }
 }
 
-public enum RoomStatus { Waiting, InProgress, Finished }
+public enum RoomStatus { Waiting, InProgress, Finished, Closed }
 
 public class RoomPlayer
 {
