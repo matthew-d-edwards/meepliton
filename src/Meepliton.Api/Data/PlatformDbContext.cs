@@ -30,6 +30,9 @@ public class PlatformDbContext(DbContextOptions<PlatformDbContext> options)
         builder.Entity<Room>(e =>
         {
             e.ToTable("rooms");
+            e.Property(r => r.Status)
+             .HasConversion<string>()
+             .HasDefaultValue(RoomStatus.Waiting);
             e.Property(r => r.GameState).HasColumnType("jsonb");
             e.Property(r => r.GameOptions).HasColumnType("jsonb");
         });
