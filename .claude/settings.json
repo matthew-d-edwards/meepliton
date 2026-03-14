@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(dotnet *)",
+      "Bash(npm *)",
+      "Bash(pwsh *)",
+      "Bash(node *)"
+    ],
+    "deny": [
+      "Bash(git push origin main*)",
+      "Bash(git push --force*)",
+      "Bash(rm -rf *)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "echo '=== Meepliton session start ===' && git branch --show-current && git status --short && echo '--- Unpushed commits ---' && git log origin/$(git branch --show-current)..HEAD --oneline 2>/dev/null || echo '(none)'"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": { "tool": "Bash", "pattern": "git (commit|add|push|reset|checkout|merge|rebase)" },
+        "type": "command",
+        "command": "echo '--- git state ---' && git status --short && git log --oneline -3"
+      }
+    ]
+  }
+}
