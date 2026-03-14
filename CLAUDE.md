@@ -73,9 +73,30 @@ gh pr create --title "Add {Name}" --base main --web
 
 ## Slash commands
 
+### Game development
 | Command | What it does |
 |---|---|
 | `/scaffold-game` | Guided walkthrough to create a new game from scratch |
+
+### Specialist agents
+Invoke these to get focused help from a specific role. Each agent reads the codebase, acts on your request, commits, and pushes.
+
+| Command | Role | When to use |
+|---|---|---|
+| `/architect` | Software architect | Review code quality, enforce platform/game boundary, propose ADRs |
+| `/analyst` | Product analyst | Clarify requirements, write feature specs, update roadmap |
+| `/pm` | Project manager | Status reports, plan next tasks, write GitHub issues |
+| `/backend` | .NET developer | Implement API endpoints, services, game module logic |
+| `/frontend` | React developer | Implement platform UI and game components |
+| `/tester` | QA engineer | Write and run xUnit tests for game modules and platform |
+| `/devops` | DevOps engineer | CI/CD, Azure infra, migrations, deployment troubleshooting |
+
+**Typical workflow for a new feature:**
+1. `/analyst` — write the spec
+2. `/architect` — review the approach
+3. `/backend` + `/frontend` — implement
+4. `/tester` — write tests
+5. `/devops` — update CI if migrations or infra changed
 
 ## Branch conventions
 
