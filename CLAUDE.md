@@ -32,14 +32,22 @@ dotnet run --project src/Meepliton.AppHost
 ```
 src/Meepliton.Api/              API + SignalR hub + auth endpoints
 src/Meepliton.Contracts/        IGameModule, IGameHandler, GameContext, GameResult
-src/games/                   One C# project per game
-apps/frontend/src/games/     One React module per game
+src/games/                      One C# project per game
+apps/frontend/src/games/        One React module per game
 apps/frontend/src/games/registry.ts   ← only file edited when adding a game
-packages/ui/src/             Platform chrome components (lobby, room screens)
-packages/contracts/src/      TypeScript interfaces (GameModule, GameContext)
-scripts/new-game.ps1         Scaffold script for new games
-docs/requirements.md         Full architecture and requirements
+packages/ui/src/                Platform chrome components (lobby, room screens)
+packages/contracts/src/         TypeScript interfaces (GameModule, GameContext)
+scripts/new-game.ps1            Scaffold script for new games
+docs/requirements.md            Full architecture, ADRs, and roadmap
+docs/stories/                   One story file per feature — backlog → refined → in-progress → done
+docs/specs/                     Detailed specs for non-trivial stories (written by analyst)
+docs/ui-plans/                  UI implementation plans (written during /ui-design)
+docs/owner/TODO.md              Actions only you can take — check this when starting a session
 ```
+
+## Owner TODO
+
+**`docs/owner/TODO.md`** is the one file you should check regularly. Agents write here when they are blocked by something only a human can resolve — Azure credentials, product decisions, conflict resolution. If this file has items, address them before starting new work.
 
 ## Adding a new game
 
