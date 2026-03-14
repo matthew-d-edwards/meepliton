@@ -1,7 +1,7 @@
 ---
 id: story-012
 title: Player can join a room via URL or QR code
-status: refined
+status: done
 created: 2026-03-14
 ---
 
@@ -15,13 +15,13 @@ Sharing a link or scanning a QR code is faster and less error-prone than reading
 
 ## Acceptance criteria
 
-- [ ] Every room has a shareable URL: `meepliton.com/join/{CODE}`
-- [ ] Visiting `/join/{CODE}` while signed in adds the user to the room and redirects to `/room/{roomId}`
-- [ ] Visiting `/join/{CODE}` while signed out redirects to sign-in, then back to the join URL after authentication
-- [ ] The room waiting screen displays the join URL as a clickable/copyable link
-- [ ] The room waiting screen displays a QR code generated client-side (using `qrcode.react` or equivalent) that encodes the join URL
-- [ ] The QR code and join URL are only visible on the waiting screen (not during an active game)
-- [ ] Visiting an expired or non-existent join code shows a friendly "Room not found" page
+- [x] Every room has a shareable URL: `meepliton.com/join/{CODE}`
+- [x] Visiting `/join/{CODE}` while signed in adds the user to the room and redirects to `/room/{roomId}`
+- [x] Visiting `/join/{CODE}` while signed out redirects to sign-in, then back to the join URL after authentication
+- [x] The room waiting screen displays the join URL as a clickable/copyable link
+- [x] The room waiting screen displays a QR code generated client-side (using `qrcode.react` or equivalent) that encodes the join URL
+- [x] The QR code and join URL are only visible on the waiting screen (not during an active game)
+- [x] Visiting an expired or non-existent join code shows a friendly "Room not found" page
 
 ## Notes
 

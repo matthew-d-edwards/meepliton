@@ -1,8 +1,11 @@
 import { useState, FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ThemeToggle } from '../theme/ThemeToggle'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const next = searchParams.get('next') || '/lobby'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -17,7 +20,7 @@ export default function LoginPage() {
       body: JSON.stringify({ email, password }),
     })
     if (res.ok) {
-      navigate('/lobby')
+      navigate(next, { replace: true })
     } else {
       setError('Invalid email or password.')
     }
@@ -25,6 +28,9 @@ export default function LoginPage() {
 
   return (
     <main className="auth-page">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 'var(--space-3)' }}>
+        <ThemeToggle />
+      </div>
       <h1>Meepliton</h1>
       <form onSubmit={handleSubmit} className="auth-form">
         <label>

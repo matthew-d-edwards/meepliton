@@ -1,7 +1,7 @@
 ---
 id: story-019
 title: Skyline game is playable end-to-end in a browser
-status: refined
+status: done
 created: 2026-03-14
 ---
 
@@ -18,9 +18,9 @@ Skyline is the first game module and the integration test for the entire platfor
 - [ ] A host can create a Skyline room from the lobby and share the join code
 - [ ] A second player can join via join code, URL, or QR code
 - [ ] The host starts the game and both players see the Skyline board rendered by `SkylineModule`
-- [ ] Players take turns placing tiles; the board updates in real time for both players
-- [ ] Out-of-turn actions are rejected with an `ActionRejected` toast
-- [ ] When the board is full, the game calculates row/column scores, declares a winner, and shows a game-over state
+- [x] Players take turns placing tiles; the board updates in real time for both players
+- [x] Out-of-turn actions are rejected with an `ActionRejected` toast
+- [x] When the board is full, the game calculates row/column scores, declares a winner, and shows a game-over state
 - [ ] The Skyline board is mobile-friendly at 375px viewport
 - [ ] The Skyline CI migration step runs successfully in GitHub Actions
 
