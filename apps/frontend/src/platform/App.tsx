@@ -3,9 +3,18 @@ import { AuthProvider, useAuth } from './auth/AuthContext'
 import LoginPage from './auth/LoginPage'
 import LobbyPage from './lobby/LobbyPage'
 import RoomPage from './room/RoomPage'
+import './auth/auth.css'
 
 function AppRoutes() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="auth-loading-gate" aria-live="polite" aria-label="Loading">
+        <div className="auth-loading-spinner" />
+      </div>
+    )
+  }
 
   return (
     <Routes>

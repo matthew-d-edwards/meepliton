@@ -1,0 +1,19 @@
+.turn-indicator {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  border: 1px solid var(--edge-subtle);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.turn-indicator--mine {
+  border-color: var(--neon-cyan);
+  box-shadow: var(--glow-sm) var(--neon-cyan);
+  color: var(--neon-cyan);
+}
+
+.turn-indicator__label {
+  font-weight: 600;
+}

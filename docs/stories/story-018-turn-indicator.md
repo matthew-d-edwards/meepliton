@@ -1,7 +1,7 @@
 ---
 id: story-018
 title: Players can clearly see whose turn it is
-status: refined
+status: done
 created: 2026-03-14
 ---
 
@@ -15,12 +15,12 @@ Without a turn indicator players don't know when to act, which breaks the basic 
 
 ## Acceptance criteria
 
-- [ ] The game room chrome (platform level, not game level) shows the current player's name and avatar in a persistent "current turn" indicator
-- [ ] When it is the local player's turn, the indicator reads "Your turn" and is visually highlighted (e.g. `--neon-cyan` glow)
-- [ ] When it is another player's turn, the indicator shows that player's name
-- [ ] The indicator updates immediately when `StateUpdated` is received
-- [ ] The indicator is part of `<PlayerPresence>` or a new platform chrome component — it must not be duplicated per game module
-- [ ] On mobile (375px) the indicator is visible without scrolling
+- [x] The game room chrome (platform level, not game level) shows the current player's name and avatar in a persistent "current turn" indicator
+- [x] When it is the local player's turn, the indicator reads "Your turn" and is visually highlighted (e.g. `--neon-cyan` glow)
+- [x] When it is another player's turn, the indicator shows that player's name
+- [x] The indicator updates immediately when `StateUpdated` is received
+- [x] The indicator is part of `<PlayerPresence>` or a new platform chrome component — it must not be duplicated per game module
+- [x] On mobile (375px) the indicator is visible without scrolling
 
 ## Notes
 

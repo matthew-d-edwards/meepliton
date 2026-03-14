@@ -16,8 +16,6 @@ _Nothing urgent yet._
 
 - [ ] **2026-03-14** Decide what the second game module should be. Requirements say it must be structurally different from Skyline (tile placement) — e.g. map-based, card-based, or simultaneous-action. Blocks story-022. (analyst)
 
-- [ ] **2026-03-14** `currentPlayerId` surfacing for the turn indicator: should the platform copy `currentPlayerId` into the `rooms` table on every state update (enables server-side queries and platform-level display), or should the frontend extract it from the game state JSON client-side (simpler but couples the platform to a state shape convention)? Blocks story-018. (analyst)
-
 ## Setup / credentials
 
 - [ ] **2026-03-14** Configure an email provider for transactional email (registration confirmation, password reset). Options: SendGrid free tier (100/day) or Gmail SMTP relay. Add credentials to GitHub Secrets as `EMAIL_SMTP_*` or `SENDGRID_API_KEY`. Blocks stories 001, 003. (analyst)

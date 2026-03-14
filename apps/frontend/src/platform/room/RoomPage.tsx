@@ -5,6 +5,8 @@ import { useAuth } from '../auth/AuthContext'
 import { gameRegistry } from '../../games/registry'
 import type { GameContext, PlayerInfo } from '@meepliton/contracts'
 import { RoomWaitingScreen } from '@meepliton/ui'
+import { TurnIndicator } from './TurnIndicator'
+import './room.css'
 
 interface RoomData {
   id: string
@@ -100,6 +102,8 @@ export default function RoomPage({ join }: { join?: boolean }) {
     dispatch,
   }
 
+  const currentPlayerId = (ctx.state as Record<string, unknown> | null)?.currentPlayerId as string | null ?? null
+
   return (
     <div className="room-page">
       {rejectedReason && (
@@ -107,6 +111,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
           {rejectedReason}
         </div>
       )}
+      <TurnIndicator currentPlayerId={currentPlayerId} players={players} myPlayerId={user.id} />
       <GameLoader load={loadGame} ctx={ctx} />
     </div>
   )
