@@ -88,6 +88,7 @@ Invoke these to get focused help from a specific role. Each agent reads the code
 | `/pm` | Project manager | Status reports, plan next tasks, write GitHub issues |
 | `/backend` | .NET developer | Implement API endpoints, services, game module logic |
 | `/frontend` | React developer | Implement platform UI and game components |
+| `/ux` | UX designer | Layout, design system, reusable components, mobile + desktop |
 | `/tester` | QA engineer | Write and run xUnit tests for game modules and platform |
 | `/devops` | DevOps engineer | CI/CD, Azure infra, migrations, deployment troubleshooting |
 
