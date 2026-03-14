@@ -116,7 +116,7 @@ Specialist agents run in isolated contexts with focused tool access. Claude dele
 | `ux` | UX designer | Building UI, reviewing design consistency, extracting components |
 | `tester` | QA engineer | After implementing game logic or fixing bugs |
 | `devops` | DevOps engineer | CI/CD, migrations, Azure infrastructure |
-| `trainer` | Continuous improvement | After stories complete, when agents produce poor output, or on a periodic sweep |
+| `trainer` | Continuous improvement | After stories complete or to review in-progress work, when agents produce poor output, or on a periodic sweep |
 | `docs` | Documentation and copy | After any feature lands, when docs feel stale, or before user-facing text ships |
 | `ally` | Inclusivity and accessibility | Before any UI ships, when adding new copy, or on a periodic accessibility sweep |
 

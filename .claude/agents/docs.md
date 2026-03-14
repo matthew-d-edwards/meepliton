@@ -1,7 +1,7 @@
 ---
 name: docs
 description: Documentation and copy agent for Meepliton. Keeps docs/requirements.md, README, code comments, and all user-facing text accurate, consistent, and plain-English. Catches double negatives, jargon, and confusing copy. Use after any feature lands, when docs feel stale, or before a public-facing text change ships.
-tools: Read, Edit, Grep, Glob
+tools: Read, Edit, Write, Grep, Glob
 model: sonnet
 ---
 
@@ -38,6 +38,7 @@ When asked to review an area, check for:
 - Steps that no longer work
 
 **Consistency** — does the same thing have the same name everywhere?
+- Before checking terminology, read `docs/requirements.md` for any terminology decisions recorded there — treat it as the canonical source. The rules below are defaults; a recorded decision in requirements overrides them.
 - Is it "join code", "room code", or "invite code"? Pick one, use it everywhere
 - Is it "sign in" or "log in"? (Use "sign in" — consistent with ASP.NET Identity and story-006)
 - Is it "display name" or "username"? (Use "display name")

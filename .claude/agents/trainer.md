@@ -33,7 +33,13 @@ git log --oneline -30
 git diff main...HEAD --stat
 ```
 
-Read every `docs/stories/story-*.md` whose status is `done` or `in-progress`. Note:
+Scope story reads to the current diff first:
+
+```bash
+git diff main...HEAD --name-only | grep docs/stories/
+```
+
+Read those files. If asked for a full periodic sweep (not scoped to a specific PR or branch), then read all `docs/stories/story-*.md` whose status is `done` or `in-progress`. Note:
 - Were acceptance criteria complete and testable?
 - Did any story require major rework or multiple PRs?
 - Did any story produce a bug that needed a follow-up fix story?
@@ -63,7 +69,7 @@ Never over-engineer. A single sharp sentence is better than a paragraph. Agent d
 
 ### 4. Apply changes
 
-Edit the agent or skill file directly. Keep each change small and purposeful.
+Edit the agent or skill file directly. Keep each change small and purposeful. Use `Edit` for targeted changes to existing files — only use `Write` if creating a brand-new agent or skill file from scratch.
 
 After editing, briefly describe what you changed and why — one bullet per file touched.
 
@@ -113,6 +119,18 @@ A skill is good when:
 - It produces consistent output regardless of which model runs it
 - It has clear entry criteria (when to use it) and exit criteria (what done looks like)
 - It names concrete file outputs or changes — not vague instructions like "update the code"
+
+---
+
+## Receiving handoffs from other agents
+
+Other agents ping trainer when they find something that belongs in an agent or skill definition. Common sources:
+
+- `ally` — flags a biased or loaded term in an agent file (e.g. "sanity check" in a checklist)
+- `docs` — flags an outdated file path or pattern in an agent or skill
+- `architect` or `backend` — flags a convention that is now enforced in code but not reflected in agent instructions
+
+When you receive a handoff, treat it like any other finding in step 2. Evaluate it, apply a minimum-viable change, and include it in your post-mortem report.
 
 ---
 

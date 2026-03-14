@@ -115,7 +115,7 @@ The Blade Runner design system uses neon colours on dark surfaces. This creates 
     * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
   ```
-- If this media query is not in `tokens.css`, add it
+- If this media query is not in `tokens.css`, flag it to the `ux` agent — do not edit `tokens.css` directly
 
 **Text sizing**
 - All font sizes in `rem` or `em`, never `px` — so browser text-size preferences are respected
