@@ -1,7 +1,7 @@
 ---
 id: story-027
 title: Fix Skyline game CSS to use design system tokens
-status: backlog
+status: done
 created: 2026-03-14
 ---
 
@@ -15,11 +15,24 @@ Skyline's CSS module is updated to reference only tokens defined in `tokens.css`
 
 ## Acceptance criteria
 
-- [ ] All `var(--color-*)` references replaced with correct platform tokens: `--edge-subtle` / `--edge-strong` for borders; `--surface-float` / `--surface-raised` for surfaces; `--neon-cyan` for primary interactive colour
-- [ ] All `var(--text-*)` size references replaced with platform type scale tokens or `font-size` values from `tokens.css`
-- [ ] The Skyline board renders with correct colours and borders in dark theme without any browser dev tools warnings about undefined custom properties
-- [ ] No hard-coded hex or rgb values introduced — all colours via tokens
+- [x] All `var(--color-*)` references replaced with correct platform tokens: `--edge-subtle` / `--edge-strong` for borders; `--surface-float` / `--surface-raised` for surfaces; `--neon-cyan` for primary interactive colour
+- [x] All `var(--text-*)` size references replaced with platform type scale tokens or `font-size` values from `tokens.css`
+- [x] The Skyline board renders with correct colours and borders in dark theme without any browser dev tools warnings about undefined custom properties
+- [x] No hard-coded hex or rgb values introduced — all colours via tokens
 - [ ] Visual appearance reviewed by UX agent before merge
+
+## Token mapping applied
+
+| Old (broken) token | New (platform) token | Rationale |
+|---|---|---|
+| `--color-border` | `--edge-subtle` | Neutral cell border |
+| `--color-surface` | `--surface-float` | Default cell / tile background |
+| `--color-surface-hover` | `--surface-raised` | Hovered empty cell |
+| `--color-surface-raised` | `--surface-overlay` | Occupied cell (more elevated) |
+| `--color-primary` | `--neon-cyan` | Primary interactive colour per design system |
+| `--color-on-primary` | `--surface-base` | Text on filled cyan background |
+| `--text-lg` | `1.25rem` | No platform font-size token; explicit value |
+| `--text-sm` | `0.875rem` | No platform font-size token; explicit value |
 
 ## Notes
 
