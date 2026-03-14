@@ -4,6 +4,8 @@ import * as signalR from '@microsoft/signalr'
 import { useAuth } from '../auth/AuthContext'
 import { gameRegistry } from '../../games/registry'
 import type { GameContext, PlayerInfo } from '@meepliton/contracts'
+import { TurnIndicator } from './TurnIndicator'
+import './room.css'
 import { ThemeToggle } from '../theme/ThemeToggle'
 import { RoomWaitingScreen, ActionRejectedToast } from '@meepliton/ui'
 
@@ -161,6 +163,8 @@ export default function RoomPage({ join }: { join?: boolean }) {
     dispatch,
   }
 
+  const currentPlayerId = (ctx.state as Record<string, unknown> | null)?.currentPlayerId as string | null ?? null
+
   return (
     <div className="room-page">
       <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 'var(--space-2) var(--space-4)' }}>
@@ -172,6 +176,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
           onDismiss={() => setRejectedReason(null)}
         />
       )}
+      <TurnIndicator currentPlayerId={currentPlayerId} players={players} myPlayerId={user.id} />
       <GameLoader load={loadGame} ctx={ctx} />
     </div>
   )

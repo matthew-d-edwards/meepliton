@@ -1,7 +1,7 @@
 ---
 id: story-026
 title: App shows neutral loading screen during initial auth check to prevent login flash
-status: backlog
+status: done
 created: 2026-03-14
 ---
 
@@ -15,11 +15,11 @@ Currently, `AuthContext` sets `user = null` while loading, which causes `AppRout
 
 ## Acceptance criteria
 
-- [ ] `AuthContext` exposes a `loading: boolean` state that is `true` until the initial `/api/auth/me` response is received
-- [ ] `AppRoutes` (or the auth guard) renders a neutral loading screen — not a redirect — while `loading === true`
-- [ ] The loading screen uses design system tokens (dark surface, Meepliton logo or spinner) — not a blank white/unstyled screen
-- [ ] Once `loading` becomes `false`, normal routing resumes: unauthenticated users go to `/sign-in`, authenticated users go to their destination
-- [ ] Hard refreshing on `/lobby` or `/room/:id` while authenticated never shows the sign-in page before the lobby/room loads
+- [x] `AuthContext` exposes a `loading: boolean` state that is `true` until the initial `/api/auth/me` response is received
+- [x] `AppRoutes` (or the auth guard) renders a neutral loading screen — not a redirect — while `loading === true`
+- [x] The loading screen uses design system tokens (dark surface, Meepliton logo or spinner) — not a blank white/unstyled screen
+- [x] Once `loading` becomes `false`, normal routing resumes: unauthenticated users go to `/sign-in`, authenticated users go to their destination
+- [x] Hard refreshing on `/lobby` or `/room/:id` while authenticated never shows the sign-in page before the lobby/room loads
 
 ## Notes
 

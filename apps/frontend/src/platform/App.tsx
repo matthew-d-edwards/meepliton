@@ -4,6 +4,19 @@ import { AppShell } from '@meepliton/ui'
 import LoginPage from './auth/LoginPage'
 import LobbyPage from './lobby/LobbyPage'
 import RoomPage from './room/RoomPage'
+import './auth/auth.css'
+
+function AppRoutes() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="auth-loading-gate" aria-live="polite" aria-label="Loading">
+        <div className="auth-loading-spinner" />
+      </div>
+    )
+  }
+}
 
 function JoinRoute() {
   const { code } = useParams<{ code: string }>()
