@@ -12,6 +12,8 @@ _Nothing urgent yet._
 
 - [ ] **2026-03-14** Choose avatar storage strategy for v1: (a) URL-only — user pastes any image URL, (b) Gravatar — derive from email hash, no upload needed, (c) file upload — requires blob storage. Blocks story-007. (analyst)
 
+- [ ] **2026-03-14** UX gap analysis found that `POST /api/rooms/{roomId}/transfer-host` is in the requirements (§11.1) but may not be implemented in the backend yet. Confirm whether it exists before story-028 (host transfer UI) is scheduled. (ux/backend)
+
 - [ ] **2026-03-14** Decide what the second game module should be. Requirements say it must be structurally different from Skyline (tile placement) — e.g. map-based, card-based, or simultaneous-action. Blocks story-022. (analyst)
 
 - [ ] **2026-03-14** `currentPlayerId` surfacing for the turn indicator: should the platform copy `currentPlayerId` into the `rooms` table on every state update (enables server-side queries and platform-level display), or should the frontend extract it from the game state JSON client-side (simpler but couples the platform to a state shape convention)? Blocks story-018. (analyst)

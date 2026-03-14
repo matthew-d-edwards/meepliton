@@ -28,3 +28,6 @@ Some users prefer light mode (especially in bright environments), and system-pre
 - UX agent owns the `tokens.css` light-theme overrides
 - No backend involvement — purely client-side
 - The design system's Blade Runner aesthetic must hold in light mode: neons on wet concrete, not neon on white (see UX agent)
+- **FOUC prevention is critical**: `data-theme` must be set on `<html>` via an inline `<script>` in `index.html` before React hydrates — reading `localStorage` inside a `useEffect` is too late and will cause a flash of the wrong theme
+- The toggle control lives in `<AppShell>` (story-024) — implement story-024 first or alongside this story
+- `User.theme` field already exists in `AuthContext.tsx` but is not yet read or applied — wire it up here
