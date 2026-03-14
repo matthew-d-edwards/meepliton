@@ -4,6 +4,7 @@ import * as signalR from '@microsoft/signalr'
 import { useAuth } from '../auth/AuthContext'
 import { gameRegistry } from '../../games/registry'
 import type { GameContext, PlayerInfo } from '@meepliton/contracts'
+import { ThemeToggle } from '../theme/ThemeToggle'
 import { RoomWaitingScreen, ActionRejectedToast } from '@meepliton/ui'
 
 interface RoomData {
@@ -143,6 +144,9 @@ export default function RoomPage({ join }: { join?: boolean }) {
 
   return (
     <div className="room-page">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 'var(--space-2) var(--space-4)' }}>
+        <ThemeToggle />
+      </div>
       {rejectedReason && (
         <ActionRejectedToast
           reason={rejectedReason}

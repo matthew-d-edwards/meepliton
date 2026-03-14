@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { ThemeToggle } from '../theme/ThemeToggle'
 import './lobby.css'
 
 interface GameInfo {
@@ -117,6 +118,7 @@ export default function LobbyPage() {
     <div className="lobby-page">
       <header className="lobby-header">
         <span className="lobby-logo">MEEPLITON</span>
+        <ThemeToggle />
         <div className="lobby-user">
           {user?.displayName && (
             <span className="lobby-username">{user.displayName}</span>

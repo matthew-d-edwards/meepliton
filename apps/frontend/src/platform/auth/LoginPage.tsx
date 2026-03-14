@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ThemeToggle } from '../theme/ThemeToggle'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -25,6 +26,9 @@ export default function LoginPage() {
 
   return (
     <main className="auth-page">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 'var(--space-3)' }}>
+        <ThemeToggle />
+      </div>
       <h1>Meepliton</h1>
       <form onSubmit={handleSubmit} className="auth-form">
         <label>

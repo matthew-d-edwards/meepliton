@@ -97,29 +97,31 @@
 
 /* ── LIGHT THEME — neon signs on wet concrete ── */
 [data-theme="light"] {
-  color-scheme: dark; /* intentional: this theme is still dark-on-dark */
+  color-scheme: light;
 
-  --surface-base:    #1e2530;
-  --surface-raised:  #252d3a;
-  --surface-float:   #2c3545;
-  --surface-overlay: #323d50;
+  --surface-base:    #e8ecf0;
+  --surface-raised:  #d8dfe8;
+  --surface-float:   #cdd5e0;
+  --surface-overlay: #c2ccd8;
 
-  --edge-subtle:  #3a4a60;
-  --edge-strong:  #4a5e78;
+  --edge-subtle:  #b0bcc8;
+  --edge-strong:  #8090a4;
 
-  --text-muted:   #6a88a8;
-  --text-primary: #b8d0e8;
-  --text-bright:  #ddeeff;
+  --text-muted:   #607080;
+  --text-primary: #1a2a3a;
+  --text-bright:  #0a1520;
 
-  --accent:       #f0c040;
-  --accent-dim:   #f0c04018;
-  --accent-glow:  #f0c04044;
+  /* Gold dims slightly in light to maintain contrast */
+  --accent:       #d4900a;
+  --accent-dim:   #d4900a18;
+  --accent-glow:  #d4900a55;
 
-  --neon-cyan:    #00d4ff;
-  --neon-magenta: #ff2060;
-  --neon-orange:  #ff6010;
+  /* Keep neons — they still pop on wet concrete */
+  --neon-cyan:    #0090b0;
+  --neon-magenta: #c00040;
+  --neon-orange:  #c04000;
 
-  /* Slightly softer glow — overcast diffuses light */
+  /* Softer glow — overcast diffuses light */
   --glow-sm:    0 0 6px;
   --glow-md:    0 0 14px;
   --glow-lg:    0 0 28px;
