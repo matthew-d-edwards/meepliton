@@ -1,7 +1,7 @@
 ---
 id: story-009
 title: Lobby API — list rooms, create room, join by code
-status: refined
+status: done
 created: 2026-03-14
 ---
 
@@ -15,15 +15,15 @@ These are the core lobby operations — without them the frontend can't show any
 
 ## Acceptance criteria
 
-- [ ] `GET /api/lobby` returns `{ rooms: [...], games: [...] }` — rooms the user is part of, and all registered game modules
-- [ ] Each room entry includes: `roomId`, `gameId`, `gameName`, `status` (waiting/playing/finished), `playerCount`, `joinCode`
-- [ ] Each game entry includes: `gameId`, `name`, `description`, `minPlayers`, `maxPlayers`
-- [ ] `POST /api/rooms` accepts `{ gameId, options? }` — creates a room, sets the caller as host, returns `{ roomId, joinCode }`
-- [ ] Join codes are 6 characters, uppercase A–Z excluding O and I, digits 2–9 (no 0, 1, O, I to avoid ambiguity)
-- [ ] `POST /api/rooms/join` accepts `{ code }` — adds the user to the room if it is in `waiting` status; returns `{ roomId }`
-- [ ] Joining a room that is already in `playing` or `finished` status returns 409 with a clear message
-- [ ] Joining a room you are already in returns 200 (idempotent)
-- [ ] All endpoints require authentication (`RequireAuthorization()`)
+- [x] `GET /api/lobby` returns `{ rooms: [...], games: [...] }` — rooms the user is part of, and all registered game modules
+- [x] Each room entry includes: `roomId`, `gameId`, `gameName`, `status` (waiting/playing/finished), `playerCount`, `joinCode`
+- [x] Each game entry includes: `gameId`, `name`, `description`, `minPlayers`, `maxPlayers`
+- [x] `POST /api/rooms` accepts `{ gameId, options? }` — creates a room, sets the caller as host, returns `{ roomId, joinCode }`
+- [x] Join codes are 6 characters, uppercase A–Z excluding O and I, digits 2–9 (no 0, 1, O, I to avoid ambiguity)
+- [x] `POST /api/rooms/join` accepts `{ code }` — adds the user to the room if it is in `waiting` status; returns `{ roomId }`
+- [x] Joining a room that is already in `playing` or `finished` status returns 409 with a clear message
+- [x] Joining a room you are already in returns 200 (idempotent)
+- [x] All endpoints require authentication (`RequireAuthorization()`)
 
 ## Notes
 
