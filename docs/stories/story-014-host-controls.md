@@ -1,7 +1,7 @@
 ---
 id: story-014
 title: Host can start the game and remove players before it begins
-status: refined
+status: done
 created: 2026-03-14
 ---
 
@@ -15,13 +15,13 @@ These are the two host-only actions before a game begins — without them the ho
 
 ## Acceptance criteria
 
-- [ ] `POST /api/rooms/{roomId}/start` starts the game: calls `IGameModule.CreateInitialState`, persists the state, broadcasts `GameStarted` via SignalR, returns 204
-- [ ] Starting with fewer than `IGameModule.MinPlayers` returns 400 with a clear message
-- [ ] Only the host can call start — non-hosts receive 403
-- [ ] `DELETE /api/rooms/{roomId}/players/{userId}` removes a player from the room
-- [ ] Removed players receive a `PlayerRemoved` SignalR event and are redirected to the lobby on the frontend
-- [ ] Only the host can remove players, and cannot remove themselves — 403 otherwise
-- [ ] Removing a player while the game is in progress is not allowed (this story is pre-game only) — 409
+- [x] `POST /api/rooms/{roomId}/start` starts the game: calls `IGameModule.CreateInitialState`, persists the state, broadcasts `GameStarted` via SignalR, returns 204
+- [x] Starting with fewer than `IGameModule.MinPlayers` returns 400 with a clear message
+- [x] Only the host can call start — non-hosts receive 403
+- [x] `DELETE /api/rooms/{roomId}/players/{userId}` removes a player from the room
+- [x] Removed players receive a `PlayerRemoved` SignalR event and are redirected to the lobby on the frontend
+- [x] Only the host can remove players, and cannot remove themselves — 403 otherwise
+- [x] Removing a player while the game is in progress is not allowed (this story is pre-game only) — 409
 
 ## Notes
 
