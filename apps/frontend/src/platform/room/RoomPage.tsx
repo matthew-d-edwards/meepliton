@@ -4,7 +4,8 @@ import * as signalR from '@microsoft/signalr'
 import { useAuth } from '../auth/AuthContext'
 import { gameRegistry } from '../../games/registry'
 import type { GameContext, PlayerInfo } from '@meepliton/contracts'
-import { RoomWaitingScreen } from '@meepliton/ui'
+import { ThemeToggle } from '../theme/ThemeToggle'
+import { RoomWaitingScreen, ActionRejectedToast } from '@meepliton/ui'
 
 interface RoomData {
   id: string
@@ -26,6 +27,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
   const [gameState, setGameState] = useState<unknown>(null)
   const [rejectedReason, setRejectedReason] = useState<string | null>(null)
   const [roomNotFound, setRoomNotFound] = useState(false)
+  const [minPlayers, setMinPlayers] = useState(2)
   const hubRef = useRef<signalR.HubConnection | null>(null)
 
   // Join by code if needed
@@ -49,13 +51,37 @@ export default function RoomPage({ join }: { join?: boolean }) {
     }
   }, [join, code, navigate])
 
-  // Load room data
+  // Load room data, initial player list, and game info
   useEffect(() => {
     if (!roomId) return
     fetch(`/api/rooms/${roomId}`, { credentials: 'include' })
       .then(r => r.json())
-      .then(setRoom)
+      .then((loadedRoom: RoomData) => {
+        setRoom(loadedRoom)
+
+        // Load initial player list
+        fetch(`/api/rooms/${roomId}/players`, { credentials: 'include' })
+          .then(r => r.json())
+          .then((data: Array<Omit<PlayerInfo, 'connected'>>) =>
+            setPlayers(data.map(p => ({ ...p, connected: true })))
+          )
+
+        // Load game info to get minPlayers
+        fetch('/api/lobby', { credentials: 'include' })
+          .then(r => r.json())
+          .then((data: { games?: Array<{ gameId: string; minPlayers: number }> }) => {
+            const game = data.games?.find(g => g.gameId === loadedRoom.gameId)
+            if (game) setMinPlayers(game.minPlayers)
+          })
+      })
   }, [roomId])
+
+  // Auto-dismiss action rejected toast after 4 seconds
+  useEffect(() => {
+    if (!rejectedReason) return
+    const t = setTimeout(() => setRejectedReason(null), 4000)
+    return () => clearTimeout(t)
+  }, [rejectedReason])
 
   // Connect SignalR
   useEffect(() => {
@@ -69,6 +95,13 @@ export default function RoomPage({ join }: { join?: boolean }) {
     hub.on('ActionRejected', ({ reason }: { reason: string }) => setRejectedReason(reason))
     hub.on('PlayerJoined', (p: PlayerInfo) => setPlayers(prev => [...prev.filter(x => x.id !== p.id), p]))
     hub.on('PlayerLeft', (playerId: string) => setPlayers(prev => prev.filter(x => x.id !== playerId)))
+    hub.on('PlayerConnected', (playerId: string) =>
+      setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, connected: true } : p))
+    )
+    hub.on('PlayerDisconnected', (playerId: string) =>
+      setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, connected: false } : p))
+    )
+    hub.on('GameStarted', () => setRoom(r => r ? { ...r, status: 'InProgress' } : r))
 
     hub.start().then(() => hub.invoke('JoinRoom', roomId))
     hubRef.current = hub
@@ -84,6 +117,13 @@ export default function RoomPage({ join }: { join?: boolean }) {
     await fetch(`/api/rooms/${roomId}/start`, { method: 'POST', credentials: 'include' })
   }
 
+  async function removePlayer(playerId: string) {
+    await fetch(`/api/rooms/${roomId}/players/${playerId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+  }
+          
   if (roomNotFound) {
     return (
       <main className="room-not-found">
@@ -103,6 +143,8 @@ export default function RoomPage({ join }: { join?: boolean }) {
         players={players}
         isHost={room.hostId === user.id}
         onStart={startGame}
+        minPlayers={minPlayers}
+        onRemovePlayer={room.hostId === user.id ? removePlayer : undefined}
       />
     )
   }
@@ -121,10 +163,14 @@ export default function RoomPage({ join }: { join?: boolean }) {
 
   return (
     <div className="room-page">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 'var(--space-2) var(--space-4)' }}>
+        <ThemeToggle />
+      </div>
       {rejectedReason && (
-        <div className="action-rejected-toast" role="alert">
-          {rejectedReason}
-        </div>
+        <ActionRejectedToast
+          reason={rejectedReason}
+          onDismiss={() => setRejectedReason(null)}
+        />
       )}
       <GameLoader load={loadGame} ctx={ctx} />
     </div>

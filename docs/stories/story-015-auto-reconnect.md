@@ -1,7 +1,7 @@
 ---
 id: story-015
 title: Player automatically returns to their seat after disconnecting
-status: refined
+status: done
 created: 2026-03-14
 ---
 
@@ -15,11 +15,11 @@ Accidental disconnections are common on mobile — without reconnect, any discon
 
 ## Acceptance criteria
 
-- [ ] When a player calls `JoinRoom` via SignalR and they already have a seat in the room, they are placed back in their existing seat (not a new one)
-- [ ] On reconnect, the full current game state is pushed to the reconnecting client via `StateUpdated`
-- [ ] Other players in the room receive a `PlayerConnected` event when the player reconnects
-- [ ] Other players receive a `PlayerDisconnected` event when a player's connection drops
-- [ ] Disconnection does not remove the player from the room — their seat is held until the room expires
+- [x] When a player calls `JoinRoom` via SignalR and they already have a seat in the room, they are placed back in their existing seat (not a new one)
+- [x] On reconnect, the full current game state is pushed to the reconnecting client via `StateUpdated`
+- [x] Other players in the room receive a `PlayerConnected` event when the player reconnects
+- [x] Other players receive a `PlayerDisconnected` event when a player's connection drops
+- [x] Disconnection does not remove the player from the room — their seat is held until the room expires
 - [ ] The UI shows a reconnecting state (spinner or message) while the SignalR connection is re-establishing
 - [ ] On successful reconnect the game resumes exactly where it left off — no state loss
 

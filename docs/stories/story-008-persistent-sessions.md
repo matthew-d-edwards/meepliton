@@ -1,7 +1,7 @@
 ---
 id: story-008
 title: User stays signed in across browser sessions
-status: refined
+status: done
 created: 2026-03-14
 ---
 
@@ -15,10 +15,10 @@ Requiring a sign-in every browser session is friction for a small friend group w
 
 ## Acceptance criteria
 
-- [ ] Given a signed-in user who closes the browser and reopens it, when they navigate to meepliton.com, then they land directly on the lobby without seeing the sign-in page
-- [ ] The JWT cookie has a sliding expiry of 30 days and is refreshed on each authenticated request
-- [ ] Given a user who explicitly clicks "Sign out", then their cookie is cleared and they are redirected to the sign-in page
-- [ ] `POST /api/auth/logout` clears the auth cookie and returns 204
+- [x] Given a signed-in user who closes the browser and reopens it, when they navigate to meepliton.com, then they land directly on the lobby without seeing the sign-in page
+- [x] The JWT cookie has a sliding expiry of 30 days and is refreshed on each authenticated request
+- [x] Given a user who explicitly clicks "Sign out", then their cookie is cleared and they are redirected to the sign-in page
+- [x] `POST /api/auth/logout` clears the auth cookie and returns 204
 - [ ] A signed-out user visiting any protected route is redirected to `/sign-in`
 
 ## Notes

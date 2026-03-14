@@ -1,3 +1,4 @@
+using System.Text;
 using Meepliton.Api.Data;
 using Meepliton.Api.Hubs;
 using Meepliton.Api.Identity;
@@ -6,15 +7,16 @@ using Meepliton.Contracts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Meepliton.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Database ────────────────────────────────────────────────────────────────
+// Database
 builder.Services.AddDbContext<PlatformDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("meepliton")));
 
-// ── Identity ────────────────────────────────────────────────────────────────
+// Identity
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
@@ -30,7 +32,7 @@ builder.Services
     .AddEntityFrameworkStores<PlatformDbContext>()
     .AddDefaultTokenProviders();
 
-// ── Authentication ───────────────────────────────────────────────────────────
+// Authentication
 builder.Services
     .AddAuthentication(options =>
     {
@@ -39,15 +41,36 @@ builder.Services
     })
     .AddJwtBearer(options =>
     {
+        var jwtKey = builder.Configuration["Jwt:Key"]!;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer           = true,
+            ValidateAudience         = true,
+            ValidateLifetime         = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer              = builder.Configuration["Jwt:Issuer"],
+            ValidAudience            = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        };
         options.Events = new JwtBearerEvents
         {
-            // Allow SignalR to authenticate via query string token
+            // Accept token from HttpOnly cookie (REST) or query string (SignalR)
             OnMessageReceived = ctx =>
             {
-                var token = ctx.Request.Query["access_token"];
-                var path  = ctx.HttpContext.Request.Path;
-                if (!string.IsNullOrEmpty(token) && path.StartsWithSegments("/hubs"))
-                    ctx.Token = token;
+                // Cookie auth for REST endpoints
+                if (ctx.Request.Cookies.TryGetValue("meepliton_session", out var cookieToken)
+                    && !string.IsNullOrEmpty(cookieToken))
+                {
+                    ctx.Token = cookieToken;
+                    return Task.CompletedTask;
+                }
+
+                // Query-string token for SignalR hub connections
+                var queryToken = ctx.Request.Query["access_token"].ToString();
+                var path       = ctx.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(queryToken) && path.StartsWithSegments("/hubs"))
+                    ctx.Token = queryToken;
+
                 return Task.CompletedTask;
             }
         };
@@ -61,10 +84,10 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// ── SignalR ──────────────────────────────────────────────────────────────────
+// SignalR
 builder.Services.AddSignalR();
 
-// ── Game modules — auto-discovered via Scrutor ───────────────────────────────
+// Game modules via Scrutor auto-discovery
 builder.Services.Scan(scan => scan
     .FromApplicationDependencies()
     .AddClasses(c => c.AssignableTo<IGameModule>())
@@ -77,9 +100,10 @@ builder.Services.Scan(scan => scan
     .AsImplementedInterfaces()
     .WithScopedLifetime());
 
-// ── Platform services ────────────────────────────────────────────────────────
+// Platform services
 builder.Services.AddScoped<MigrationRunner>();
 builder.Services.AddScoped<GameDispatcher>();
+builder.Services.AddScoped<TokenService>();
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
         policy.WithOrigins("http://localhost:5173", "https://meepliton.com")
@@ -89,19 +113,19 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// ── Startup migrations ────────────────────────────────────────────────────────
+// Startup migrations
 using (var scope = app.Services.CreateScope())
 {
     var runner = scope.ServiceProvider.GetRequiredService<MigrationRunner>();
     await runner.RunAllAsync();
 }
 
-// ── Middleware ────────────────────────────────────────────────────────────────
+// Middleware
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// ── Endpoints ────────────────────────────────────────────────────────────────
+// Endpoints
 app.MapAuthEndpoints();
 app.MapRoomEndpoints();
 app.MapHub<GameHub>("/hubs/game");

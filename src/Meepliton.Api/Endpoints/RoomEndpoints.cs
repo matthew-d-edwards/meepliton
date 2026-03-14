@@ -1,6 +1,8 @@
 using Meepliton.Api.Data;
+using Meepliton.Api.Hubs;
 using Meepliton.Api.Models;
 using Meepliton.Contracts;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Meepliton.Api.Endpoints;
@@ -65,24 +67,57 @@ public static class RoomEndpoints
             return Results.Ok(room);
         });
 
-        group.MapPost("/rooms/{roomId}/start", async (string roomId, HttpContext ctx, PlatformDbContext db, IEnumerable<IGameModule> modules) =>
+        group.MapPost("/rooms/{roomId}/start", async (string roomId, HttpContext ctx, PlatformDbContext db, IEnumerable<IGameModule> modules, IHubContext<GameHub> hubContext, CancellationToken ct) =>
         {
             var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
-            var room   = await db.Rooms.FindAsync(roomId);
+            var room   = await db.Rooms.FindAsync(new object[] { roomId }, ct);
             if (room is null || room.HostId != userId) return Results.Forbid();
 
             var module = modules.FirstOrDefault(m => m.GameId == room.GameId);
             if (module is null) return Results.Problem($"Unknown game: {room.GameId}");
 
+            var playerCount = await db.RoomPlayers.CountAsync(rp => rp.RoomId == roomId, ct);
+            if (playerCount < module.MinPlayers)
+                return Results.BadRequest(new { message = $"Need at least {module.MinPlayers} players to start." });
+
             var players = await db.RoomPlayers
                 .Where(rp => rp.RoomId == roomId)
                 .Join(db.Users, rp => rp.UserId, u => u.Id, (rp, u) => new PlayerInfo(u.Id, u.DisplayName, u.AvatarUrl, rp.SeatIndex))
-                .ToListAsync();
+                .ToListAsync(ct);
 
             room.GameState    = module.CreateInitialState(players, room.GameOptions);
             room.Status       = RoomStatus.InProgress;
             room.StateVersion = 1;
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
+            await hubContext.Clients.Group(roomId).SendAsync("GameStarted", new { roomId }, ct);
+            return Results.NoContent();
+        });
+
+        group.MapGet("/rooms/{roomId}/players", async (string roomId, PlatformDbContext db, CancellationToken ct) =>
+        {
+            var players = await db.RoomPlayers
+                .Where(rp => rp.RoomId == roomId)
+                .Join(db.Users, rp => rp.UserId, u => u.Id,
+                    (rp, u) => new { id = u.Id, displayName = u.DisplayName, avatarUrl = u.AvatarUrl, seatIndex = rp.SeatIndex })
+                .OrderBy(p => p.seatIndex)
+                .ToListAsync(ct);
+            return Results.Ok(players);
+        });
+
+        group.MapDelete("/rooms/{roomId}/players/{userId}", async (string roomId, string userId, HttpContext ctx, PlatformDbContext db, IHubContext<GameHub> hubContext, CancellationToken ct) =>
+        {
+            var callerId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var room     = await db.Rooms.FindAsync(new object[] { roomId }, ct);
+            if (room is null || room.HostId != callerId) return Results.Forbid();
+            if (callerId == userId) return Results.Forbid();
+            if (room.Status != RoomStatus.Waiting) return Results.Conflict(new { message = "Cannot remove a player while the game is in progress or finished." });
+
+            var entry = await db.RoomPlayers.FirstOrDefaultAsync(rp => rp.RoomId == roomId && rp.UserId == userId, ct);
+            if (entry is null) return Results.NotFound();
+
+            db.RoomPlayers.Remove(entry);
+            await db.SaveChangesAsync(ct);
+            await hubContext.Clients.User(userId).SendAsync("PlayerRemoved", new { roomId, reason = "Removed by host" }, ct);
             return Results.NoContent();
         });
 
