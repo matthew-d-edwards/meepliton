@@ -52,3 +52,26 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Node / frontend
+node_modules/
+apps/frontend/dist/
+packages/*/dist/
+.npm/
+
+# Environment / secrets
+.env
+.env.local
+appsettings.Local.json
+appsettings.Development.json
+
+# Claude personal settings — never commit
+.claude/settings.local.json
+.claude/settings.local.yml
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
+.vs/
