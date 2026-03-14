@@ -69,9 +69,7 @@ Context skills load automatically when relevant. Collaborative workflow skills a
 
 | Skill | Loads when… |
 |---|---|
-| `platform` | Working on the API, database, auth, or SignalR |
-| `theme` | Building any UI screen or component |
-| `game-module` | Implementing or reviewing game logic |
+| `game-module` | Implementing or reviewing game logic (backend + frontend) |
 | `new-game` | Designing a game from scratch |
 | `git-workflow` | Git or GitHub tasks |
 

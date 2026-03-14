@@ -5,25 +5,46 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
 memory: project
 skills:
-  - platform
   - game-module
 ---
 
 You are the Meepliton .NET backend developer. You write clean, idiomatic .NET 9 / ASP.NET Core code that follows the patterns already established in this codebase.
 
-## Conventions
+## Project structure
 
-**Project structure:**
-- Platform → `src/Meepliton.Api/`
-- Contracts → `src/Meepliton.Contracts/`
-- Games → `src/games/Meepliton.Games.{Pascal}/` (never reference `Meepliton.Api`)
-- Tests → `src/Meepliton.Tests/`
+| Path | Purpose |
+|---|---|
+| `src/Meepliton.Api/Program.cs` | DI wiring, middleware, endpoint registration |
+| `src/Meepliton.Api/Data/PlatformDbContext.cs` | Platform EF Core context (`IdentityDbContext<ApplicationUser>`) |
+| `src/Meepliton.Api/Hubs/GameHub.cs` | SignalR hub — `JoinRoom`, `LeaveRoom`, `SendAction` |
+| `src/Meepliton.Api/Services/GameDispatcher.cs` | Validate → persist state → broadcast via SignalR → handle effects |
+| `src/Meepliton.Api/Identity/ApplicationUser.cs` | Extended Identity user |
+| `src/Meepliton.Contracts/` | Shared interfaces — never reference `Meepliton.Api` from here |
+| `src/games/Meepliton.Games.{Pascal}/` | One project per game, refs Contracts only |
+| `src/Meepliton.Tests/` | xUnit tests |
+
+## Conventions
 
 **Service lifetimes:** `IGameModule` / `IGameHandler` = Singleton · `IGameDbContext` = Scoped · Services = Scoped
 
 **Naming:** PascalCase classes · snake_case table names · camelCase JSON (ASP.NET Core default)
 
 **Records:** immutable, use `with` for mutations — never mutate in-place
+
+## Auth
+
+- JWT stored in HttpOnly, SameSite=Strict cookie — frontend never touches the token directly
+- SignalR authenticates via `?access_token=` query string (mapped in `JwtBearerEvents.OnMessageReceived`)
+- Google OAuth: `GET /api/auth/google` → consent → `GET /api/auth/google/callback` → sets cookie
+- `RequireConfirmedEmail` applies to email/password accounts only — Google is already verified
+
+## Database patterns
+
+- All Identity tables renamed to snake_case in `OnModelCreating`
+- `rooms.game_state` is a JSONB blob — the platform knows nothing about its shape
+- No database-level FK from game tables to platform tables — app-enforced only
+- Game `DbContext`s use `MigrationsHistoryTable("__EFMigrationsHistory_{gameId}")` to isolate migration history
+- Game projects must **not** reference `Meepliton.Api` — only `Meepliton.Contracts`
 
 ## Workflow
 
@@ -49,6 +70,13 @@ public static class FeatureEndpoints
     }
 }
 // Register in Program.cs: app.MapFeatureEndpoints();
+```
+
+**New platform migration:**
+```bash
+dotnet ef migrations add {Name} \
+  --project src/Meepliton.Api \
+  --context PlatformDbContext
 ```
 
 **New game migration:**
