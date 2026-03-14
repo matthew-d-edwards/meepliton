@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
+using Meepliton.Api.Data;
 using Meepliton.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -6,16 +8,34 @@ using Microsoft.AspNetCore.SignalR;
 namespace Meepliton.Api.Hubs;
 
 [Authorize]
-public class GameHub(GameDispatcher dispatcher, ILogger<GameHub> logger) : Hub
+public class GameHub(GameDispatcher dispatcher, PlatformDbContext db, ILogger<GameHub> logger) : Hub
 {
+    private static readonly ConcurrentDictionary<string, string> _connectionRooms = new();
+
     public async Task JoinRoom(string roomId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, roomId);
-        logger.LogInformation("Player {PlayerId} joined room {RoomId}", Context.UserIdentifier, roomId);
+        _connectionRooms[Context.ConnectionId] = roomId;
+
+        var playerId = Context.UserIdentifier!;
+
+        // Check if player has an existing seat (reconnect scenario)
+        var room = await db.Rooms.FindAsync(roomId);
+        if (room?.GameState is not null)
+        {
+            // Push current state to reconnecting client only
+            await Clients.Caller.SendAsync("StateUpdated", room.GameState);
+        }
+
+        // Notify other players this player connected
+        await Clients.OthersInGroup(roomId).SendAsync("PlayerConnected", playerId);
+
+        logger.LogInformation("Player {PlayerId} joined/rejoined room {RoomId}", playerId, roomId);
     }
 
     public async Task LeaveRoom(string roomId)
     {
+        _connectionRooms.TryRemove(Context.ConnectionId, out _);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId);
         logger.LogInformation("Player {PlayerId} left room {RoomId}", Context.UserIdentifier, roomId);
     }
@@ -35,7 +55,12 @@ public class GameHub(GameDispatcher dispatcher, ILogger<GameHub> logger) : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        logger.LogInformation("Player {PlayerId} disconnected", Context.UserIdentifier);
+        var playerId = Context.UserIdentifier;
+        if (_connectionRooms.TryRemove(Context.ConnectionId, out var roomId) && playerId is not null)
+        {
+            await Clients.OthersInGroup(roomId).SendAsync("PlayerDisconnected", playerId);
+            logger.LogInformation("Player {PlayerId} disconnected from room {RoomId}", playerId, roomId);
+        }
         await base.OnDisconnectedAsync(exception);
     }
 }
