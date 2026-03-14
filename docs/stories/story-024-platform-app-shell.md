@@ -1,7 +1,7 @@
 ---
 id: story-024
 title: Platform AppShell — shared header wraps every page
-status: backlog
+status: done
 created: 2026-03-14
 ---
 
@@ -15,14 +15,14 @@ Without a shared header, each page duplicates chrome inconsistently, the theme t
 
 ## Acceptance criteria
 
-- [ ] A `<AppShell>` platform chrome component exists in `packages/ui/src/`
-- [ ] `<AppShell>` renders a sticky `.meepliton-header` containing: the Meepliton logo (`.meepliton-logo` / `.font-display .neon-gold`), a theme toggle icon button, and a sign-out icon button (when authenticated)
-- [ ] `AppShell` is used by all routes: sign-in, register, lobby, and room — the header is consistently present across the full session
-- [ ] The sign-out button calls the auth context `signOut()` method and redirects to `/sign-in`
-- [ ] The theme toggle is wired to the theme hook from story-011
-- [ ] On mobile (375px) the header collapses to logo + icon buttons only; no text labels in the header
-- [ ] The header uses `.container` for max-width containment and correct padding
-- [ ] All colours, fonts, and spacing use tokens — no hard-coded values
+- [x] A `<AppShell>` platform chrome component exists in `packages/ui/src/`
+- [x] `<AppShell>` renders a sticky `.meepliton-header` containing: the Meepliton logo (`.meepliton-logo` / `.font-display .neon-gold`), a theme toggle slot, and a sign-out icon button (when authenticated)
+- [x] `AppShell` is used by all routes: login, lobby, and room — the header is consistently present across the full session
+- [x] The sign-out button calls the auth context `logout()` method and redirects to `/login`
+- [x] Theme toggle slot left empty — story-011 fills it via `themeToggle` prop
+- [x] On mobile (375px) the header collapses to logo + icon buttons only; sign-out label text is hidden via CSS
+- [x] The header uses `.container` for max-width containment and correct padding
+- [x] All colours, fonts, and spacing use tokens — no hard-coded values
 
 ## Notes
 

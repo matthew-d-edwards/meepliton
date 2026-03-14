@@ -37,7 +37,6 @@ function StatusBadge({ status }: { status: RoomInfo['status'] }) {
 }
 
 export default function LobbyPage() {
-  const { user, logout } = useAuth()
   const navigate = useNavigate()
 
   const [data, setData] = useState<LobbyData | null>(null)

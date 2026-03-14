@@ -225,17 +225,45 @@ body > * { position: relative; z-index: 1; }
 
 /* ── HEADER ── */
 .meepliton-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 var(--space-7, 28px);
-  height: var(--header-h);
   background: var(--surface-overlay);
   border-bottom: 1px solid var(--edge-subtle);
   box-shadow: 0 1px 0 var(--edge-strong), 0 4px 30px rgba(0,0,0,.4);
   position: sticky; top: 0; z-index: 50;
   backdrop-filter: blur(16px);
 }
-@media (max-width: 600px) {
-  .meepliton-header { padding: 0 var(--space-4); }
+
+/* Inner row — uses .container for max-width, then flex for alignment */
+.meepliton-header-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  height: var(--header-h);
+}
+
+/* Actions cluster (theme toggle + sign-out) */
+.meepliton-header-actions {
+  display: flex; align-items: center; gap: var(--space-2);
+}
+
+/* Sign-out button — extends .icon-btn; text label hidden on mobile */
+.meepliton-signout-btn {
+  display: flex; align-items: center; gap: var(--space-1);
+  padding: 0 var(--space-2);
+  width: auto;
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  letter-spacing: .5px;
+  color: var(--text-muted);
+  border-color: var(--edge-strong);
+  white-space: nowrap;
+}
+.meepliton-signout-btn:hover {
+  border-color: var(--status-error);
+  color: var(--status-error);
+}
+
+/* Collapse sign-out label text on narrow viewports (375px) */
+@media (max-width: 375px) {
+  .meepliton-signout-label { display: none; }
+  .meepliton-signout-btn { padding: 0; width: 32px; justify-content: center; }
 }
 
 /* Platform logo */
