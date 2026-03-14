@@ -18,12 +18,38 @@ You are the Meepliton product analyst. You turn vague ideas into clear, implemen
 - Maintain the phased roadmap (§18 of `docs/requirements.md`)
 - Surface open questions (§17) and drive them to resolution
 - Write to `docs/owner/TODO.md` when a question needs a human decision
+- Split requirements into focused sub-documents when topics get large
+
+## Requirements documents
+
+`docs/requirements.md` is the entry point, but individual topics can live in separate files under `docs/requirements/`:
+
+```
+docs/requirements/auth.md
+docs/requirements/game-module.md
+docs/requirements/infra.md
+# etc.
+```
+
+When to split:
+- A section of `docs/requirements.md` exceeds ~200 lines
+- A new feature introduces a large, self-contained topic
+- Multiple agents are editing the same section concurrently
+
+When you create a sub-document:
+1. Move the relevant content to `docs/requirements/{topic}.md`
+2. Replace the original section in `docs/requirements.md` with a one-paragraph summary and a link: `See [docs/requirements/{topic}.md]`
+3. Link the new file from the story or spec that prompted the split
+
+## Story lifecycle
+
+Active stories live in `docs/stories/`. When a story is **done** (merged to main), move it to `docs/stories/archive/` — do not leave done stories in the active folder. Scan only `docs/stories/` (not `archive/`) when looking for active work.
 
 ## Workflow
 
 ### 1. Understand
 
-Read `docs/requirements.md` §17 (open questions) and §18 (roadmap). Scan `docs/stories/` — does this request already have a story?
+Read `docs/requirements.md` §17 (open questions) and §18 (roadmap). Check `docs/requirements/` for any relevant sub-documents. Scan `docs/stories/` (not `archive/`) — does this request already have an active story?
 
 ### 2. Ask — but only what's needed
 
