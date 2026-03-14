@@ -10,17 +10,17 @@ _Nothing urgent yet._
 
 ## Needs your decision
 
-- [ ] **2026-03-14** Choose avatar storage strategy for v1: (a) URL-only — user pastes any image URL, (b) Gravatar — derive from email hash, no upload needed, (c) file upload — requires blob storage. Blocks story-007. (analyst)
+- [x] **2026-03-14** Choose avatar storage strategy for v1: **Gravatar** (derive from email hash). (analyst) — decided 2026-03-14
 
 - [ ] **2026-03-14** UX gap analysis found that `POST /api/rooms/{roomId}/transfer-host` is in the requirements (§11.1) but may not be implemented in the backend yet. Confirm whether it exists before story-028 (host transfer UI) is scheduled. (ux/backend)
 
-- [ ] **2026-03-14** Decide what the second game module should be. Requirements say it must be structurally different from Skyline (tile placement) — e.g. map-based, card-based, or simultaneous-action. Blocks story-022. (analyst)
+- [x] **2026-03-14** Decide what the second game module should be. **Liar's Dice** — dice-based bluffing game, clean modern pirate theme (not cheesy). Lobby and header keep Skyline theme; game room controls its own look. Proves Aspire orchestration, per-game migrations, and dynamic game loading. (analyst) — decided 2026-03-14
 
-- [ ] **2026-03-14** `currentPlayerId` surfacing for the turn indicator: should the platform copy `currentPlayerId` into the `rooms` table on every state update (enables server-side queries and platform-level display), or should the frontend extract it from the game state JSON client-side (simpler but couples the platform to a state shape convention)? Blocks story-018. (analyst)
+- [x] **2026-03-14** `currentPlayerId` surfacing: **client-side JSONB extraction** — frontend reads `currentPlayerId` from game state JSON (simpler for v1). Blocks story-018. (analyst) — decided 2026-03-14
 
 ## Setup / credentials
 
-- [ ] **2026-03-14** Configure an email provider for transactional email (registration confirmation, password reset). Options: SendGrid free tier (100/day) or Gmail SMTP relay. Add credentials to GitHub Secrets as `EMAIL_SMTP_*` or `SENDGRID_API_KEY`. Blocks stories 001, 003. (analyst)
+- [ ] **2026-03-14** Configure email provider: **SendGrid free tier** chosen. Add `SENDGRID_API_KEY` to GitHub Secrets and Azure Container App environment variables. Blocks stories 001, 003 (end-to-end email flow only — backend code can be implemented now). (analyst)
 
 - [ ] **2026-03-14** Create a Google OAuth 2.0 client in Google Cloud Console. Add `Client ID` and `Client Secret` to Azure Container App environment variables (or GitHub Secrets for CI). Blocks story-004. (analyst)
 
