@@ -1,0 +1,64 @@
+.board {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-1);
+  max-width: 320px;
+  margin: var(--space-4) auto;
+}
+
+.cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-lg);
+  font-weight: bold;
+  cursor: pointer;
+  background: var(--color-surface);
+  transition: background 0.15s;
+}
+
+.cell:hover:not(.occupied) {
+  background: var(--color-surface-hover);
+}
+
+.cell.occupied {
+  cursor: default;
+  background: var(--color-surface-raised);
+}
+
+.hand {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+  margin: var(--space-3) 0;
+}
+
+.tile {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-lg);
+  font-weight: bold;
+  cursor: pointer;
+  background: var(--color-surface);
+}
+
+.tile.selected {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.scoreboard {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: center;
+  margin: var(--space-3) 0;
+  font-size: var(--text-sm);
+}
