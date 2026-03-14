@@ -1,8 +1,10 @@
-# Meepliton Platform Skill
+---
+name: platform
+description: Meepliton platform architecture — auth, SignalR, EF Core, migrations, deployment. Load when working on the API, database, identity, or infrastructure.
+user-invocable: false
+---
 
-Attach this file when debugging or extending the platform core (auth, SignalR, database, deployment).
-
-## Stack quick-reference
+## Stack
 
 | Layer | Technology |
 |---|---|

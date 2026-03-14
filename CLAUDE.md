@@ -61,43 +61,45 @@ git commit -m "Add {Name} game module"
 gh pr create --title "Add {Name}" --base main --web
 ```
 
-## Skill files (attach to Claude conversations)
+## Skills
 
-| File | When to use |
+Skills load automatically when relevant. You can also invoke them directly with `/skill-name`.
+
+| Skill | Loads when… |
 |---|---|
-| `.claude/skills/NEW-GAME.md` | Designing and building a complete new game |
-| `.claude/skills/GAME-MODULE.md` | Implementing game rules and frontend |
-| `.claude/skills/PLATFORM.md` | Platform architecture, auth, SignalR, database |
-| `.claude/skills/THEME.md` | Design tokens, CSS patterns, Skyline aesthetic |
-| `.claude/skills/GIT-WORKFLOW.md` | Git and GitHub — especially for non-developer contributors |
+| `platform` | Working on the API, database, auth, or SignalR |
+| `theme` | Building any UI screen or component |
+| `game-module` | Implementing or reviewing game logic |
+| `new-game` | Designing a game from scratch |
+| `git-workflow` | Git or GitHub tasks |
 
 ## Slash commands
 
-### Game development
 | Command | What it does |
 |---|---|
-| `/scaffold-game` | Guided walkthrough to create a new game from scratch |
+| `/scaffold-game [game-id]` | Guided walkthrough to scaffold a new game module |
 
-### Specialist agents
-Invoke these to get focused help from a specific role. Each agent reads the codebase, acts on your request, commits, and pushes.
+## Agents
 
-| Command | Role | When to use |
+Specialist agents run in isolated contexts with focused tool access. Claude delegates to them automatically, or invoke directly.
+
+| Agent | Role | Triggers automatically when… |
 |---|---|---|
-| `/architect` | Software architect | Review code quality, enforce platform/game boundary, propose ADRs |
-| `/analyst` | Product analyst | Clarify requirements, write feature specs, update roadmap |
-| `/pm` | Project manager | Status reports, plan next tasks, write GitHub issues |
-| `/backend` | .NET developer | Implement API endpoints, services, game module logic |
-| `/frontend` | React developer | Implement platform UI and game components |
-| `/ux` | UX designer | Layout, design system, reusable components, mobile + desktop |
-| `/tester` | QA engineer | Write and run xUnit tests for game modules and platform |
-| `/devops` | DevOps engineer | CI/CD, Azure infra, migrations, deployment troubleshooting |
+| `architect` | Software architect | Structural changes, new game modules, contract reviews |
+| `analyst` | Product analyst | Turning ideas into specs or updating roadmap |
+| `pm` | Project manager | Planning, status, GitHub issues |
+| `backend` | .NET developer | Adding/modifying C# code |
+| `frontend` | React developer | Adding/modifying TypeScript/React code |
+| `ux` | UX designer | Building UI, reviewing design consistency, extracting components |
+| `tester` | QA engineer | After implementing game logic or fixing bugs |
+| `devops` | DevOps engineer | CI/CD, migrations, Azure infrastructure |
 
 **Typical workflow for a new feature:**
-1. `/analyst` — write the spec
-2. `/architect` — review the approach
-3. `/backend` + `/frontend` — implement
-4. `/tester` — write tests
-5. `/devops` — update CI if migrations or infra changed
+1. `analyst` — clarify and spec
+2. `architect` — review the approach
+3. `backend` + `frontend` — implement in parallel
+4. `tester` — write tests
+5. `devops` — update CI if migrations added
 
 ## Branch conventions
 
