@@ -1,7 +1,7 @@
 ---
 id: story-009
 title: Lobby API — list rooms, create room, join by code
-status: in-progress
+status: done
 created: 2026-03-14
 ---
 
