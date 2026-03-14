@@ -61,21 +61,66 @@ git commit -m "Add {Name} game module"
 gh pr create --title "Add {Name}" --base main --web
 ```
 
-## Skill files (attach to Claude conversations)
+## Skills
 
-| File | When to use |
+Context skills load automatically when relevant. Collaborative workflow skills are invoked explicitly and orchestrate agents debating before producing output.
+
+### Context skills (auto-load)
+
+| Skill | Loads when… |
 |---|---|
-| `.claude/skills/NEW-GAME.md` | Designing and building a complete new game |
-| `.claude/skills/GAME-MODULE.md` | Implementing game rules and frontend |
-| `.claude/skills/PLATFORM.md` | Platform architecture, auth, SignalR, database |
-| `.claude/skills/THEME.md` | Design tokens, CSS patterns, Skyline aesthetic |
-| `.claude/skills/GIT-WORKFLOW.md` | Git and GitHub — especially for non-developer contributors |
+| `game-module` | Implementing or reviewing game logic (backend + frontend) |
+| `new-game` | Designing a game from scratch |
+| `git-workflow` | Git or GitHub tasks |
+
+### Collaborative workflow skills
+
+These skills run **multi-agent debate workflows** before producing any output. Use them before writing code to catch problems early.
+
+| Skill | When to use | Who debates |
+|---|---|---|
+| `/spec-design <feature>` | Before implementing any new feature or game | `analyst` ↔ `architect` — 2–4 rounds until consensus |
+| `/ui-design <screen>` | Before building any new screen or extracting a component | `ux` ↔ `frontend` — design intent vs feasibility |
+| `/story-review <spec>` | After stories are written, before implementation begins | `analyst` (adversarial) + `tester` — challenge every assumption |
+
+**How these work:** each workflow runs the named agents in alternating rounds. Agents challenge each other's output directly. A human is only needed if they cannot reach consensus after the maximum rounds. The final output is a document in `docs/specs/` or `docs/ui-plans/` that becomes the implementation source of truth.
 
 ## Slash commands
 
 | Command | What it does |
 |---|---|
-| `/scaffold-game` | Guided walkthrough to create a new game from scratch |
+| `/scaffold-game [game-id]` | Guided walkthrough to scaffold a new game module |
+| `/spec-design <feature>` | Analyst + architect debate a spec before any code |
+| `/ui-design <screen>` | UX + frontend debate a UI plan before building |
+| `/story-review <spec>` | Devil's advocate + tester harden stories before implementation |
+
+## Agents
+
+Specialist agents run in isolated contexts with focused tool access. Claude delegates to them automatically, or invoke directly.
+
+| Agent | Role | Triggers automatically when… |
+|---|---|---|
+| `architect` | Software architect | Structural changes, new game modules, contract reviews |
+| `analyst` | Product analyst | Turning ideas into specs or updating roadmap |
+| `pm` | Project manager | Planning, status, GitHub issues |
+| `backend` | .NET developer | Adding/modifying C# code |
+| `frontend` | React developer | Adding/modifying TypeScript/React code |
+| `ux` | UX designer | Building UI, reviewing design consistency, extracting components |
+| `tester` | QA engineer | After implementing game logic or fixing bugs |
+| `devops` | DevOps engineer | CI/CD, migrations, Azure infrastructure |
+
+**Recommended workflow for a new feature:**
+
+```
+1. /spec-design     → analyst + architect debate → docs/specs/{feature}.md
+2. /story-review    → adversarial analyst + tester harden the spec
+3. backend + frontend implement (in parallel where possible)
+4. /ui-design       → ux + frontend agree on any new screens
+5. tester           → write xUnit tests
+6. devops           → update CI if migrations added
+```
+
+For small changes (bug fix, minor text change): skip to step 3.
 
 ## Branch conventions
 
