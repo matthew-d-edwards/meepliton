@@ -11,22 +11,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--color-border);
+  border: 2px solid var(--edge-subtle);
   border-radius: var(--radius-sm);
-  font-size: var(--text-lg);
+  font-size: 1.25rem;
   font-weight: bold;
   cursor: pointer;
-  background: var(--color-surface);
+  background: var(--surface-float);
   transition: background 0.15s;
 }
 
 .cell:hover:not(.occupied) {
-  background: var(--color-surface-hover);
+  background: var(--surface-raised);
 }
 
 .cell.occupied {
   cursor: default;
-  background: var(--color-surface-raised);
+  background: var(--surface-overlay);
 }
 
 .hand {
@@ -42,17 +42,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--color-primary);
+  border: 2px solid var(--neon-cyan);
   border-radius: var(--radius-sm);
-  font-size: var(--text-lg);
+  font-size: 1.25rem;
   font-weight: bold;
   cursor: pointer;
-  background: var(--color-surface);
+  background: var(--surface-float);
 }
 
 .tile.selected {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--neon-cyan);
+  color: var(--surface-base);
 }
 
 .scoreboard {
@@ -60,5 +60,5 @@
   gap: var(--space-4);
   justify-content: center;
   margin: var(--space-3) 0;
-  font-size: var(--text-sm);
+  font-size: 0.875rem;
 }
