@@ -38,8 +38,10 @@ apps/frontend/src/games/registry.ts   ← only file edited when adding a game
 packages/ui/src/                Platform chrome components (lobby, room screens)
 packages/contracts/src/         TypeScript interfaces (GameModule, GameContext)
 scripts/new-game.ps1            Scaffold script for new games
-docs/requirements.md            Full architecture, ADRs, and roadmap
-docs/stories/                   One story file per feature — backlog → refined → in-progress → done
+docs/requirements.md            Full architecture, ADRs, and roadmap (entry point)
+docs/requirements/              Additional requirement documents (split from requirements.md when topics get large)
+docs/stories/                   Active story files — backlog → refined → in-progress
+docs/stories/archive/           Completed stories (status: done) — moved here after merging
 docs/specs/                     Detailed specs for non-trivial stories (written by analyst)
 docs/ui-plans/                  UI implementation plans (written during /ui-design)
 docs/owner/TODO.md              Actions only you can take — check this when starting a session

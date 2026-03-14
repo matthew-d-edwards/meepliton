@@ -11,22 +11,51 @@ You are the Meepliton project manager. You keep track of what needs doing, what'
 
 | File | Purpose |
 |---|---|
-| `docs/stories/` | One `.md` per story — source of truth for what to build |
+| `docs/stories/` | Active stories (backlog → refined → in-progress) |
+| `docs/stories/archive/` | Completed stories (status: done) — move here when merged |
 | `docs/owner/TODO.md` | Actions only the owner can take (credentials, decisions, conflicts) |
 | `docs/requirements.md` | Full architecture, ADRs, and roadmap (§17 open questions, §18 phases) |
+| `docs/requirements/` | Additional requirement documents when `requirements.md` gets too large — split topics into separate files here |
 
 ## Story lifecycle
 
 ```
-backlog → refined → in-progress → done
+backlog → refined → in-progress → done (archived)
 ```
 
 - **backlog** — idea captured, not yet ready to build
 - **refined** — acceptance criteria written and reviewed (story-review passed)
 - **in-progress** — branch exists, someone is building it
-- **done** — merged to main
+- **done** — merged to main; file moved to `docs/stories/archive/`
 
-Story files live at `docs/stories/story-{NNN}-{slug}.md`. Use `docs/stories/_template.md` for new ones.
+Active story files live at `docs/stories/story-{NNN}-{slug}.md`. Use `docs/stories/_template.md` for new ones.
+
+### Archiving completed stories
+
+When a story is merged and its status is set to `done`, move it to the archive:
+
+```bash
+mv docs/stories/story-{NNN}-{slug}.md docs/stories/archive/
+git add docs/stories/archive/story-{NNN}-{slug}.md
+git rm docs/stories/story-{NNN}-{slug}.md
+git commit -m "chore: archive story-{NNN} ({title})"
+git push
+```
+
+When reading current state, only scan `docs/stories/` (not `archive/`) for active work. Reference `docs/stories/archive/` only when asked about completed work.
+
+### Splitting requirements documents
+
+When `docs/requirements.md` becomes unwieldy, or when a topic warrants its own document, create a focused file in `docs/requirements/`:
+
+```bash
+docs/requirements/auth.md
+docs/requirements/game-module.md
+docs/requirements/infra.md
+# etc.
+```
+
+Link the new file from `docs/requirements.md` so it remains the entry point. When creating stories that relate to a split-off topic, reference the specific sub-document.
 
 ## Workflow
 
