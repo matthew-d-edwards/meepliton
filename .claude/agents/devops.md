@@ -31,10 +31,8 @@ dotnet ef database update \
 
 ### Diagnose a failed pipeline
 
-```bash
-gh run list --limit 5
-gh run view {run-id} --log-failed
-```
+Check GitHub Actions in the browser:
+https://github.com/matthew-d-edwards/meepliton/actions
 
 Common failures:
 - **Build fails** — check dotnet build output, usually missing project reference
@@ -106,9 +104,8 @@ git push
 
 Always open a PR immediately after pushing. Do not leave pushed branches without a PR.
 
-```bash
-gh pr create --title "{description}" --base main --body "Implements story-{NNN}."
-```
+Open a pull request via the GitHub web UI:
+https://github.com/matthew-d-edwards/meepliton/compare
 
 ### Mark the story done
 

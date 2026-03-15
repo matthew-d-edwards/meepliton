@@ -118,9 +118,8 @@ git push
 
 If the tester is the last agent working on this story branch, open a PR immediately after pushing:
 
-```bash
-gh pr create --title "{description}" --base main --body "Implements story-{NNN}."
-```
+Open a pull request via the GitHub web UI:
+https://github.com/matthew-d-edwards/meepliton/compare
 
 ### 8. Mark the story done (if tests are the final step on this branch)
 

@@ -17,8 +17,8 @@ Without a shared header, each page duplicates chrome inconsistently, the theme t
 
 - [x] A `<AppShell>` platform chrome component exists in `packages/ui/src/`
 - [x] `<AppShell>` renders a sticky `.meepliton-header` containing: the Meepliton logo (`.meepliton-logo` / `.font-display .neon-gold`), a theme toggle slot, and a sign-out icon button (when authenticated)
-- [x] `AppShell` is used by all routes: sign-in, register, lobby, and room — the header is consistently present across the full session
-- [x] The sign-out button calls the auth context `logout()` method and redirects to `/login`
+- [x] `AppShell` is used by all authenticated routes (lobby, room); auth pages (sign-in, register, etc.) intentionally do not use the shell — they are full-page auth screens
+- [x] The sign-out button calls the auth context `logout()` method and redirects to `/sign-in`
 - [ ] The theme toggle is wired to the theme hook from story-011
 - [x] On mobile (375px) the header collapses to logo + icon buttons only; no text labels in the header
 - [x] The header uses `.meepliton-header` + `backdrop-filter` containment and correct padding per tokens
@@ -40,3 +40,4 @@ Without a shared header, each page duplicates chrome inconsistently, the theme t
 - The auth context method is named `logout` (not `signOut`). Story-011 can rename it consistently
   if desired — this story does not rename existing auth API.
 - `LobbyPage` inline `<header className="lobby-header">` has been removed — `AppShell` handles chrome.
+- Auth pages (/sign-in, /register, etc.) are full-page screens and intentionally do not use AppShell — the shell is present on all post-login pages (lobby, room)

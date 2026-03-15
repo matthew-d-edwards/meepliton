@@ -116,9 +116,8 @@ git push
 
 Always open a PR immediately after pushing. Do not leave pushed branches without a PR.
 
-```bash
-gh pr create --title "{description}" --base main --body "Implements story-{NNN}."
-```
+Open a pull request via the GitHub web UI:
+https://github.com/matthew-d-edwards/meepliton/compare
 
 ### 7. Mark the story done
 
