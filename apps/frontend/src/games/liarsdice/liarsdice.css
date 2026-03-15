@@ -1,0 +1,18 @@
+/* Liar's Dice — Pirate theme token overrides
+   Scoped to [data-game-theme="pirates"] so the platform chrome is unaffected.
+   Aesthetic: maritime navigation charts, weathered brass, dark ocean. */
+
+[data-game-theme="pirates"] {
+  --color-background:     #0d1b2a;   /* deep navy */
+  --color-surface:        #152840;   /* dark ocean */
+  --color-surface-raised: #1e3a57;   /* slightly lifted */
+  --color-surface-hover:  #243f5e;
+  --color-primary:        #c8973a;   /* weathered brass */
+  --color-on-primary:     #0d1b2a;
+  --color-border:         #2a4a6b;   /* dark teal */
+  --color-text:           #e8dfc8;   /* parchment */
+  --color-text-muted:     #8aa3bb;
+  /* Radius tightened — charts feel more precise than rounded */
+  --radius-sm:            2px;
+  --radius-md:            4px;
+}
