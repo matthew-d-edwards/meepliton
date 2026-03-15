@@ -44,9 +44,9 @@ When a subclass overrides `ProjectForPlayer`, it should also override `HasStateP
 - If `module.HasStateProjection == false` → `Clients.Group(roomId).SendAsync("StateUpdated", newState)` (unchanged)
 - If `module.HasStateProjection == true` → load `RoomPlayers` for the room, iterate, call `module.ProjectStateForPlayer(fullState, playerId)` per player, send via `Clients.User(playerId).SendAsync("StateUpdated", projectedState)`
 
-Exposes a public helper: `ProjectStateForPlayer(string gameId, JsonDocument fullState, string playerId)` — used by both the fan-out path and the reconnect path to avoid duplicated logic.
+Exposes a public helper: `ProjectStateForPlayerOrFull(string gameId, JsonDocument fullState, string playerId)` — used by both the fan-out path and the reconnect path to avoid duplicated logic. Returns the projected state if projection is active, or the full state if the module does not opt in (never returns null).
 
-**`GameHub`** (`src/Meepliton.Api/Hubs/GameHub.cs`) `JoinRoom` method: calls `dispatcher.ProjectStateForPlayer(...)` before sending state to the reconnecting client when projection is active.
+**`GameHub`** (`src/Meepliton.Api/Hubs/GameHub.cs`) `JoinRoom` method: calls `dispatcher.ProjectStateForPlayerOrFull(...)` before sending state to the reconnecting client when projection is active.
 
 ### Projection contract
 
@@ -97,4 +97,4 @@ The existing client-side `isMe` dice filtering in the Liar's Dice frontend compo
 | AC-8 | `ProjectStateForPlayer` / `ProjectForPlayer` documented as pure, deterministic, side-effect-free |
 | AC-9 | ADR-010 written; FR-MOD-10 updated in `docs/requirements.md` |
 | AC-10 | Liar's Dice spec updated; client-side filtering decision superseded |
-| AC-11 | `dispatcher.ProjectStateForPlayer(gameId, fullState, playerId)` is the single shared projection path — no duplicated logic between fan-out and reconnect |
+| AC-11 | `dispatcher.ProjectStateForPlayerOrFull(gameId, fullState, playerId)` is the single shared projection path — no duplicated logic between fan-out and reconnect |

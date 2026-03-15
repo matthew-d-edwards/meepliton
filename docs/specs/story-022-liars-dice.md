@@ -268,12 +268,13 @@ A single die face rendered as an inline SVG. Renders pip layouts for faces 1–6
 
 ### `<DiceCup player={...} isMe={bool} />` (container)
 
-Renders a player's cup. When `isMe`:
-- Shows all dice as `<DiceFace>` components
-When not `isMe` and phase is `Bidding`:
-- Shows `diceCount` face-down dice (a die outline without pips, aria-label "N hidden dice")
-When phase is `Reveal` or `Finished`:
-- Shows all dice for all players
+Renders a player's cup. The server sends each client only the dice they are allowed to see (server-side projection via `LiarsDiceModule.ProjectForPlayer`), so this component does not filter dice based on `isMe`.
+
+- When `player.dice` is non-empty: shows each die as a `<DiceFace>` component
+- When `player.dice` is empty (other players during `Bidding`, or eliminated players): shows `player.diceCount` face-down dice (a die outline without pips, aria-label "N hidden dice")
+- During `Reveal` or `Finished`, all players' `dice` arrays are populated by the server — no special client-side handling required
+
+The `isMe` prop is kept for styling the local player's cup differently (e.g. a distinct border), not for hiding or showing dice.
 
 ### `<RevealAnimation />` (transition)
 
