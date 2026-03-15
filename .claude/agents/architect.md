@@ -1,6 +1,6 @@
 ---
 name: architect
-description: Software architect for Meepliton. Reviews code for architectural correctness, enforces the platform/game boundary, catches C#↔TypeScript contract mismatches, and proposes ADRs. Use proactively after any structural change or when adding a new game module.
+description: Software architect for Meepliton. Reviews code for architectural correctness, enforces the platform/game boundary, catches C#↔TypeScript contract mismatches, and proposes ADRs. Must run sequentially after backend + frontend implement, before the story is marked done. Use proactively after any structural change or when adding a new game module.
 tools: Read, Grep, Glob, Bash
 model: opus
 skills:
@@ -44,6 +44,11 @@ For every changed game module (`src/games/**`):
 - `Validate`: returns `null` for valid actions, non-null string for invalid?
 - `CreateInitialState`: handles full player list correctly?
 - Side effects use `GameEffect[]`, not code inside `Handle`?
+
+**JSON field-name cross-check (mandatory for every game module review):**
+- For every action type: compare the C# record property names in `Models/{Pascal}Models.cs` against the TypeScript `dispatch()` call sites in `types.ts` and the game component. ASP.NET Core serializes to **camelCase** by default — a C# property `BidData` becomes `bidData` on the wire, not `bid`. Mismatches silently reject every action at runtime.
+- For every enum: confirm it has `[JsonConverter(typeof(JsonStringEnumConverter))]` (or equivalent) — without it the enum serializes as an integer and the discriminated union in TypeScript will never match.
+- Flag any mismatch as **Must fix**.
 
 ### 4. Check backend conventions
 

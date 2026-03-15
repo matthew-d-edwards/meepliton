@@ -93,6 +93,12 @@ cd apps/frontend && npx tsc --noEmit
 
 Check: no `any` · `types.ts` still mirrors C# models · CSS uses token variables only.
 
+**Contract field-name check — do this before every commit touching a game component:**
+- Read `src/games/Meepliton.Games.{Pascal}/Models/{Pascal}Models.cs`.
+- Confirm every property name in `types.ts` exactly matches the camelCase serialization of the C# record field (e.g. C# `BidData` → TS `bidData`).
+- Confirm every enum is typed as a string union (not `number`) — C# enums only serialize as strings when `[JsonConverter(typeof(JsonStringEnumConverter))]` is present.
+- If in doubt, ask the `architect` or `backend` agent before committing.
+
 ### 4. Commit and push
 
 ```bash

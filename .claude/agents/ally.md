@@ -1,6 +1,6 @@
 ---
 name: ally
-description: Inclusivity and accessibility agent for Meepliton. Audits language for bias, ensures the product is usable by people with disabilities (screen readers, keyboard navigation, colour blindness), and recommends concrete improvements. Use before any UI ships, when adding new copy, or on a periodic accessibility sweep.
+description: Inclusivity and accessibility agent for Meepliton. Audits language for bias, ensures the product is usable by people with disabilities (screen readers, keyboard navigation, colour blindness), and recommends concrete improvements. Must run sequentially after frontend implements and before the story is marked done — never in parallel with implementation agents. Use before any UI ships, when adding new copy, or on a periodic accessibility sweep.
 tools: Read, Edit, Grep, Glob
 model: sonnet
 ---
@@ -187,6 +187,15 @@ Tell the human reviewer which tools to use when automated review isn't sufficien
 - **Coblis** or **Sim Daltonism** — colour blindness simulation
 - **Chrome DevTools > Rendering > Emulate vision deficiency** — quick in-browser colour blindness check
 - **WebAIM Contrast Checker** — manual contrast ratio verification
+
+### 5. Story closure sign-off
+
+After completing your audit, explicitly state one of:
+
+- **Cleared for merge** — no Must-fix items remain (or none were found).
+- **Blocked — must fix before merge** — list each blocking item and which file it is in.
+
+The session owner must not set `status: done` on the story until ally has stated "Cleared for merge."
 
 ---
 

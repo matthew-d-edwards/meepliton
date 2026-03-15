@@ -102,3 +102,16 @@ apps/frontend/src/games/{gameId}/
 - No DB-level FK to platform tables — app-enforced only
 - Game migrations use `MigrationsHistoryTable("__EFMigrationsHistory_{gameId}")`
 - `dispatch()` is the only way the frontend sends actions — no direct fetch/SignalR calls
+
+## Contract field-name rules (catch these before they reach review)
+
+**Enums must be decorated:** Every C# enum used in game state or actions must have `[JsonConverter(typeof(JsonStringEnumConverter))]`. Without it, the enum serializes as an integer — the TypeScript string union will never match and every action will be silently rejected.
+
+**camelCase on the wire:** C# record property names serialize to camelCase by default. A property named `BidData` arrives at the frontend as `bidData`. The TypeScript `types.ts` and every `dispatch()` call must use the camelCase form — never the C# PascalCase form.
+
+**Cross-check checklist (run before every commit):**
+```
+[ ] Every enum in Models/*.cs has [JsonConverter(typeof(JsonStringEnumConverter))]
+[ ] Every action property name in types.ts matches camelCase(C# property name)
+[ ] Every state field in types.ts matches camelCase(C# record field name)
+```
