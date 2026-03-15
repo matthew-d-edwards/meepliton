@@ -35,6 +35,26 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
         return new GameResult(newStateDoc);
     }
 
+    // ── Per-player state projection ───────────────────────────────────────────
+
+    public override bool HasStateProjection => true;
+
+    protected override LiarsDiceState? ProjectForPlayer(LiarsDiceState fullState, string playerId)
+    {
+        // During Reveal and Finished phases all information is public
+        if (fullState.Phase is LiarsDicePhase.Reveal or LiarsDicePhase.Finished)
+            return fullState;
+
+        // During Bidding: hide other players' dice; preserve DiceCount for all
+        var projectedPlayers = fullState.Players.Select(p =>
+            p.Id == playerId
+                ? p                      // requesting player sees own dice
+                : p with { Dice = [] }   // others see empty dice list
+        ).ToList();
+
+        return fullState with { Players = projectedPlayers };
+    }
+
     // ── Initial state ─────────────────────────────────────────────────────────
 
     public override LiarsDiceState CreateInitialState(

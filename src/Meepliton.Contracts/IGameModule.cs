@@ -23,4 +23,18 @@ public interface IGameModule
     /// Returns the initial JSON state blob stored in rooms.game_state.
     /// </summary>
     JsonDocument CreateInitialState(IReadOnlyList<PlayerInfo> players, JsonDocument? options);
+
+    /// <summary>
+    /// Returns true if this game module implements per-player state projection.
+    /// When true, GameDispatcher will call ProjectStateForPlayer for each player
+    /// rather than broadcasting the full state to the group.
+    /// </summary>
+    bool HasStateProjection => false;
+
+    /// <summary>
+    /// Projects the full game state for a specific player, hiding information
+    /// the player should not see. Must be pure, deterministic, and side-effect-free.
+    /// Must not mutate the input document. Returns null to broadcast the full state.
+    /// </summary>
+    JsonDocument? ProjectStateForPlayer(JsonDocument fullState, string playerId) => null;
 }

@@ -40,6 +40,23 @@ public abstract class ReducerGameModule<TState, TAction, TOptions>
     JsonDocument IGameModule.CreateInitialState(IReadOnlyList<PlayerInfo> players, JsonDocument? options)
         => Serialize(CreateInitialState(players, options is null ? null : Deserialize<TOptions>(options)));
 
+    /// <summary>
+    /// Override to project the full game state for a specific player.
+    /// Return null/default to broadcast the full state unchanged.
+    /// Must be pure, deterministic, and side-effect-free.
+    /// </summary>
+    protected virtual TState? ProjectForPlayer(TState fullState, string playerId) => default;
+
+    /// <inheritdoc />
+    JsonDocument? IGameModule.ProjectStateForPlayer(JsonDocument fullState, string playerId)
+    {
+        var state = Deserialize<TState>(fullState);
+        if (state is null) return null;
+        var projected = ProjectForPlayer(state, playerId);
+        if (projected is null) return null;
+        return Serialize(projected);
+    }
+
     protected static T Deserialize<T>(JsonDocument doc) =>
         JsonSerializer.Deserialize<T>(doc.RootElement.GetRawText())!;
 
