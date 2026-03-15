@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Meepliton.Games.LiarsDice.Models;
 
 // ── Platform read-only views (keyless, no migrations) ─────────────────────────
@@ -6,13 +8,39 @@ public record RoomView(string Id, string GameId, string HostId, string JoinCode,
 public record RoomPlayerView(string Id, string RoomId, string UserId, int SeatIndex);
 public record UserView(string Id, string DisplayName, string? AvatarUrl, string Email);
 
+// ── Constants ────────────────────────────────────────────────────────────────
+
+public static class LiarsDiceConstants
+{
+    public const int MinDiceFace       = 1;
+    public const int MaxDiceFace       = 6;
+    public const int DiceFaceCount     = MaxDiceFace + 1; // exclusive upper bound for Random.Next
+    public const int WildFace          = 1;
+    public const int DefaultStartDice  = 5;
+    public const int MinPlayers        = 2;
+    public const int MaxPlayers        = 6;
+}
+
 // ── Phase ─────────────────────────────────────────────────────────────────────
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum LiarsDicePhase
 {
     Bidding,  // normal bidding in progress
     Reveal,   // Liar called; dice visible; result shown; waiting for StartNextRound
     Finished  // game over
+}
+
+// ── Action types ──────────────────────────────────────────────────────────────
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum LiarsDiceActionType
+{
+    StartGame,
+    PlaceBid,
+    CallLiar,
+    StartNextRound,
+    DeclarePalifico
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -54,13 +82,12 @@ public record PlayerReveal(string PlayerId, List<int> Dice);
 // ── Actions ──────────────────────────────────────────────────────────────────
 
 public record LiarsDiceAction(
-    string      Type,
-    BidPayload? BidData         = null,
-    bool?       DeclarePalifico = null
+    LiarsDiceActionType Type,
+    BidPayload?         Bid = null
 );
 
 public record BidPayload(int Quantity, int Face);
 
 // ── Options ──────────────────────────────────────────────────────────────────
 
-public record LiarsDiceOptions(int StartingDice = 5);
+public record LiarsDiceOptions(int StartingDice = LiarsDiceConstants.DefaultStartDice);

@@ -15,8 +15,8 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
     public override string GameId      => "liarsdice";
     public override string Name        => "Liar's Dice";
     public override string Description => "Bid on hidden dice and call out bluffs. The last player with dice wins.";
-    public override int    MinPlayers  => 2;
-    public override int    MaxPlayers  => 6;
+    public override int    MinPlayers  => LiarsDiceConstants.MinPlayers;
+    public override int    MaxPlayers  => LiarsDiceConstants.MaxPlayers;
     public override bool   AllowLateJoin => false;
     public override bool   SupportsUndo  => false;
 
@@ -41,7 +41,7 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
         IReadOnlyList<PlayerInfo> players,
         LiarsDiceOptions? options)
     {
-        var startingDice = options?.StartingDice ?? 5;
+        var startingDice = options?.StartingDice ?? LiarsDiceConstants.DefaultStartDice;
         var dicePlayers = players.Select(p => new DicePlayer(
             Id:              p.Id,
             DisplayName:     p.DisplayName,
@@ -70,34 +70,32 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
 
     public override string? Validate(LiarsDiceState state, LiarsDiceAction action, string playerId)
     {
-        // Finished phase — reject everything
         if (state.Phase == LiarsDicePhase.Finished)
             return "The game is over.";
 
         switch (action.Type)
         {
-            case "StartGame":
-                // StartGame is handled before state is initialised; if state exists, reject
+            case LiarsDiceActionType.StartGame:
                 return "The game has already started.";
 
-            case "PlaceBid":
+            case LiarsDiceActionType.PlaceBid:
             {
                 if (state.Phase != LiarsDicePhase.Bidding)
                     return "You can only place a bid during the Bidding phase.";
                 if (!IsCurrentPlayer(state, playerId))
                     return "It is not your turn.";
-                if (action.BidData is null)
+                if (action.Bid is null)
                     return "Missing bid data.";
-                if (action.BidData.Quantity < 1)
+                if (action.Bid.Quantity < 1)
                     return "Quantity must be at least 1.";
-                if (action.BidData.Face is < 1 or > 6)
+                if (action.Bid.Face is < LiarsDiceConstants.MinDiceFace or > LiarsDiceConstants.MaxDiceFace)
                     return "Face must be between 1 and 6.";
-                if (state.CurrentBid is not null && !IsBidHigher(action.BidData, state.CurrentBid))
+                if (state.CurrentBid is not null && !IsBidHigher(action.Bid, state.CurrentBid))
                     return "Your bid must be strictly higher than the current bid.";
                 return null;
             }
 
-            case "CallLiar":
+            case LiarsDiceActionType.CallLiar:
             {
                 if (state.Phase != LiarsDicePhase.Bidding)
                     return "You can only call Liar during the Bidding phase.";
@@ -108,18 +106,17 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
                 return null;
             }
 
-            case "StartNextRound":
+            case LiarsDiceActionType.StartNextRound:
             {
                 if (state.Phase != LiarsDicePhase.Reveal)
                     return "StartNextRound is only valid during the Reveal phase.";
-                // Any active player may trigger the next round
                 var player = state.Players.FirstOrDefault(p => p.Id == playerId);
                 if (player is null || !player.Active)
                     return "Only active players can start the next round.";
                 return null;
             }
 
-            case "DeclarePalifico":
+            case LiarsDiceActionType.DeclarePalifico:
             {
                 if (state.Phase != LiarsDicePhase.Bidding)
                     return "Palifico can only be declared during the Bidding phase.";
@@ -145,10 +142,10 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
     public override LiarsDiceState Apply(LiarsDiceState state, LiarsDiceAction action) =>
         action.Type switch
         {
-            "PlaceBid"       => ApplyPlaceBid(state, action.BidData!),
-            "CallLiar"       => ApplyCallLiar(state),
-            "StartNextRound" => ApplyStartNextRound(state),
-            "DeclarePalifico" => ApplyDeclarePalifico(state),
+            LiarsDiceActionType.PlaceBid        => ApplyPlaceBid(state, action.Bid!),
+            LiarsDiceActionType.CallLiar         => ApplyCallLiar(state),
+            LiarsDiceActionType.StartNextRound   => ApplyStartNextRound(state),
+            LiarsDiceActionType.DeclarePalifico  => ApplyDeclarePalifico(state),
             _ => state
         };
 
@@ -160,8 +157,8 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
         var nextIndex = NextActivePlayerIndex(state.Players, state.CurrentPlayerIndex);
         return state with
         {
-            CurrentBid:         newBid,
-            CurrentPlayerIndex: nextIndex
+            CurrentBid         = newBid,
+            CurrentPlayerIndex = nextIndex
         };
     }
 
@@ -172,11 +169,9 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
         var bid = state.CurrentBid!;
         var challenger = state.Players[state.CurrentPlayerIndex];
 
-        // Find the previous bidder (who made the current bid) — it's the player before current
         var previousIndex = PreviousActivePlayerIndex(state.Players, state.CurrentPlayerIndex);
         var bidder = state.Players[previousIndex];
 
-        // Count matching dice
         var actualCount = CountMatchingDice(state.Players, bid, state.PalificoActive);
 
         // Determine loser: if count >= quantity, challenger loses; else bidder loses
@@ -185,22 +180,22 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
         if (actualCount >= bid.Quantity)
         {
             loserId = challenger.Id;
-            resultMessage = $"The bid was met! {actualCount} {FaceName(bid.Face)}(s) found (needed {bid.Quantity}). {challenger.DisplayName} loses a die.";
+            resultMessage = $"The bid was met! {actualCount} {bid.Face}(s) found (needed {bid.Quantity}). {challenger.DisplayName} loses a die.";
         }
         else
         {
             loserId = bidder.Id;
-            resultMessage = $"Liar! Only {actualCount} {FaceName(bid.Face)}(s) found (needed {bid.Quantity}). {bidder.DisplayName} loses a die.";
+            resultMessage = $"Liar! Only {actualCount} {bid.Face}(s) found (needed {bid.Quantity}). {bidder.DisplayName} loses a die.";
         }
 
         // Build reveal snapshot (before removing the die)
         var revealPlayers = state.Players.Select(p =>
             new PlayerReveal(p.Id, p.Dice.ToList())).ToList();
         var reveal = new RevealSnapshot(
-            Players:      revealPlayers,
+            Players:       revealPlayers,
             ChallengedBid: bid,
-            ActualCount:  actualCount,
-            LoserId:      loserId
+            ActualCount:   actualCount,
+            LoserId:       loserId
         );
 
         // Remove a die from the loser
@@ -220,23 +215,22 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
             var winner = activePlayers[0];
             return state with
             {
-                Phase:               LiarsDicePhase.Finished,
-                Players:             players,
-                CurrentBid:          null,
-                LastChallengeResult: resultMessage,
-                LastReveal:          reveal,
-                Winner:              winner.Id
+                Phase               = LiarsDicePhase.Finished,
+                Players             = players,
+                CurrentBid          = null,
+                LastChallengeResult = resultMessage,
+                LastReveal          = reveal,
+                Winner              = winner.Id
             };
         }
 
-        // Transition to Reveal phase
         return state with
         {
-            Phase:               LiarsDicePhase.Reveal,
-            Players:             players,
-            CurrentBid:          null,
-            LastChallengeResult: resultMessage,
-            LastReveal:          reveal
+            Phase               = LiarsDicePhase.Reveal,
+            Players             = players,
+            CurrentBid          = null,
+            LastChallengeResult = resultMessage,
+            LastReveal          = reveal
         };
     }
 
@@ -250,8 +244,7 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
         var players = state.Players.Select(p =>
         {
             if (!p.Active) return p;
-            var newDice = RollDice(p.DiceCount);
-            return p with { Dice = newDice };
+            return p with { Dice = RollDice(p.DiceCount) };
         }).ToList();
 
         // Find starting player: loser's index, or first active if loser was eliminated
@@ -273,14 +266,14 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
 
         return state with
         {
-            Phase:               LiarsDicePhase.Bidding,
-            Players:             players,
-            CurrentPlayerIndex:  startIndex,
-            CurrentBid:          null,
-            RoundNumber:         state.RoundNumber + 1,
-            PalificoActive:      false,
-            LastChallengeResult: null,
-            LastReveal:          null
+            Phase               = LiarsDicePhase.Bidding,
+            Players             = players,
+            CurrentPlayerIndex  = startIndex,
+            CurrentBid          = null,
+            RoundNumber         = state.RoundNumber + 1,
+            PalificoActive      = false,
+            LastChallengeResult = null,
+            LastReveal          = null
         };
     }
 
@@ -288,16 +281,17 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
 
     private static LiarsDiceState ApplyDeclarePalifico(LiarsDiceState state)
     {
+        var currentPlayerId = state.Players[state.CurrentPlayerIndex].Id;
         var players = state.Players.Select(p =>
         {
-            if (p.Id != state.Players[state.CurrentPlayerIndex].Id) return p;
+            if (p.Id != currentPlayerId) return p;
             return p with { HasUsedPalifico = true };
         }).ToList();
 
         return state with
         {
-            PalificoActive: true,
-            Players:        players
+            PalificoActive = true,
+            Players        = players
         };
     }
 
@@ -320,14 +314,14 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
     /// </summary>
     private static int CountMatchingDice(List<DicePlayer> players, Bid bid, bool palificoActive)
     {
-        bool wildsApply = !palificoActive && bid.Face != 1;
+        bool wildsApply = !palificoActive && bid.Face != LiarsDiceConstants.WildFace;
         int count = 0;
         foreach (var p in players)
         {
             foreach (var die in p.Dice)
             {
                 if (die == bid.Face) count++;
-                else if (wildsApply && die == 1) count++;
+                else if (wildsApply && die == LiarsDiceConstants.WildFace) count++;
             }
         }
         return count;
@@ -357,17 +351,6 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
 
     private static List<int> RollDice(int count) =>
         Enumerable.Range(0, count)
-            .Select(_ => Random.Shared.Next(1, 7))
+            .Select(_ => Random.Shared.Next(LiarsDiceConstants.MinDiceFace, LiarsDiceConstants.DiceFaceCount))
             .ToList();
-
-    private static string FaceName(int face) => face switch
-    {
-        1 => "1",
-        2 => "2",
-        3 => "3",
-        4 => "4",
-        5 => "5",
-        6 => "6",
-        _ => face.ToString()
-    };
 }
