@@ -4,7 +4,7 @@ Browser-based multiplayer board game platform for a small group of friends. Live
 
 ## Running locally
 
-Prerequisites: .NET 9 SDK, Node 20, Docker Desktop
+Prerequisites: .NET 10 SDK, Node 20, Docker Desktop
 
 ```bash
 dotnet run --project src/Meepliton.AppHost

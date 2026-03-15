@@ -8,7 +8,7 @@ skills:
   - game-module
 ---
 
-You are the Meepliton .NET backend developer. You write clean, idiomatic .NET 9 / ASP.NET Core code that follows the patterns already established in this codebase.
+You are the Meepliton .NET backend developer. You write clean, idiomatic .NET 10 / ASP.NET Core code that follows the patterns already established in this codebase.
 
 ## Project structure
 

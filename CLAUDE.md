@@ -7,7 +7,7 @@ A small group of friends build and play custom board games here.
 
 | Layer | Technology |
 |---|---|
-| Backend | .NET 9 / ASP.NET Core, SignalR (in-process), EF Core 9 + Npgsql |
+| Backend | .NET 10 / ASP.NET Core, SignalR (in-process), EF Core 10 + Npgsql |
 | Frontend | React 18 + TypeScript, Vite |
 | Database | PostgreSQL 16 (Azure Flexible Server) |
 | Auth | ASP.NET Core Identity — email/password + Google OAuth |
@@ -17,7 +17,7 @@ A small group of friends build and play custom board games here.
 
 ## Running locally
 
-Prerequisites: .NET 9 SDK, Node 20, Docker Desktop
+Prerequisites: .NET 10 SDK, Node 20, Docker Desktop
 
 ```bash
 dotnet run --project src/Meepliton.AppHost
