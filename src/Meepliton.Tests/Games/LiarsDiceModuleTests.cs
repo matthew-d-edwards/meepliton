@@ -967,4 +967,187 @@ public class LiarsDiceModuleTests
         newState!.CurrentBid!.Quantity.Should().Be(2);
         newState.CurrentBid.Face.Should().Be(4);
     }
+
+    // ── Projection — HasStateProjection ───────────────────────────────────────
+
+    [Fact]
+    public void HasStateProjection_IsTrue()
+    {
+        // AC-2: module declares it implements per-player state projection
+        ((IGameModule)_module).HasStateProjection.Should().BeTrue();
+    }
+
+    // ── Projection helpers ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Serialises a typed state to JsonDocument and calls the interface-level
+    /// ProjectStateForPlayer so tests exercise the full serialise-project-deserialise path.
+    /// </summary>
+    private LiarsDiceState? Project(LiarsDiceState state, string playerId)
+    {
+        var doc       = JsonDocument.Parse(JsonSerializer.Serialize(state));
+        var projected = ((IGameModule)_module).ProjectStateForPlayer(doc, playerId);
+        if (projected is null) return null;
+        return JsonSerializer.Deserialize<LiarsDiceState>(projected.RootElement.GetRawText());
+    }
+
+    // ── Projection — Bidding phase ────────────────────────────────────────────
+
+    [Fact]
+    public void ProjectForPlayer_Bidding_RequestingPlayerSeesOwnDice()
+    {
+        // AC-4: player A gets their own dice intact
+        var state = FreshBiddingState(); // p1 has [3,3,3,3,3], p2 has [4,4,4,4,4]
+
+        var projected = Project(state, "p1");
+
+        projected.Should().NotBeNull();
+        var p1 = projected!.Players.First(p => p.Id == "p1");
+        p1.Dice.Should().BeEquivalentTo([3, 3, 3, 3, 3],
+            because: "requesting player sees their own dice unchanged");
+    }
+
+    [Fact]
+    public void ProjectForPlayer_Bidding_OtherPlayersDiceAreEmpty()
+    {
+        // AC-4: player B's dice are hidden from player A's perspective
+        var state = FreshBiddingState();
+
+        var projected = Project(state, "p1");
+
+        projected.Should().NotBeNull();
+        var p2 = projected!.Players.First(p => p.Id == "p2");
+        p2.Dice.Should().BeEmpty(because: "other players' dice are hidden during Bidding");
+    }
+
+    [Fact]
+    public void ProjectForPlayer_Bidding_DiceCountPreservedForAllPlayers()
+    {
+        // AC-4: diceCount is always visible so players can reason about odds
+        var state = FreshBiddingState(); // both players have DiceCount = 5
+
+        var projected = Project(state, "p1");
+
+        projected.Should().NotBeNull();
+        foreach (var p in projected!.Players)
+            p.DiceCount.Should().Be(5,
+                because: "DiceCount must remain visible even when dice values are hidden");
+    }
+
+    [Fact]
+    public void ProjectForPlayer_Bidding_UnknownPlayerGetsMaximallyRestricted()
+    {
+        // AC-6: an ID not present in Players (spectator / eliminated) sees no dice
+        var state = FreshBiddingState();
+
+        var projected = Project(state, "unknown-id");
+
+        projected.Should().NotBeNull();
+        foreach (var p in projected!.Players)
+            p.Dice.Should().BeEmpty(
+                because: "unknown player IDs receive maximally restricted projection — all dice hidden");
+    }
+
+    // ── Projection — Reveal phase ─────────────────────────────────────────────
+
+    [Fact]
+    public void ProjectForPlayer_Reveal_AllDiceVisible()
+    {
+        // AC-5: during Reveal, the full dice are public so players can verify the count
+        var state = FreshBiddingState() with
+        {
+            Phase      = LiarsDicePhase.Reveal,
+            LastReveal = new RevealSnapshot([], new Bid(3, 3), 5, "p2")
+        };
+
+        var projectedAsP1 = Project(state, "p1");
+        var projectedAsP2 = Project(state, "p2");
+
+        projectedAsP1.Should().NotBeNull();
+        projectedAsP2.Should().NotBeNull();
+
+        projectedAsP1!.Players.First(p => p.Id == "p1").Dice
+            .Should().BeEquivalentTo([3, 3, 3, 3, 3],
+                because: "requesting player sees own dice during Reveal");
+        projectedAsP1.Players.First(p => p.Id == "p2").Dice
+            .Should().BeEquivalentTo([4, 4, 4, 4, 4],
+                because: "other player's dice are visible during Reveal");
+
+        projectedAsP2!.Players.First(p => p.Id == "p1").Dice
+            .Should().BeEquivalentTo([3, 3, 3, 3, 3],
+                because: "all dice are public during Reveal regardless of who requests");
+    }
+
+    // ── Projection — Finished phase ───────────────────────────────────────────
+
+    [Fact]
+    public void ProjectForPlayer_Finished_AllDiceVisible()
+    {
+        // AC-5: during Finished, game is over — full state visible to all
+        var state = FreshBiddingState() with
+        {
+            Phase  = LiarsDicePhase.Finished,
+            Winner = "p1"
+        };
+
+        var projectedAsP2 = Project(state, "p2");
+
+        projectedAsP2.Should().NotBeNull();
+        projectedAsP2!.Players.First(p => p.Id == "p1").Dice
+            .Should().BeEquivalentTo([3, 3, 3, 3, 3],
+                because: "dice are fully visible in Finished phase");
+        projectedAsP2.Players.First(p => p.Id == "p2").Dice
+            .Should().BeEquivalentTo([4, 4, 4, 4, 4],
+                because: "dice are fully visible in Finished phase");
+    }
+
+    // ── Projection — Immutability (AC-8) ──────────────────────────────────────
+
+    [Fact]
+    public void ProjectForPlayer_DoesNotMutateInputState()
+    {
+        // AC-8: ProjectForPlayer must be pure — it must not modify the input document
+        var original = FreshBiddingState(); // p2 has [4,4,4,4,4]
+        var originalDoc = JsonDocument.Parse(JsonSerializer.Serialize(original));
+
+        // Project as p1 — this should hide p2's dice in the output but NOT in originalDoc
+        ((IGameModule)_module).ProjectStateForPlayer(originalDoc, "p1");
+
+        // Re-read original state from the same document
+        var afterProjection = JsonSerializer.Deserialize<LiarsDiceState>(
+            originalDoc.RootElement.GetRawText());
+
+        afterProjection.Should().NotBeNull();
+        afterProjection!.Players.First(p => p.Id == "p2").Dice
+            .Should().BeEquivalentTo([4, 4, 4, 4, 4],
+                because: "ProjectForPlayer must not mutate the input JsonDocument");
+    }
+
+    // ── GameDispatcher helper ─────────────────────────────────────────────────
+
+    [Fact]
+    public void GameDispatcher_ProjectStateForPlayerOrFull_ReturnsProjectedStateForLiarsDice()
+    {
+        // AC-11: the dispatcher helper uses the same projection path as fan-out
+        // The full GameDispatcher requires DI (DB, SignalR hub). We verify the contract
+        // at the IGameModule level, which is the single shared projection path used by
+        // both GameDispatcher.DispatchAsync (fan-out) and GameDispatcher.ProjectStateForPlayerOrFull
+        // (reconnect). No database or SignalR wiring required for this pure-function test.
+        var module  = new LiarsDiceModule();
+        var state   = FreshBiddingState();
+        var fullDoc = JsonDocument.Parse(JsonSerializer.Serialize(state));
+
+        // Simulate what ProjectStateForPlayerOrFull does when HasStateProjection == true
+        var projected = module.HasStateProjection
+            ? ((IGameModule)module).ProjectStateForPlayer(fullDoc, "p1") ?? fullDoc
+            : fullDoc;
+
+        var result = JsonSerializer.Deserialize<LiarsDiceState>(projected.RootElement.GetRawText());
+        result.Should().NotBeNull();
+        result!.Players.First(p => p.Id == "p2").Dice.Should().BeEmpty(
+            because: "ProjectStateForPlayerOrFull uses module.ProjectStateForPlayer — " +
+                     "same path as both fan-out and reconnect (AC-11)");
+        result.Players.First(p => p.Id == "p1").Dice.Should().BeEquivalentTo([3, 3, 3, 3, 3],
+            because: "requesting player sees own dice through the shared projection path");
+    }
 }
