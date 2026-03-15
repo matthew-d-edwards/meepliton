@@ -30,10 +30,11 @@ All CSS values must use these tokens. Source of truth: `packages/ui/src/styles/t
 
 ```
 Surfaces:  --surface-base  --surface-raised  --surface-float  --surface-overlay
+Edges:     --edge-subtle  --edge-strong
 Text:      --text-muted  --text-primary  --text-bright
 Accent:    --accent  --accent-dim  --accent-glow
 Neons:     --neon-cyan  --neon-magenta  --neon-orange
-Glows:     --glow-sm  --glow-md  --glow-lg
+Glows:     --glow-sm  --glow-md  --glow-lg  --glow-inset
 Space:     --space-1 … --space-8  (4px–32px, 8-point scale)
 Radii:     --radius-sm  --radius-md  --radius-lg  --radius-xl  --radius-pill
 Fonts:     --font-display (Orbitron)  --font-mono (Share Tech Mono)  --font-body (Outfit)

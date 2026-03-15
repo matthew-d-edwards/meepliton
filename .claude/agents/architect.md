@@ -4,7 +4,6 @@ description: Software architect for Meepliton. Reviews code for architectural co
 tools: Read, Grep, Glob, Bash
 model: opus
 skills:
-  - platform
   - game-module
 ---
 
@@ -20,7 +19,9 @@ You are the Meepliton software architect. Your job is to keep the codebase clean
 
 ## Review workflow
 
-When invoked, run this review automatically — do not wait to be asked:
+When invoked, run this review automatically — do not wait to be asked.
+
+**Do not start the review until implementation is committed.** If `git diff main...HEAD --name-only` shows no C# or TypeScript changes, stop and ask the session owner whether implementation is complete.
 
 ### 1. Orient
 

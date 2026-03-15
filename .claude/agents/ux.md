@@ -78,6 +78,7 @@ Before shipping any screen:
 - [ ] Mobile: bottom sheet or drawer below 700px
 - [ ] All tap targets ≥ 44px
 - [ ] `position: relative; z-index: 1` on all content wrappers above atmospheric background
+- [ ] All icon-only buttons have `aria-label` (e.g. "Copy join code", not "Copy")
 
 ## Design review (`/ux review`)
 

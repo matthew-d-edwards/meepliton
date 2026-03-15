@@ -4,7 +4,7 @@ description: Git and GitHub workflow for Meepliton — branching, commits, PRs, 
 user-invocable: false
 ---
 
-See full guide in `.claude/skills/GIT-WORKFLOW.md`. Key conventions below.
+Key conventions below (this is the full guide — no separate file).
 
 ## Branch names
 
