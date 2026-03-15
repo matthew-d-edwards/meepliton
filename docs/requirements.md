@@ -577,7 +577,7 @@ GRANT SELECT ON TABLE users TO meepliton_game_reader;
 GRANT SELECT ON TABLE room_players TO meepliton_game_reader;
 GRANT SELECT ON TABLE rooms TO meepliton_game_reader;
 -- Games do NOT get access to action_log, user_logins, user_tokens, user_claims
--- They receive game state only through the IGameReducer contract
+-- They receive game state only through the IGameHandler contract
 
 -- Per-game role: inherits reader, can manage its own tables
 CREATE ROLE meepliton_game_skyline LOGIN PASSWORD '...' IN ROLE meepliton_game_reader;
@@ -1442,11 +1442,11 @@ meepliton/
 │   │   ├── Data/PlatformDbContext.cs
 │   │   ├── Migrations/                     # Platform migration history
 │   │   └── Dockerfile
-│   ├── Meepliton.Contracts/                   # IGameModule, IGameReducer, GameModule<,,>, IGameDbContext
+│   ├── Meepliton.Contracts/                   # IGameModule, IGameHandler, GameModule<,,>, IGameDbContext
 │   ├── Meepliton.Tests/
 │   └── games/
 │       ├── Meepliton.Games.Skyline/
-│       │   ├── SkylineModule.cs            # IGameModule + IGameReducer
+│       │   ├── SkylineModule.cs            # IGameModule + IGameHandler
 │       │   ├── SkylineDbContext.cs         # Game-owned EF Core context
 │       │   ├── Migrations/                 # Skyline migration history
 │       │   └── Models/
@@ -1689,7 +1689,7 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 ### Phase 1 — Foundation
 
 - [ ] Repository scaffold: solution, Aspire AppHost, Vite frontend, monorepo package structure
-- [ ] `Meepliton.Contracts`: `IGameModule`, `IGameReducer`, `GameModule<,,>` base class, `IGameDbContext`
+- [ ] `Meepliton.Contracts`: `IGameModule`, `IGameHandler`, `GameModule<,,>` base class, `IGameDbContext`
 - [ ] PostgreSQL role setup: `meepliton_platform`, `meepliton_game_reader`
 - [ ] `PlatformDbContext` + initial migrations: users, games, rooms, room_players, action_log
 - [ ] `MigrationRunner`: discovers and applies platform + all game contexts on startup
@@ -1719,11 +1719,11 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 
 ### Phase 2 — Polish & Second Game
 
-- [ ] Reconnect: full state push on `JoinRoom` for existing seat holders
+- [x] Reconnect: full state push on `JoinRoom` for existing seat holders
 - [ ] Presence indicators (connected/disconnected dots) in room chrome
 - [ ] Action log viewer in room (debug tool for game authors)
 - [ ] Mobile optimisation pass across all modules
-- [ ] Second game module (validates module system for a genuinely different game type — e.g. map-based or simultaneous-action, not just another tile game)
+- [x] Second game module (validates module system for a genuinely different game type — e.g. map-based or simultaneous-action, not just another tile game)
 - [ ] Application Insights: errors + response times
 - [ ] Host-only action log rewind (undo to N-1 state)
 

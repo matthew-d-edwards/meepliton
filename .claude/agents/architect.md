@@ -63,7 +63,7 @@ For every changed game module (`src/games/**`):
 - Game components receive only `GameContext<TState>` — no direct API or SignalR calls
 - `dispatch()` is the only action pathway
 - No `any` types
-- Platform chrome (`@meepliton/ui`) used appropriately — only for pre-game screens
+- Platform chrome (`@meepliton/ui`) used appropriately — only for platform chrome (lobby, waiting screen, in-game player indicators), never for game board rendering
 
 ### 6. Report
 
