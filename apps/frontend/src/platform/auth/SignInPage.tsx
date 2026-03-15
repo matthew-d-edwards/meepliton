@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react'
-import { Link, useNavigate, Navigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import './auth.css'
 
@@ -14,6 +14,8 @@ function parseLoginError(message: string): { type: 'unconfirmed' | 'lockout' | '
 export default function SignInPage() {
   const { user, loading, login } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const next = searchParams.get('next') ?? '/lobby'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -57,7 +59,7 @@ export default function SignInPage() {
 
     try {
       await login(email, password)
-      navigate('/lobby', { replace: true })
+      navigate(next, { replace: true })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Incorrect email or password.'
       const parsed = parseLoginError(msg)
