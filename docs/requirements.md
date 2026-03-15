@@ -193,6 +193,23 @@ The platform is built around two constraints that every architectural decision m
 
 ---
 
+### ADR-010: Per-player state projection for hidden information
+
+**Date:** 2026-03-15
+**Status:** Accepted
+
+**Context:** FR-MOD-10 previously placed all visibility responsibility on games as client-side UI filtering. The full state blob reached every connected client. On a friends-only platform this was acceptable, but as Liar's Dice demonstrated, it breaks the social contract even among friends — players can observe each other's hidden dice via DevTools.
+
+**Decision:** Add an opt-in server-side projection mechanism. Games that have hidden information override `ProjectForPlayer` in their `ReducerGameModule` subclass. `GameDispatcher` detects this and fans out per-player projected states via `Clients.User` instead of `Clients.Group`. The authoritative full state remains in the database unchanged.
+
+**Consequences:**
+- Games without hidden information: zero behaviour change
+- Games with hidden information: implement one method; client-side filtering can be removed
+- Per-action cost: N additional serialise/deserialise cycles (one per player). Acceptable at 2–6 player hobby scale
+- `rooms.game_state` always stores full state — no redaction at rest
+
+---
+
 ## 4. User Stories
 
 ### Authentication
@@ -325,7 +342,7 @@ The platform is built around two constraints that every architectural decision m
 | FR-MOD-03 | Game modules are discovered at startup via assembly scanning (see ADR-005) |
 | FR-MOD-04 | Each game has its own `DbContext` and EF Core migration history (see ADR-003 and §9) |
 | FR-MOD-05 | Game contexts have read-only access to platform tables via a dedicated PostgreSQL role |
-| FR-MOD-10 | Games with hidden information (private hands, secret roles) are responsible for managing visibility within their state design; the platform broadcasts the full state blob to all players in the room |
+| FR-MOD-10 | Games with hidden information may implement server-side state projection by overriding `ProjectForPlayer` in their `ReducerGameModule` subclass. When a game opts in (`HasStateProjection == true`), the platform projects the state per player before broadcasting — each player receives only the information their perspective allows. Games that do not opt in receive the full state broadcast as before. See ADR-010. |
 | FR-MOD-06 | Each game has a corresponding frontend module exporting a `GameModule` TypeScript type |
 | FR-MOD-07 | Frontend game modules are code-split via Vite dynamic imports and loaded only when needed |
 | FR-MOD-08 | The platform provides `@meepliton/ui` for room chrome only (waiting screen, player presence, join code, action rejected toast) — no game rendering primitives (see ADR-008) |

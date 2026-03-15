@@ -15,6 +15,13 @@ public class GameDispatcher(
     IHubContext<GameHub> hubContext,
     ILogger<GameDispatcher> logger)
 {
+    public JsonDocument ProjectStateForPlayerOrFull(string gameId, JsonDocument fullState, string playerId)
+    {
+        var module = modules.FirstOrDefault(m => m.GameId == gameId);
+        if (module is null || !module.HasStateProjection) return fullState;
+        return module.ProjectStateForPlayer(fullState, playerId) ?? fullState;
+    }
+
     public async Task<GameResult> DispatchAsync(
         string roomId,
         string playerId,
@@ -27,6 +34,8 @@ public class GameDispatcher(
 
         var handler = handlers.FirstOrDefault(h => h.GameId == room.GameId)
             ?? throw new InvalidOperationException($"No handler registered for game '{room.GameId}'.");
+
+        var module = modules.FirstOrDefault(m => m.GameId == room.GameId);
 
         var ctx = new GameContext(
             CurrentState: room.GameState ?? JsonDocument.Parse("{}"),
@@ -58,10 +67,25 @@ public class GameDispatcher(
 
         await db.SaveChangesAsync(ct);
 
-        // Broadcast to all players in the room group
-        await hubContext.Clients
-            .Group(roomId)
-            .SendAsync("StateUpdated", result.NewState, ct);
+        // Broadcast state — fan out per-player if the module implements projection
+        if (module?.HasStateProjection == true)
+        {
+            var players = await db.RoomPlayers
+                .Where(rp => rp.RoomId == roomId)
+                .Select(rp => rp.UserId)
+                .ToListAsync(ct);
+            foreach (var pid in players)
+            {
+                var projected = ProjectStateForPlayerOrFull(room.GameId, result.NewState, pid);
+                await hubContext.Clients.User(pid).SendAsync("StateUpdated", projected, ct);
+            }
+        }
+        else
+        {
+            await hubContext.Clients
+                .Group(roomId)
+                .SendAsync("StateUpdated", result.NewState, ct);
+        }
 
         // Handle side effects
         foreach (var effect in result.Effects)

@@ -206,15 +206,15 @@ export type LiarsDiceAction =
 
 ## Hidden information strategy
 
-The platform broadcasts the full state blob to all players (FR-MOD-10). Liar's Dice requires each player to see only their own dice during the `Bidding` phase.
+Liar's Dice requires each player to see only their own dice during the `Bidding` phase.
 
-**Decision: client-side filtering with a trust model appropriate for a friends-only platform.**
+**Decision: server-side state projection via `LiarsDiceModule.ProjectForPlayer`.**
 
-The backend stores and broadcasts the full state (all dice values for all players). The frontend component filters the state before rendering: a player sees only their own `dice` array during `Bidding`; other players are shown only their `diceCount`. During `Reveal` and `Finished` phases, all dice are visible.
+`LiarsDiceModule` overrides `ProjectForPlayer` in its `ReducerGameModule` base class and sets `HasStateProjection = true`. The platform's `GameDispatcher` detects this and sends each player a projected copy of the state rather than broadcasting the full state to the room group. During `Bidding`, a player receives their own `dice` array intact; all other players' `dice` arrays are replaced with `[]` while their `diceCount` is preserved. During `Reveal` and `Finished` phases, all players receive the full state.
 
-**Rationale:** This platform is explicitly invite-only and friends-only (see §2 Non-Goals: no public matchmaking). A motivated cheater could inspect the WebSocket frame in dev tools regardless of server-side hiding — the social contract is the enforcement mechanism, not cryptography. Server-side per-player state projection would require a significant platform change (per-connection state slices) and is out of scope for v1. This is documented as a known limitation. If the platform ever adds per-player state projection (a potential ADR), Liar's Dice should be the first beneficiary.
+The earlier client-side filtering approach (frontend filtering the `dice` array before rendering) is superseded by this decision. The frontend should not apply any client-side dice visibility filtering — the server sends each client only what that client is allowed to see.
 
-**Open question OQ-LD-01:** Should we add a note in the UI ("Dice values are hidden client-side only — check the network tab if you trust your friends") or simply say nothing? A warning would be honest but might seem paranoid for a friends-only app. Recommendation: say nothing in v1; add to docs if it ever comes up. No blocking action required.
+See `docs/specs/public-private-game-state.md` for the full platform design. This decision supersedes the original client-side filtering approach recorded here. OQ-LD-01 is resolved — see below.
 
 ---
 
@@ -268,12 +268,13 @@ A single die face rendered as an inline SVG. Renders pip layouts for faces 1–6
 
 ### `<DiceCup player={...} isMe={bool} />` (container)
 
-Renders a player's cup. When `isMe`:
-- Shows all dice as `<DiceFace>` components
-When not `isMe` and phase is `Bidding`:
-- Shows `diceCount` face-down dice (a die outline without pips, aria-label "N hidden dice")
-When phase is `Reveal` or `Finished`:
-- Shows all dice for all players
+Renders a player's cup. The server sends each client only the dice they are allowed to see (server-side projection via `LiarsDiceModule.ProjectForPlayer`), so this component does not filter dice based on `isMe`.
+
+- When `player.dice` is non-empty: shows each die as a `<DiceFace>` component
+- When `player.dice` is empty (other players during `Bidding`, or eliminated players): shows `player.diceCount` face-down dice (a die outline without pips, aria-label "N hidden dice")
+- During `Reveal` or `Finished`, all players' `dice` arrays are populated by the server — no special client-side handling required
+
+The `isMe` prop is kept for styling the local player's cup differently (e.g. a distinct border), not for hiding or showing dice.
 
 ### `<RevealAnimation />` (transition)
 
@@ -379,7 +380,7 @@ This is the only required change outside the game module itself. It is explicitl
 
 ## Out of scope
 
-- Server-side per-player state projection (hiding dice server-side per connection) — see hidden information decision above
+- Server-side per-player state projection — **implemented** via `LiarsDiceModule.ProjectForPlayer`; no longer out of scope. See `docs/specs/public-private-game-state.md`.
 - Persistent leaderboard or cross-room statistics — future story
 - Async / pass-and-play mode (`SupportsAsync = false`)
 - Undo (`SupportsUndo = false` — bluffing games with revealed information cannot be meaningfully undone)
@@ -413,6 +414,6 @@ This is the only required change outside the game module itself. It is explicitl
 
 ## Open questions
 
-- **OQ-LD-01** (non-blocking): Warn users in the UI that dice are hidden client-side only? Recommendation: no warning in v1 for a friends-only app. Does not block implementation.
+- **OQ-LD-01** ~~(non-blocking): Warn users in the UI that dice are hidden client-side only? Recommendation: no warning in v1 for a friends-only app. Does not block implementation.~~ **Resolved — closed.** Server-side projection implemented via `LiarsDiceModule.ProjectForPlayer`. The platform now sends each player only the state their perspective allows. No client-side filtering warning is needed. See `docs/specs/public-private-game-state.md`.
 - **OQ-LD-02** (non-blocking): Should `StartNextRound` auto-advance after a fixed delay (e.g. 5 seconds after reveal) or require an explicit player action? Recommendation: require explicit action (any active player taps "Next Round") to avoid races and give players time to absorb the reveal. Can be revisited.
 - **OQ-LD-03** (non-blocking): Should the pirate theme override be applied by the platform room wrapper (platform reads `gameTheme` from the game module metadata) or by the game component itself (game sets the attribute in its root element)? Recommendation: game component sets it on its own root `<div>`. This keeps the platform unaware of per-game themes and is consistent with ADR-008 (games own their entire UI).

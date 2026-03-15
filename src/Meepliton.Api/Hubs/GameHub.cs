@@ -23,8 +23,9 @@ public class GameHub(GameDispatcher dispatcher, PlatformDbContext db, ILogger<Ga
         var room = await db.Rooms.FindAsync(roomId);
         if (room?.GameState is not null)
         {
-            // Push current state to reconnecting client only
-            await Clients.Caller.SendAsync("StateUpdated", room.GameState);
+            // Push current state to reconnecting client only (projected if module uses per-player state)
+            var stateToSend = dispatcher.ProjectStateForPlayerOrFull(room.GameId, room.GameState, playerId);
+            await Clients.Caller.SendAsync("StateUpdated", stateToSend);
         }
 
         // Notify other players this player connected
