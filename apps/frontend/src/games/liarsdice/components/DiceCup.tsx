@@ -79,7 +79,7 @@ export function DiceCup({
         )}
       </div>
 
-      <div className={styles.cupDiceCount}>
+      <div className={styles.cupDiceCount} aria-live="polite" aria-atomic="true">
         {player.active
           ? `${player.diceCount} ${player.diceCount === 1 ? 'die' : 'dice'}`
           : 'eliminated'}
