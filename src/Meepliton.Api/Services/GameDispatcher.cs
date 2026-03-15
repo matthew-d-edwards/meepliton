@@ -76,7 +76,7 @@ public class GameDispatcher(
                 .ToListAsync(ct);
             foreach (var pid in players)
             {
-                var projected = module.ProjectStateForPlayer(result.NewState, pid) ?? result.NewState;
+                var projected = ProjectStateForPlayerOrFull(room.GameId, result.NewState, pid);
                 await hubContext.Clients.User(pid).SendAsync("StateUpdated", projected, ct);
             }
         }
