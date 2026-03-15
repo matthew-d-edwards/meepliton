@@ -129,7 +129,7 @@ The platform is built around two constraints that every architectural decision m
 
 **Context:** The platform must discover installed games at startup without requiring manual registration.
 
-**Decision:** On startup, the API uses Scrutor to scan all assemblies for implementations of `IGameModule` and `IGameReducer`. The `games` catalogue table is upserted from discovered implementations on every startup.
+**Decision:** On startup, the API uses Scrutor to scan all assemblies for implementations of `IGameModule` and `IGameHandler`. The `games` catalogue table is upserted from discovered implementations on every startup.
 
 **Reasoning:** Adding a game requires only a project reference to the solution and one line in the frontend registry. No changes to `Program.cs`, no configuration files, no separate database seeds.
 
@@ -386,16 +386,16 @@ The platform is built around two constraints that every architectural decision m
 
 | Concern | Choice | Rationale |
 |---|---|---|
-| Runtime | .NET 9 / ASP.NET Core | Familiar; excellent SignalR and EF Core integration |
+| Runtime | .NET 10 / ASP.NET Core | Familiar; excellent SignalR and EF Core integration |
 | Real-time | ASP.NET Core SignalR (in-process) | Eliminates $50/month Azure SignalR Service cost (ADR-001) |
-| ORM | Entity Framework Core 9 + Npgsql | Strong migrations; JSONB support; familiar query model |
+| ORM | Entity Framework Core 10 + Npgsql | Strong migrations; JSONB support; familiar query model |
 | Identity | ASP.NET Core Identity + `ApplicationUser` | User management, password hashing, lockout, token generation (ADR-007) |
 | Auth — Google | `Microsoft.AspNetCore.Authentication.Google` | External provider; links to `ApplicationUser` via `user_logins` |
 | Auth — Email | ASP.NET Core Identity `UserManager` / `SignInManager` | Password sign-in, registration, reset, email confirmation |
 | Email delivery | `IEmailSender` + SendGrid (or SMTP) | Required for email confirmation and password reset |
 | API | Minimal API + SignalR Hubs | REST for lobby/room CRUD; SignalR hub for game actions and state |
 | Validation | FluentValidation | Typed rules decoupled from endpoints |
-| DI scanning | Scrutor | Assembly scanning for `IGameModule` / `IGameReducer` / `IGameDbContext` discovery |
+| DI scanning | Scrutor | Assembly scanning for `IGameModule` / `IGameHandler` / `IGameDbContext` discovery |
 
 ### 7.3 Database
 
@@ -465,8 +465,8 @@ The platform is built around two constraints that every architectural decision m
 │                          ▼                                  │
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │              GameDispatcher                           │  │
-│  │  Discovers IGameModule / IGameReducer via Scrutor     │  │
-│  │  Calls IsActionValid() → Reduce() → persists state   │  │
+│  │  Discovers IGameModule / IGameHandler via Scrutor     │  │
+│  │  Calls Validate() → Apply() → persists state         │  │
 │  │  Broadcasts StateUpdated to room group               │  │
 │  └────────────────────────┬─────────────────────────────┘  │
 └───────────────────────────┼────────────────────────────────┘
@@ -536,9 +536,9 @@ Player interacts with the board
   → hub.invoke("SendAction", roomId, { type: "PlaceTile", tileId: 42 })
   → GameHub → GameDispatcher.HandleAction(roomId, userId, action)
   → Load rooms.game_state from DB
-  → IGameReducer.IsActionValid(state, action, userId) → bool
+  → IGameHandler.Validate(state, action, userId) → bool
   → If valid:
-      newState = IGameReducer.Reduce(state, action)
+      newState = IGameHandler.Apply(state, action)
       UPDATE rooms SET game_state = newState, state_version += 1
       INSERT INTO action_log (roomId, userId, action, state_version)
       hub.Clients.Group(roomId).SendAsync("StateUpdated", newState)
@@ -1268,11 +1268,11 @@ scale:
 ### 12.4 API Dockerfile
 
 ```dockerfile
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 8080
 
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY ["src/", "."]
 RUN dotnet restore "Meepliton.Api/Meepliton.Api.csproj"
@@ -1332,7 +1332,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.x'
+          dotnet-version: '10.x'
 
       - name: Build
         run: dotnet build src/Meepliton.sln --configuration Release
@@ -1643,7 +1643,7 @@ Meepliton uses the standard `.claude/` project layout. Claude Code reads `CLAUDE
 
 The typical journey for someone who has never used git:
 
-1. Install prerequisites: .NET 9 SDK, Node 20, Docker Desktop, GitHub CLI (`gh`)
+1. Install prerequisites: .NET 10 SDK, Node 20, Docker Desktop, GitHub CLI (`gh`)
 2. Clone the repo once: `gh repo clone [username]/meepliton && cd meepliton`
 3. Open Claude Code: `claude` in the meepliton folder
 4. Type `/scaffold-game` — Claude handles the entire workflow interactively
