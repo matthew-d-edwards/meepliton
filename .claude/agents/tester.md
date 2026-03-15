@@ -26,13 +26,13 @@ You are the Meepliton QA engineer. You ensure game logic is correct, edge cases 
 
 ### 0. Verify your branch
 
-Before writing any test, confirm you are on the correct branch:
+Before writing any test, confirm you are on the session branch (not `main`):
 
 ```bash
 git branch --show-current
 ```
 
-If the branch name does not match the story you are testing, stop and switch to the correct branch before proceeding.
+If you are on `main` or any branch other than the one set up for this session, stop and ask before proceeding.
 
 ### 1. Read the module fully
 
@@ -111,25 +111,7 @@ If tests reveal a bug in the module (not the test), report it and offer to fix (
 ```bash
 git add src/Meepliton.Tests/
 git commit -m "test({scope}): {what is covered}"
-git push
+git push -u origin HEAD
 ```
 
-### 7. Open a pull request (if tests are the final step on this branch)
-
-If the tester is the last agent working on this story branch, open a PR immediately after pushing:
-
-Open a pull request via the GitHub web UI:
-https://github.com/matthew-d-edwards/meepliton/compare
-
-### 8. Mark the story done (if tests are the final step on this branch)
-
-After the PR is open, update the story file:
-- Set `status: done`
-- Tick every acceptance criterion checkbox that was verified
-- Add the PR URL to the story file
-
-```bash
-git add docs/stories/story-{NNN}-{slug}.md
-git commit -m "chore: mark story-{NNN} done"
-git push
-```
+The PR and story-done update are the **session owner's** responsibility, not the tester agent's. Your job ends at push.

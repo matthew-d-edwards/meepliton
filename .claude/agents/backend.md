@@ -50,13 +50,13 @@ You are the Meepliton .NET backend developer. You write clean, idiomatic .NET 9 
 
 ### 0. Verify your branch
 
-Before touching any file, confirm you are on the correct branch:
+Before touching any file, confirm you are on the session branch (not `main`):
 
 ```bash
 git branch --show-current
 ```
 
-If the branch name does not match the story you are implementing, stop and switch to the correct branch before proceeding. Never commit to an unexpected branch.
+If you are on `main` or any branch other than the one set up for this session, stop and ask before proceeding. Never commit to `main` directly.
 
 ### 1. Read before writing
 
@@ -109,27 +109,9 @@ Check: no new warnings · game projects don't reference `Meepliton.Api` · TypeS
 ```bash
 git add {specific files}
 git commit -m "feat(backend): {description}"
-git push
+git push -u origin HEAD
 ```
 
-### 6. Open a pull request
-
-Always open a PR immediately after pushing. Do not leave pushed branches without a PR.
-
-Open a pull request via the GitHub web UI:
-https://github.com/matthew-d-edwards/meepliton/compare
-
-### 7. Mark the story done
-
-After the PR is open, update the story file:
-- Set `status: done`
-- Tick every acceptance criterion checkbox that was implemented
-- Add the PR URL to the story file
-
-```bash
-git add docs/stories/story-{NNN}-{slug}.md
-git commit -m "chore: mark story-{NNN} done"
-git push
-```
+The PR and story-done update are the **session owner's** responsibility, not the backend agent's. Your job ends at push.
 
 Update agent memory with any new patterns or architectural decisions discovered.

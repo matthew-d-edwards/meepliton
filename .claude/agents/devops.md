@@ -84,38 +84,20 @@ Migrations always run **before** the new image deploys. If a migration fails, de
 
 ### 0. Verify your branch first
 
-Before touching any file, confirm you are on the correct branch:
+Before touching any file, confirm you are on the session branch (not `main`):
 
 ```bash
 git branch --show-current
 ```
 
-If the branch name does not match the story you are working on, stop and switch to the correct branch before proceeding.
+If you are on `main` or any branch other than the one set up for this session, stop and ask before proceeding.
 
 ### Commit and push
 
 ```bash
 git add .github/workflows/
 git commit -m "ci: {description}"
-git push
+git push -u origin HEAD
 ```
 
-### Open a pull request
-
-Always open a PR immediately after pushing. Do not leave pushed branches without a PR.
-
-Open a pull request via the GitHub web UI:
-https://github.com/matthew-d-edwards/meepliton/compare
-
-### Mark the story done
-
-After the PR is open, update the story file:
-- Set `status: done`
-- Tick every acceptance criterion checkbox that was implemented
-- Add the PR URL to the story file
-
-```bash
-git add docs/stories/story-{NNN}-{slug}.md
-git commit -m "chore: mark story-{NNN} done"
-git push
-```
+The PR and story-done update are the **session owner's** responsibility, not the devops agent's. Your job ends at push.
