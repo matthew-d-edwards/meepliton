@@ -54,21 +54,22 @@ docs/owner/TODO.md              Actions only you can take — check this when st
 ## Adding a new game
 
 ```bash
-# 1. Create a branch
+# 1. Create a session branch
 git checkout main && git pull && git checkout -b add-{gameid}-game
 
 # 2. Scaffold
 ./scripts/new-game.ps1 -GameId {gameid} -GameName "{Name}"
 
 # 3. Implement (attach .claude/skills/NEW-GAME.md to a Claude conversation)
+#    All agents (backend, frontend, tester) commit to this same branch.
 
 # 4. Run locally to test
 dotnet run --project src/Meepliton.AppHost
 
-# 5. Commit and open a PR
+# 5. Open a PR (session owner only — after all agent work is complete)
 git add src/games/Meepliton.Games.{Name}/ apps/frontend/src/games/{gameid}/
 git commit -m "Add {Name} game module"
-gh pr create --title "Add {Name}" --base main --web
+# Open PR at: https://github.com/matthew-d-edwards/meepliton/compare
 ```
 
 ## Skills
@@ -137,6 +138,12 @@ Specialist agents run in isolated contexts with focused tool access. Claude dele
 
 For small changes (bug fix, minor text change): skip to step 3.
 
+**Running agents in parallel (step 3 and beyond):**
+
+All agents commit to the single session branch. When two or more agents run in parallel they must operate in isolated git worktrees so their file edits do not collide. Use the Agent tool's `isolation: "worktree"` parameter when spawning parallel implementation agents. Without it, all agents share the same working directory and can corrupt each other's git state.
+
+Each implementation agent must — as step 0 of its workflow — run `git branch --show-current` and confirm it is on the session branch before writing any file. If it is on `main` or an unexpected branch, stop and ask.
+
 **Periodic maintenance (run after every few stories or on a schedule):**
 
 ```
@@ -147,10 +154,15 @@ ally     → full accessibility and language sweep
 
 ## Branch conventions
 
+**One branch per Claude session.** At the start of a session, create one branch for all the work that session will do. All specialist agents (`backend`, `frontend`, `tester`, `devops`, etc.) commit to that same branch — they do not create their own branches.
+
+Branch naming by purpose:
 - `add-{gameid}-game` — new game module
 - `fix-{description}` — bug fix
 - `update-{description}` — improvement to existing feature
 - `docs-{description}` — documentation only
+
+**Opening the PR is the session owner's responsibility**, not individual agents. Agents only commit and push. Once all agent work is done, the session owner opens a single PR for the entire branch.
 
 **Never push directly to `main`.** Always work on a branch and open a PR.
 CI must pass before merging.

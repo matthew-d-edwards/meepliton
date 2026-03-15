@@ -15,12 +15,12 @@ Without feedback on invalid actions the game feels broken — players don't know
 
 ## Acceptance criteria
 
-- [ ] When `IGameModule.Validate` returns an error string, the `GameDispatcher` sends `ActionRejected` only to the submitting player (not broadcast to all)
+- [x] When `IGameModule.Validate` returns an error string, the `GameDispatcher` sends `ActionRejected` only to the submitting player (not broadcast to all)
 - [x] The frontend displays the rejection message as a toast notification that auto-dismisses after 3–5 seconds
 - [x] The toast uses `<ActionRejectedToast>` from `packages/ui/src/` (platform chrome component)
-- [ ] The game state does not change on rejection — the board remains as-is
-- [ ] "Not your turn" is the minimum rejection message all game modules must support
-- [ ] The toast is visually distinct from success states (uses `--neon-magenta` or error colour, not `--neon-cyan`)
+- [x] The game state does not change on rejection — the board remains as-is
+- [x] "Not your turn" is the minimum rejection message all game modules must support
+- [x] The toast is visually distinct from success states (uses `--neon-magenta` or error colour, not `--neon-cyan`)
 
 ## Notes
 

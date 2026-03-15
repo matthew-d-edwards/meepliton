@@ -31,10 +31,8 @@ dotnet ef database update \
 
 ### Diagnose a failed pipeline
 
-```bash
-gh run list --limit 5
-gh run view {run-id} --log-failed
-```
+Check GitHub Actions in the browser:
+https://github.com/matthew-d-edwards/meepliton/actions
 
 Common failures:
 - **Build fails** — check dotnet build output, usually missing project reference
@@ -82,10 +80,24 @@ Migrations always run **before** the new image deploys. If a migration fails, de
 6. Frontend `npm ci && npm run build`
 7. Azure Static Web Apps deploy
 
-## Commit
+## Commit, PR, and story update
+
+### 0. Verify your branch first
+
+Before touching any file, confirm you are on the session branch (not `main`):
+
+```bash
+git branch --show-current
+```
+
+If you are on `main` or any branch other than the one set up for this session, stop and ask before proceeding.
+
+### Commit and push
 
 ```bash
 git add .github/workflows/
 git commit -m "ci: {description}"
-git push
+git push -u origin HEAD
 ```
+
+The PR and story-done update are the **session owner's** responsibility, not the devops agent's. Your job ends at push.

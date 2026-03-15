@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import * as signalR from '@microsoft/signalr'
 import { useAuth } from '../auth/AuthContext'
@@ -78,13 +78,6 @@ export default function RoomPage({ join }: { join?: boolean }) {
       })
   }, [roomId])
 
-  // Auto-dismiss action rejected toast after 4 seconds
-  useEffect(() => {
-    if (!rejectedReason) return
-    const t = setTimeout(() => setRejectedReason(null), 4000)
-    return () => clearTimeout(t)
-  }, [rejectedReason])
-
   // Connect SignalR
   useEffect(() => {
     if (!roomId) return
@@ -110,6 +103,8 @@ export default function RoomPage({ join }: { join?: boolean }) {
 
     return () => { hub.stop() }
   }, [roomId])
+
+  const dismissRejection = useCallback(() => setRejectedReason(null), [])
 
   function dispatch(action: unknown) {
     hubRef.current?.invoke('SendAction', roomId, action)
@@ -173,7 +168,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
       {rejectedReason && (
         <ActionRejectedToast
           reason={rejectedReason}
-          onDismiss={() => setRejectedReason(null)}
+          onDismiss={dismissRejection}
         />
       )}
       <TurnIndicator currentPlayerId={currentPlayerId} players={players} myPlayerId={user.id} />

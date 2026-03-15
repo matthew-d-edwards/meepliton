@@ -1,72 +1,66 @@
-import { Routes, Route, Navigate, Link, useNavigate, useParams } from 'react-router-dom'
+import { ReactNode } from 'react'
+import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import { AppShell } from '@meepliton/ui'
-import LoginPage from './auth/LoginPage'
+import SignInPage from './auth/SignInPage'
+import RegisterPage from './auth/RegisterPage'
+import ForgotPasswordPage from './auth/ForgotPasswordPage'
+import ResetPasswordPage from './auth/ResetPasswordPage'
+import ConfirmEmailPage from './auth/ConfirmEmailPage'
 import LobbyPage from './lobby/LobbyPage'
 import RoomPage from './room/RoomPage'
-import './auth/auth.css'
 
-function AppRoutes() {
-  const { user, loading } = useAuth()
-
-  if (loading) {
-    return (
-      <div className="auth-loading-gate" aria-live="polite" aria-label="Loading">
-        <div className="auth-loading-spinner" />
-      </div>
-    )
-  }
-}
-
-function JoinRoute() {
-  const { code } = useParams<{ code: string }>()
-  const { user } = useAuth()
-  if (user) return <RoomPage join />
-  return <Navigate to={`/login?next=/join/${code ?? ''}`} replace />
-}
-        
-/** react-router Link adapter for AppShell's logoLinkAs prop */
-function RouterLink({
-  href,
-  className,
-  'aria-label': ariaLabel,
-  children,
-}: {
-  href: string
-  className: string
-  'aria-label': string
-  children?: React.ReactNode
-}) {
+function logoLink({ children, className }: { children: ReactNode; className: string }) {
   return (
-    <Link to={href} className={className} aria-label={ariaLabel}>
+    <Link to="/lobby" className={className}>
       {children}
     </Link>
   )
 }
 
 function AppRoutes() {
-  const { user, logout } = useAuth()
+  const { user, loading, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  if (loading) return null
 
   async function handleSignOut() {
     await logout()
-    navigate('/login')
+    navigate('/sign-in')
   }
 
-  return ( 
-    <AppShell
-      user={user}
-      onSignOut={handleSignOut}
-      logoLinkAs={user ? RouterLink : undefined}
-    >
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/lobby" element={user ? <LobbyPage /> : <Navigate to="/login" />} />
-        <Route path="/room/:roomId" element={user ? <RoomPage /> : <Navigate to="/login" />} />
-        <Route path="/join/:code" element={user ? <JoinRoute /> : <Navigate to="/login" />} />
-        <Route path="*" element={<Navigate to={user ? '/lobby' : '/login'} />} />
-      </Routes>
-    </AppShell>
+  /** Wrap a page in AppShell; redirect to /sign-in with ?next= if not authenticated. */
+  function shell(page: ReactNode) {
+    if (!user) {
+      const next = location.pathname + location.search
+      return <Navigate to={`/sign-in?next=${encodeURIComponent(next)}`} replace />
+    }
+    return (
+      <AppShell user={user} onSignOut={handleSignOut} logoLinkAs={logoLink}>
+        {page}
+      </AppShell>
+    )
+  }
+
+  return (
+    <Routes>
+      {/* Auth pages — no shell */}
+      <Route path="/sign-in" element={<SignInPage />} />
+      <Route path="/login" element={<Navigate to="/sign-in" replace />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/confirm-email" element={<ConfirmEmailPage />} />
+
+      {/* Authenticated pages — wrapped in AppShell */}
+      <Route path="/lobby" element={shell(<LobbyPage />)} />
+      <Route path="/room/:roomId" element={shell(<RoomPage />)} />
+      <Route path="/join/:code" element={shell(<RoomPage join />)} />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to={user ? '/lobby' : '/sign-in'} replace />} />
+    </Routes>
   )
 }
 

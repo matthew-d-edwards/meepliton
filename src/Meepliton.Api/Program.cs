@@ -100,6 +100,12 @@ builder.Services.Scan(scan => scan
     .AsImplementedInterfaces()
     .WithScopedLifetime());
 
+// Email sender — SendGrid when API key is present; console logging for local dev / CI
+if (!string.IsNullOrEmpty(builder.Configuration["SENDGRID_API_KEY"]))
+    builder.Services.AddTransient<IEmailSender<ApplicationUser>, SendGridEmailSender>();
+else
+    builder.Services.AddTransient<IEmailSender<ApplicationUser>, LoggingEmailSender>();
+
 // Platform services
 builder.Services.AddScoped<MigrationRunner>();
 builder.Services.AddScoped<GameDispatcher>();

@@ -24,6 +24,16 @@ You are the Meepliton QA engineer. You ensure game logic is correct, edge cases 
 
 ## Workflow
 
+### 0. Verify your branch
+
+Before writing any test, confirm you are on the session branch (not `main`):
+
+```bash
+git branch --show-current
+```
+
+If you are on `main` or any branch other than the one set up for this session, stop and ask before proceeding.
+
 ### 1. Read the module fully
 
 Read `CreateInitialState`, `Validate`, and `Apply` before writing a single test.
@@ -96,10 +106,12 @@ dotnet test src/Meepliton.Tests --filter "FullyQualifiedName~{Pascal}ModuleTests
 
 If tests reveal a bug in the module (not the test), report it and offer to fix (involves the `backend` agent's domain). If the test expectation was wrong, fix the test and explain why.
 
-### 6. Commit
+### 6. Commit and push
 
 ```bash
 git add src/Meepliton.Tests/
 git commit -m "test({scope}): {what is covered}"
-git push
+git push -u origin HEAD
 ```
+
+The PR and story-done update are the **session owner's** responsibility, not the tester agent's. Your job ends at push.

@@ -1,7 +1,9 @@
 using System.Security.Claims;
+using System.Text;
 using Meepliton.Api.Identity;
 using Meepliton.Api.Services;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace Meepliton.Api.Endpoints;
 
@@ -16,7 +18,8 @@ public static class AuthEndpoints
         group.MapPost("/register", async (
             RegisterRequest req,
             UserManager<ApplicationUser> userManager,
-            IEmailSender<ApplicationUser> emailSender) =>
+            IEmailSender<ApplicationUser> emailSender,
+            IConfiguration configuration) =>
         {
             var user = new ApplicationUser
             {
@@ -26,10 +29,24 @@ public static class AuthEndpoints
             };
             var result = await userManager.CreateAsync(user, req.Password);
             if (!result.Succeeded)
-                return Results.ValidationProblem(result.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+            {
+                // Do not reveal whether the email already exists — return a generic message
+                // for duplicate-email errors to prevent account enumeration.
+                var errors = result.Errors
+                    .Select(e => e.Code is "DuplicateUserName" or "DuplicateEmail"
+                        ? new { Code = "RegistrationFailed", Description = "Registration failed. Please try again." }
+                        : new { Code = e.Code, Description = e.Description })
+                    .GroupBy(e => e.Code)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.Description).Distinct().ToArray());
+                return Results.ValidationProblem(errors);
+            }
 
             var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
-            await emailSender.SendConfirmationLinkAsync(user, req.Email, token);
+            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+            var frontendBase = configuration["Frontend:BaseUrl"] ?? "https://meepliton.com";
+            var confirmationLink = $"{frontendBase}/confirm-email?userId={user.Id}&token={encodedToken}";
+
+            await emailSender.SendConfirmationLinkAsync(user, req.Email, confirmationLink);
 
             return Results.Created($"/api/auth/me", null);
         });
@@ -40,21 +57,27 @@ public static class AuthEndpoints
         {
             var user = await userManager.FindByIdAsync(req.UserId);
             if (user is null) return Results.NotFound();
-            var result = await userManager.ConfirmEmailAsync(user, req.Token);
+
+            var token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(req.Token));
+            var result = await userManager.ConfirmEmailAsync(user, token);
             return result.Succeeded ? Results.NoContent() : Results.BadRequest(result.Errors);
         });
 
         group.MapPost("/forgot-password", async (
             ForgotPasswordRequest req,
             UserManager<ApplicationUser> userManager,
-            IEmailSender<ApplicationUser> emailSender) =>
+            IEmailSender<ApplicationUser> emailSender,
+            IConfiguration configuration) =>
         {
             // Always return 204 — no email enumeration
             var user = await userManager.FindByEmailAsync(req.Email);
             if (user is not null && await userManager.IsEmailConfirmedAsync(user))
             {
                 var token = await userManager.GeneratePasswordResetTokenAsync(user);
-                await emailSender.SendPasswordResetLinkAsync(user, req.Email, token);
+                var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+                var frontendBase = configuration["Frontend:BaseUrl"] ?? "https://meepliton.com";
+                var resetLink = $"{frontendBase}/reset-password?userId={user.Id}&token={encodedToken}";
+                await emailSender.SendPasswordResetLinkAsync(user, req.Email, resetLink);
             }
             return Results.NoContent();
         });
@@ -65,7 +88,8 @@ public static class AuthEndpoints
         {
             var user = await userManager.FindByIdAsync(req.UserId);
             if (user is null) return Results.NoContent(); // silent
-            var result = await userManager.ResetPasswordAsync(user, req.Token, req.NewPassword);
+            var token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(req.Token));
+            var result = await userManager.ResetPasswordAsync(user, token, req.NewPassword);
             return result.Succeeded ? Results.NoContent() : Results.BadRequest(result.Errors);
         });
 

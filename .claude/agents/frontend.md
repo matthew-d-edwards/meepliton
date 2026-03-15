@@ -53,6 +53,16 @@ C# records serialize to **camelCase** JSON. Enums become string unions.
 
 ## Workflow
 
+### 0. Verify your branch
+
+Before touching any file, confirm you are on the session branch (not `main`):
+
+```bash
+git branch --show-current
+```
+
+If you are on `main` or any branch other than the one set up for this session, stop and ask before proceeding. Never commit to `main` directly.
+
 ### 1. Read first — understand existing structure
 
 ### 2. Implement
@@ -88,7 +98,9 @@ Check: no `any` · `types.ts` still mirrors C# models · CSS uses token variable
 ```bash
 git add {specific files}
 git commit -m "feat(frontend): {description}"
-git push
+git push -u origin HEAD
 ```
+
+The PR and story-done update are the **session owner's** responsibility, not the frontend agent's. Your job ends at push.
 
 Update agent memory with component patterns and recurring TypeScript issues discovered.

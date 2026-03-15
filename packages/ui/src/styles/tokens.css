@@ -97,31 +97,29 @@
 
 /* ── LIGHT THEME — neon signs on wet concrete ── */
 [data-theme="light"] {
-  color-scheme: light;
+  color-scheme: dark; /* intentional: this theme is still dark-on-dark */
 
-  --surface-base:    #e8ecf0;
-  --surface-raised:  #d8dfe8;
-  --surface-float:   #cdd5e0;
-  --surface-overlay: #c2ccd8;
+  --surface-base:    #1e2530;
+  --surface-raised:  #252d3a;
+  --surface-float:   #2c3545;
+  --surface-overlay: #323d50;
 
-  --edge-subtle:  #b0bcc8;
-  --edge-strong:  #8090a4;
+  --edge-subtle:  #3a4a60;
+  --edge-strong:  #4a5e78;
 
-  --text-muted:   #607080;
-  --text-primary: #1a2a3a;
-  --text-bright:  #0a1520;
+  --text-muted:   #6a88a8;
+  --text-primary: #b8d0e8;
+  --text-bright:  #ddeeff;
 
-  /* Gold dims slightly in light to maintain contrast */
-  --accent:       #d4900a;
-  --accent-dim:   #d4900a18;
-  --accent-glow:  #d4900a55;
+  --accent:       #f0c040;
+  --accent-dim:   #f0c04018;
+  --accent-glow:  #f0c04044;
 
-  /* Keep neons — they still pop on wet concrete */
-  --neon-cyan:    #0090b0;
-  --neon-magenta: #c00040;
-  --neon-orange:  #c04000;
+  --neon-cyan:    #00d4ff;
+  --neon-magenta: #ff2060;
+  --neon-orange:  #ff6010;
 
-  /* Softer glow — overcast diffuses light */
+  /* Slightly softer glow — overcast diffuses light */
   --glow-sm:    0 0 6px;
   --glow-md:    0 0 14px;
   --glow-lg:    0 0 28px;
@@ -227,45 +225,25 @@ body > * { position: relative; z-index: 1; }
 
 /* ── HEADER ── */
 .meepliton-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--space-7, 28px);
+  height: var(--header-h);
   background: var(--surface-overlay);
   border-bottom: 1px solid var(--edge-subtle);
   box-shadow: 0 1px 0 var(--edge-strong), 0 4px 30px rgba(0,0,0,.4);
   position: sticky; top: 0; z-index: 50;
   backdrop-filter: blur(16px);
 }
-
-/* Inner row — uses .container for max-width, then flex for alignment */
-.meepliton-header-inner {
-  display: flex; align-items: center; justify-content: space-between;
-  height: var(--header-h);
+@media (max-width: 600px) {
+  .meepliton-header { padding: 0 var(--space-4); }
 }
 
-/* Actions cluster (theme toggle + sign-out) */
+/* Header actions cluster — right-side icon buttons */
 .meepliton-header-actions {
-  display: flex; align-items: center; gap: var(--space-2);
-}
-
-/* Sign-out button — extends .icon-btn; text label hidden on mobile */
-.meepliton-signout-btn {
-  display: flex; align-items: center; gap: var(--space-1);
-  padding: 0 var(--space-2);
-  width: auto;
-  font-family: var(--font-mono);
-  font-size: .7rem;
-  letter-spacing: .5px;
-  color: var(--text-muted);
-  border-color: var(--edge-strong);
-  white-space: nowrap;
-}
-.meepliton-signout-btn:hover {
-  border-color: var(--status-error);
-  color: var(--status-error);
-}
-
-/* Collapse sign-out label text on narrow viewports (375px) */
-@media (max-width: 375px) {
-  .meepliton-signout-label { display: none; }
-  .meepliton-signout-btn { padding: 0; width: 32px; justify-content: center; }
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 /* Platform logo */
@@ -588,6 +566,62 @@ label {
   transform: translateY(80px); opacity: 0; transition: all var(--dur-slow) var(--ease-out);
 }
 .toast.show { transform: translateY(0); opacity: 1; }
+
+/* ── ACTION REJECTED TOAST ── */
+@keyframes action-rejected-slide-in {
+  from { transform: translateY(80px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.action-rejected-toast {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--surface-overlay);
+  border: 1px solid var(--neon-magenta);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: .76rem;
+  color: var(--text-primary);
+  max-width: 320px;
+  box-shadow: var(--glow-sm) var(--neon-magenta),
+              var(--glow-md) color-mix(in srgb, var(--neon-magenta) 25%, transparent);
+  animation: action-rejected-slide-in var(--dur-slow) var(--ease-out) both;
+}
+
+.action-rejected-toast__message {
+  flex: 1;
+  color: var(--text-bright);
+  line-height: 1.5;
+}
+
+.action-rejected-toast__close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--edge-strong);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--dur-fast);
+}
+
+.action-rejected-toast__close:hover {
+  border-color: var(--neon-magenta);
+  color: var(--neon-magenta);
+  box-shadow: var(--glow-sm) color-mix(in srgb, var(--neon-magenta) 40%, transparent);
+}
 
 /* ── THEME TOGGLE ── */
 .theme-toggle {

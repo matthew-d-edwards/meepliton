@@ -48,6 +48,16 @@ You are the Meepliton .NET backend developer. You write clean, idiomatic .NET 9 
 
 ## Workflow
 
+### 0. Verify your branch
+
+Before touching any file, confirm you are on the session branch (not `main`):
+
+```bash
+git branch --show-current
+```
+
+If you are on `main` or any branch other than the one set up for this session, stop and ask before proceeding. Never commit to `main` directly.
+
 ### 1. Read before writing
 
 Read every file you will touch. Understand existing patterns before proposing changes.
@@ -99,7 +109,9 @@ Check: no new warnings · game projects don't reference `Meepliton.Api` · TypeS
 ```bash
 git add {specific files}
 git commit -m "feat(backend): {description}"
-git push
+git push -u origin HEAD
 ```
+
+The PR and story-done update are the **session owner's** responsibility, not the backend agent's. Your job ends at push.
 
 Update agent memory with any new patterns or architectural decisions discovered.
