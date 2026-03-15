@@ -137,6 +137,12 @@ Specialist agents run in isolated contexts with focused tool access. Claude dele
 
 For small changes (bug fix, minor text change): skip to step 3.
 
+**Running agents in parallel (step 3 and beyond):**
+
+When two or more agents run in parallel on different stories, they must operate in isolated git worktrees so their branch checkouts do not interfere. Use the Agent tool's `isolation: "worktree"` parameter when spawning parallel implementation agents. Without it, all agents share the same working directory and will corrupt each other's git state.
+
+Each implementation agent must — as step 0 of its workflow — run `git branch --show-current` and confirm it is on the expected branch before writing any file.
+
 **Periodic maintenance (run after every few stories or on a schedule):**
 
 ```

@@ -24,6 +24,16 @@ You are the Meepliton QA engineer. You ensure game logic is correct, edge cases 
 
 ## Workflow
 
+### 0. Verify your branch
+
+Before writing any test, confirm you are on the correct branch:
+
+```bash
+git branch --show-current
+```
+
+If the branch name does not match the story you are testing, stop and switch to the correct branch before proceeding.
+
 ### 1. Read the module fully
 
 Read `CreateInitialState`, `Validate`, and `Apply` before writing a single test.
@@ -96,10 +106,31 @@ dotnet test src/Meepliton.Tests --filter "FullyQualifiedName~{Pascal}ModuleTests
 
 If tests reveal a bug in the module (not the test), report it and offer to fix (involves the `backend` agent's domain). If the test expectation was wrong, fix the test and explain why.
 
-### 6. Commit
+### 6. Commit and push
 
 ```bash
 git add src/Meepliton.Tests/
 git commit -m "test({scope}): {what is covered}"
+git push
+```
+
+### 7. Open a pull request (if tests are the final step on this branch)
+
+If the tester is the last agent working on this story branch, open a PR immediately after pushing:
+
+```bash
+gh pr create --title "{description}" --base main --body "Implements story-{NNN}."
+```
+
+### 8. Mark the story done (if tests are the final step on this branch)
+
+After the PR is open, update the story file:
+- Set `status: done`
+- Tick every acceptance criterion checkbox that was verified
+- Add the PR URL to the story file
+
+```bash
+git add docs/stories/story-{NNN}-{slug}.md
+git commit -m "chore: mark story-{NNN} done"
 git push
 ```

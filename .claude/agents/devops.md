@@ -82,10 +82,43 @@ Migrations always run **before** the new image deploys. If a migration fails, de
 6. Frontend `npm ci && npm run build`
 7. Azure Static Web Apps deploy
 
-## Commit
+## Commit, PR, and story update
+
+### 0. Verify your branch first
+
+Before touching any file, confirm you are on the correct branch:
+
+```bash
+git branch --show-current
+```
+
+If the branch name does not match the story you are working on, stop and switch to the correct branch before proceeding.
+
+### Commit and push
 
 ```bash
 git add .github/workflows/
 git commit -m "ci: {description}"
+git push
+```
+
+### Open a pull request
+
+Always open a PR immediately after pushing. Do not leave pushed branches without a PR.
+
+```bash
+gh pr create --title "{description}" --base main --body "Implements story-{NNN}."
+```
+
+### Mark the story done
+
+After the PR is open, update the story file:
+- Set `status: done`
+- Tick every acceptance criterion checkbox that was implemented
+- Add the PR URL to the story file
+
+```bash
+git add docs/stories/story-{NNN}-{slug}.md
+git commit -m "chore: mark story-{NNN} done"
 git push
 ```
