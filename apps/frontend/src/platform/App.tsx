@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
-import { AppShell } from '@meepliton/ui'
+import { AppShell, ThemeToggle } from '@meepliton/ui'
 import SignInPage from './auth/SignInPage'
 import RegisterPage from './auth/RegisterPage'
 import ForgotPasswordPage from './auth/ForgotPasswordPage'
@@ -37,7 +37,7 @@ function AppRoutes() {
       return <Navigate to={`/sign-in?next=${encodeURIComponent(next)}`} replace />
     }
     return (
-      <AppShell user={user} onSignOut={handleSignOut} logoLinkAs={logoLink}>
+      <AppShell user={user} onSignOut={handleSignOut} logoLinkAs={logoLink} themeToggle={<ThemeToggle />}>
         {page}
       </AppShell>
     )

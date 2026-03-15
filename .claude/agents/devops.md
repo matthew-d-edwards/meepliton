@@ -80,9 +80,9 @@ Migrations always run **before** the new image deploys. If a migration fails, de
 6. Frontend `npm ci && npm run build`
 7. Azure Static Web Apps deploy
 
-## Commit, PR, and story update
+## Workflow
 
-### 0. Verify your branch first
+### 0. Verify your branch
 
 Before touching any file, confirm you are on the session branch (not `main`):
 
@@ -91,6 +91,10 @@ git branch --show-current
 ```
 
 If you are on `main` or any branch other than the one set up for this session, stop and ask before proceeding.
+
+**When NOT to invoke devops:** do not invoke for stories that add no EF Core migrations, no CI changes, and no infrastructure configuration. Devops is only needed when the pipeline itself must change.
+
+## Commit, PR, and story update
 
 ### Commit and push
 

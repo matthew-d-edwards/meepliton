@@ -1,7 +1,7 @@
 ---
 id: story-024
 title: Platform AppShell — shared header wraps every page
-status: in-progress
+status: done
 created: 2026-03-14
 ---
 
@@ -19,7 +19,7 @@ Without a shared header, each page duplicates chrome inconsistently, the theme t
 - [x] `<AppShell>` renders a sticky `.meepliton-header` containing: the Meepliton logo (`.meepliton-logo` / `.font-display .neon-gold`), a theme toggle slot, and a sign-out icon button (when authenticated)
 - [x] `AppShell` is used by all authenticated routes (lobby, room); auth pages (sign-in, register, etc.) intentionally do not use the shell — they are full-page auth screens
 - [x] The sign-out button calls the auth context `logout()` method and redirects to `/sign-in`
-- [ ] The theme toggle is wired to the theme hook from story-011
+- [x] The theme toggle is wired to the theme hook from story-011
 - [x] On mobile (375px) the header collapses to logo + icon buttons only; no text labels in the header
 - [x] The header uses `.meepliton-header` + `backdrop-filter` containment and correct padding per tokens
 - [x] All colours, fonts, and spacing use tokens — no hard-coded values

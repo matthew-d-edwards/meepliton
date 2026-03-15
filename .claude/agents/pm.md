@@ -64,9 +64,11 @@ When invoked, run this automatically:
 ### 1. Read current state
 
 ```bash
-git log main...HEAD --oneline 2>/dev/null | head -20
+git log --oneline -10
 git branch -a | grep -v HEAD | grep -v remotes/origin/HEAD
 ```
+
+Note: `git log main...HEAD` returns nothing when already on `main` — use `git log --oneline -10` for recency context instead.
 
 Read all files in `docs/stories/` and `docs/owner/TODO.md`.
 

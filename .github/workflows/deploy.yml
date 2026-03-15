@@ -40,6 +40,10 @@ jobs:
             --project src/games/Meepliton.Games.Skyline \
             --context SkylineDbContext \
             --connection "${{ secrets.DATABASE_GAME_MIGRATION_CONN_STR }}"
+          dotnet ef database update \
+            --project src/games/Meepliton.Games.LiarsDice \
+            --context LiarsDiceDbContext \
+            --connection "${{ secrets.DATABASE_GAME_MIGRATION_CONN_STR }}"
           # Add new game migration steps below this line:
 
       - uses: docker/login-action@v3

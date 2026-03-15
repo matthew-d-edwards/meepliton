@@ -1,0 +1,519 @@
+/* Liar's Dice — scoped CSS Modules
+   All values via design tokens.
+   Pirate overrides live in liarsdice.css scoped to [data-game-theme="pirates"]. */
+
+/* ── Root ── */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  min-height: 100%;
+  background: var(--color-background, var(--surface-base));
+  color: var(--color-text, var(--text-primary));
+  font-family: var(--font-body);
+}
+
+/* ── Game Status Panel ── */
+.statusPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--color-surface-raised, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.statusPalifico {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: color-mix(in srgb, var(--color-primary, var(--accent)) 15%, transparent);
+  border: 1px solid var(--color-primary, var(--accent));
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-primary, var(--accent));
+}
+
+.statusPalificoIcon {
+  font-size: 1rem;
+}
+
+.statusRound {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.statusBidSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.statusBidLabel {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.statusBidDisplay {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.statusBidQuantity {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--color-primary, var(--accent));
+  line-height: 1;
+  letter-spacing: 1px;
+}
+
+.statusNoBid {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-text-muted, var(--text-muted));
+  font-style: italic;
+}
+
+.statusTurn {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-text, var(--text-primary));
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface, var(--surface-float));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+}
+
+.statusTurnMe {
+  color: var(--color-primary, var(--accent));
+  border-color: var(--color-primary, var(--accent));
+  background: color-mix(in srgb, var(--color-primary, var(--accent)) 10%, transparent);
+  font-weight: 600;
+}
+
+.statusRevealResult {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--color-text, var(--text-bright));
+  background: var(--color-surface, var(--surface-float));
+  border: 1px solid var(--color-primary, var(--accent));
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+}
+
+.statusRevealDetail {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.statusWinner {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-primary, var(--accent));
+  text-align: center;
+  padding: var(--space-4);
+}
+
+/* ── Cups Grid ── */
+.cupsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 375px) {
+  .cupsGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+}
+
+/* ── Cup ── */
+.cup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-surface, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  transition: border-color 200ms;
+}
+
+.cupActive {
+  border-color: var(--color-primary, var(--accent));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-primary, var(--accent)) 25%, transparent);
+}
+
+.cupEliminated {
+  /* Raised from 0.45 to avoid collapsing text contrast below WCAG AA (4.5:1).
+     The dimmed appearance is preserved while keeping content legible. */
+  opacity: 0.6;
+}
+
+.cupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.cupPlayerName {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text, var(--text-primary));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cupMeTag {
+  font-size: 0.7rem;
+  color: var(--color-text-muted, var(--text-muted));
+  font-weight: 400;
+}
+
+.cupEliminatedTag {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-pill);
+  padding: 1px 6px;
+}
+
+.cupTurnTag {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-primary, var(--accent));
+  border: 1px solid var(--color-primary, var(--accent));
+  border-radius: var(--radius-pill);
+  padding: 1px 6px;
+}
+
+.cupDice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-height: 48px;
+}
+
+/* Reveal animation — cups tip, dice roll out */
+@keyframes dice-reveal {
+  0% {
+    transform: rotate(0deg) translateY(0);
+    opacity: 1;
+  }
+  30% {
+    transform: rotate(-15deg) translateY(-4px);
+  }
+  60% {
+    transform: rotate(8deg) translateY(2px);
+    opacity: 0.85;
+  }
+  100% {
+    transform: rotate(0deg) translateY(0);
+    opacity: 1;
+  }
+}
+
+.cupDiceRevealing {
+  animation: dice-reveal 600ms var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cupDiceRevealing {
+    animation: none;
+  }
+}
+
+.cupHiddenDice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.cupHiddenDie {
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--color-border, var(--edge-strong));
+  border-radius: var(--radius-sm);
+  background: transparent;
+  opacity: 0.4;
+}
+
+.cupNoDice {
+  color: var(--color-text-muted, var(--text-muted));
+  font-size: 1.2rem;
+}
+
+.cupDiceCount {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--color-text-muted, var(--text-muted));
+  letter-spacing: 0.5px;
+}
+
+/* ── DiceFace ── */
+.diceFace {
+  display: block;
+  flex-shrink: 0;
+}
+
+.diceFaceBody {
+  fill: var(--color-surface-raised, var(--surface-raised));
+  stroke: var(--color-border, var(--edge-strong));
+  stroke-width: 1.5;
+}
+
+.diceFacePip {
+  fill: var(--color-text, var(--text-primary));
+}
+
+.diceFaceHighlighted .diceFaceBody {
+  stroke: var(--color-primary, var(--accent));
+  stroke-width: 2.5;
+}
+
+.diceFaceHighlightBorder {
+  fill: none;
+  stroke: var(--color-primary, var(--accent));
+  stroke-width: 2.5;
+}
+
+.diceFaceWild .diceFacePip {
+  fill: var(--color-primary, var(--accent));
+}
+
+.diceFaceWildMark {
+  fill: var(--color-primary, var(--accent));
+  font-family: var(--font-body);
+}
+
+/* ── Bid Controls ── */
+.bidControls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--color-surface-raised, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.bidSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.bidLabel {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.bidStepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.bidStepBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border, var(--edge-strong));
+  background: var(--color-surface, var(--surface-float));
+  color: var(--color-text, var(--text-primary));
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.bidStepBtn:hover:not(:disabled) {
+  border-color: var(--color-primary, var(--accent));
+  color: var(--color-primary, var(--accent));
+}
+
+.bidStepBtn:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
+}
+
+.bidStepBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.bidStepValue {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text, var(--text-bright));
+  min-width: 2rem;
+  text-align: center;
+}
+
+.bidFaceSelector {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.bidFaceBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border, var(--edge-strong));
+  background: var(--color-surface, var(--surface-float));
+  cursor: pointer;
+  transition: all 150ms;
+  padding: var(--space-1);
+}
+
+.bidFaceBtn:hover {
+  border-color: var(--color-primary, var(--accent));
+}
+
+.bidFaceBtn:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
+}
+
+.bidFaceBtnSelected {
+  border-color: var(--color-primary, var(--accent));
+  background: color-mix(in srgb, var(--color-primary, var(--accent)) 15%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary, var(--accent)) 30%, transparent);
+}
+
+.bidActions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.bidActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 150ms;
+  flex: 1;
+}
+
+.bidActionBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.bidActionBtn:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
+}
+
+.bidActionBtnPlace {
+  background: var(--color-primary, var(--accent));
+  color: var(--color-on-primary, #0d1b2a);
+  border-color: var(--color-primary, var(--accent));
+}
+
+.bidActionBtnPlace:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.bidActionBtnLiar {
+  background: transparent;
+  color: var(--color-text, var(--text-primary));
+  border-color: var(--color-border, var(--edge-strong));
+}
+
+.bidActionBtnLiar:hover:not(:disabled) {
+  border-color: var(--color-text, var(--text-primary));
+  color: var(--color-text, var(--text-bright));
+}
+
+.bidActionBtnPalifico {
+  background: transparent;
+  color: var(--color-primary, var(--accent));
+  border-color: var(--color-primary, var(--accent));
+  margin-top: var(--space-2);
+}
+
+.bidActionBtnPalifico:hover {
+  background: color-mix(in srgb, var(--color-primary, var(--accent)) 15%, transparent);
+}
+
+.bidActionBtnNext {
+  background: var(--color-primary, var(--accent));
+  color: var(--color-on-primary, #0d1b2a);
+  border-color: var(--color-primary, var(--accent));
+}
+
+.bidActionBtnNext:hover {
+  filter: brightness(1.1);
+}
+
+/* ── Next Round area ── */
+.nextRoundArea {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4) 0;
+}
+
+.nextRoundArea .bidActionBtn {
+  flex: unset;
+  min-width: 200px;
+}
+
+/* ── Finished banner ── */
+.finishedBanner {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+  text-align: center;
+  padding: var(--space-4);
+}

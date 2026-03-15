@@ -128,17 +128,36 @@ Specialist agents run in isolated contexts with focused tool access. Claude dele
 ```
 1. /spec-design     → analyst + architect debate → docs/specs/{feature}.md
 2. /story-review    → adversarial analyst + tester harden the spec
-3. backend + frontend implement (in parallel where possible)
+3. backend + frontend implement (in parallel — see parallel rule below)
 4. /ui-design       → ux + frontend agree on any new screens
-5. tester           → write xUnit tests
-6. devops           → update CI if migrations added
-7. ally             → inclusivity and accessibility review before merge
-8. docs             → verify user-facing copy and docs are up to date
+5. architect        → structural review (sequential — must complete before step 6)
+6. tester           → write xUnit tests (sequential — must complete before step 7)
+7. devops           → update CI if migrations added
+8. ally             → inclusivity and accessibility review (sequential — must complete before step 9)
+9. docs             → verify user-facing copy and docs are up to date
+10. session owner   → confirm all steps done, then set status: done
 ```
 
-For small changes (bug fix, minor text change): skip to step 3.
+For small changes (bug fix, minor text change): skip to step 3. Steps 5, 8, and 10 are never optional.
 
-**Running agents in parallel (step 3 and beyond):**
+**Story closure gate — do not set `status: done` until all of these are checked:**
+
+```
+[ ] architect ran and all "Must fix" items resolved
+[ ] tester ran and all tests pass
+[ ] ally ran and all "Must fix" items resolved
+[ ] docs ran (or session owner confirms no user-facing copy changed)
+```
+
+**Parallel vs sequential rule:**
+
+- **Parallel (step 3):** `backend` and `frontend` implement at the same time, in isolated git worktrees.
+- **Sequential (steps 5–9):** `architect`, `tester`, `ally`, and `docs` run one at a time, after implementation is committed. These agents review finished work — running them in parallel with implementation means they review incomplete code.
+- Never mark a story done while a review agent is still running.
+
+**Trainer cadence:** Run `trainer` after every story that involves a new game module, a new screen, or a bug fix that reached "done". The session owner is responsible for triggering it after the PR merges.
+
+**Running agents in parallel (step 3):**
 
 All agents commit to the single session branch. When two or more agents run in parallel they must operate in isolated git worktrees so their file edits do not collide. Use the Agent tool's `isolation: "worktree"` parameter when spawning parallel implementation agents. Without it, all agents share the same working directory and can corrupt each other's git state.
 

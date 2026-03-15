@@ -106,7 +106,16 @@ dotnet test src/Meepliton.Tests --filter "FullyQualifiedName~{Pascal}ModuleTests
 
 If tests reveal a bug in the module (not the test), report it and offer to fix (involves the `backend` agent's domain). If the test expectation was wrong, fix the test and explain why.
 
-### 6. Commit and push
+### 6. Story closure sign-off
+
+After all tests pass, explicitly state one of:
+
+- **Cleared for merge** — all tests pass, coverage targets met.
+- **Blocked — must fix before merge** — list each failing test or uncovered path.
+
+The session owner must not set `status: done` on the story until tester has stated "Cleared for merge."
+
+### 7. Commit and push
 
 ```bash
 git add src/Meepliton.Tests/

@@ -104,6 +104,11 @@ dotnet build src/Meepliton.sln
 
 Check: no new warnings · game projects don't reference `Meepliton.Api` · TypeScript types updated if public API changed.
 
+**Contract field-name check — do this for every game module action type:**
+- Every C# action record property name must match what the frontend will send. ASP.NET Core serializes to camelCase — `BidData` → `bidData`. Check the TypeScript `dispatch()` call sites match exactly.
+- Every enum used in actions or state must have `[JsonConverter(typeof(JsonStringEnumConverter))]`. Without it the enum serializes as an integer and breaks the TypeScript union match silently.
+- If you change a property name or add an enum, ping the `frontend` agent to update `types.ts`.
+
 ### 5. Commit and push
 
 ```bash

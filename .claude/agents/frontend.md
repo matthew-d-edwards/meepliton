@@ -30,10 +30,11 @@ All CSS values must use these tokens. Source of truth: `packages/ui/src/styles/t
 
 ```
 Surfaces:  --surface-base  --surface-raised  --surface-float  --surface-overlay
+Edges:     --edge-subtle  --edge-strong
 Text:      --text-muted  --text-primary  --text-bright
 Accent:    --accent  --accent-dim  --accent-glow
 Neons:     --neon-cyan  --neon-magenta  --neon-orange
-Glows:     --glow-sm  --glow-md  --glow-lg
+Glows:     --glow-sm  --glow-md  --glow-lg  --glow-inset
 Space:     --space-1 … --space-8  (4px–32px, 8-point scale)
 Radii:     --radius-sm  --radius-md  --radius-lg  --radius-xl  --radius-pill
 Fonts:     --font-display (Orbitron)  --font-mono (Share Tech Mono)  --font-body (Outfit)
@@ -92,6 +93,12 @@ cd apps/frontend && npx tsc --noEmit
 ```
 
 Check: no `any` · `types.ts` still mirrors C# models · CSS uses token variables only.
+
+**Contract field-name check — do this before every commit touching a game component:**
+- Read `src/games/Meepliton.Games.{Pascal}/Models/{Pascal}Models.cs`.
+- Confirm every property name in `types.ts` exactly matches the camelCase serialization of the C# record field (e.g. C# `BidData` → TS `bidData`).
+- Confirm every enum is typed as a string union (not `number`) — C# enums only serialize as strings when `[JsonConverter(typeof(JsonStringEnumConverter))]` is present.
+- If in doubt, ask the `architect` or `backend` agent before committing.
 
 ### 4. Commit and push
 
