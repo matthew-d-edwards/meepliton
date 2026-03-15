@@ -21,14 +21,13 @@ export function DiceCup({
   isCurrentPlayer,
   revealDice,
 }: Props) {
-  const showAllDice = isMe || phase === 'Reveal' || phase === 'Finished'
-
-  // Determine which dice values to show
-  const diceToShow: number[] = (() => {
-    if (phase === 'Reveal' && revealDice !== undefined) return revealDice
-    if (showAllDice) return player.dice
-    return []
-  })()
+  // Server projects per-player state: player.dice is already correct for this viewer.
+  // During Reveal, prefer the snapshot dice if available (they are the same values but
+  // kept here so the highlight logic works even if the round-end state arrives before
+  // the reveal snapshot is cleared).
+  const diceToShow: number[] = phase === 'Reveal' && revealDice !== undefined
+    ? revealDice
+    : player.dice
 
   // During Reveal, highlight dice matching the challenged bid face (or wilds if applicable)
   function isHighlighted(dieValue: number): boolean {
@@ -62,30 +61,18 @@ export function DiceCup({
       </div>
 
       <div className={`${styles.cupDice} ${phase === 'Reveal' ? styles.cupDiceRevealing : ''}`}>
-        {showAllDice ? (
-          diceToShow.map((dieValue, i) => {
-            const value = dieValue as 1 | 2 | 3 | 4 | 5 | 6
-            return (
-              <DiceFace
-                key={i}
-                value={value}
-                size="md"
-                highlighted={isHighlighted(dieValue)}
-                wild={isWildDie(dieValue)}
-              />
-            )
-          })
-        ) : (
-          // Face-down dice: show diceCount outlines
-          <div
-            className={styles.cupHiddenDice}
-            aria-label={`${player.diceCount} hidden dice`}
-          >
-            {Array.from({ length: player.diceCount }, (_, i) => (
-              <div key={i} className={styles.cupHiddenDie} aria-hidden="true" />
-            ))}
-          </div>
-        )}
+        {diceToShow.map((dieValue, i) => {
+          const value = dieValue as 1 | 2 | 3 | 4 | 5 | 6
+          return (
+            <DiceFace
+              key={i}
+              value={value}
+              size="md"
+              highlighted={isHighlighted(dieValue)}
+              wild={isWildDie(dieValue)}
+            />
+          )
+        })}
 
         {player.diceCount === 0 && player.active === false && (
           <span className={styles.cupNoDice}>—</span>
