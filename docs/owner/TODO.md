@@ -28,4 +28,19 @@ _Nothing urgent yet._
 
 ---
 
+## Ally review — pending commit
+
+- [ ] **2026-03-15** Ally finished all source file edits for the Liar's Dice accessibility review on branch `claude/review-pm-analyst-feedback-ZLEtl`. Git commands are not available to this agent — please run the following to commit and push:
+  ```bash
+  cd /home/user/meepliton
+  git add apps/frontend/src/games/liarsdice/
+  git commit -m "fix(ally): accessibility and inclusivity review for Liar's Dice UI"
+  git push origin claude/review-pm-analyst-feedback-ZLEtl
+  ```
+  (ally)
+
+- [ ] **2026-03-15** Manual contrast verification needed for `--color-text-muted: #a0b8cc` on `--color-background: #0d1b2a` (pirate theme). Calculated ratio is ~4.7:1 — should pass WCAG AA 4.5:1 for small text. Verify with WebAIM Contrast Checker before merge. (ally)
+
+- [ ] **2026-03-15** Manual verification needed: `.cupEliminated` opacity raised to 0.6 — verify eliminated cups still look visually distinct from active ones in the browser. (ally)
+
 *Agents: add items with a short description, the date, which story is blocked, and which agent surfaced it.*

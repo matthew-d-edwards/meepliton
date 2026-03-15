@@ -11,7 +11,8 @@
   --color-on-primary:     #0d1b2a;
   --color-border:         #2a4a6b;   /* dark teal */
   --color-text:           #e8dfc8;   /* parchment */
-  --color-text-muted:     #8aa3bb;
+  /* Lightened from #8aa3bb (~3.7:1) to meet WCAG AA 4.5:1 for small text on --color-background */
+  --color-text-muted:     #a0b8cc;
   /* Radius tightened — charts feel more precise than rounded */
   --radius-sm:            2px;
   --radius-md:            4px;

@@ -10,8 +10,11 @@ interface Props {
 function BidDisplay({ bid }: { bid: Bid }) {
   const face = bid.face as 1 | 2 | 3 | 4 | 5 | 6
   return (
-    <div className={styles.statusBidDisplay}>
-      <span className={styles.statusBidQuantity}>{bid.quantity}×</span>
+    <div
+      className={styles.statusBidDisplay}
+      aria-label={`Current bid: ${bid.quantity} dice showing ${bid.face}`}
+    >
+      <span className={styles.statusBidQuantity} aria-hidden="true">{bid.quantity}×</span>
       <DiceFace value={face} size="lg" />
     </div>
   )
@@ -25,8 +28,8 @@ export function GameStatus({ state, myPlayerId }: Props) {
     <div className={styles.statusPanel}>
       {/* Palifico banner */}
       {state.palificoActive && (
-        <div className={styles.statusPalifico} role="status">
-          <span className={styles.statusPalificoIcon}>⚓</span>
+        <div className={styles.statusPalifico} role="status" aria-live="polite" aria-atomic="true">
+          <span className={styles.statusPalificoIcon} aria-hidden="true">⚓</span>
           <span>Palifico round — no wilds</span>
         </div>
       )}
@@ -52,7 +55,12 @@ export function GameStatus({ state, myPlayerId }: Props) {
 
       {/* Whose turn */}
       {state.phase === 'Bidding' && currentPlayer && (
-        <div className={`${styles.statusTurn} ${isMyTurn ? styles.statusTurnMe : ''}`}>
+        <div
+          className={`${styles.statusTurn} ${isMyTurn ? styles.statusTurnMe : ''}`}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {isMyTurn ? 'Your turn' : `${currentPlayer.displayName}'s turn`}
         </div>
       )}
@@ -66,7 +74,7 @@ export function GameStatus({ state, myPlayerId }: Props) {
 
       {/* Reveal details */}
       {state.phase === 'Reveal' && state.lastReveal && (
-        <div className={styles.statusRevealDetail}>
+        <div className={styles.statusRevealDetail} aria-live="polite" aria-atomic="true">
           Actual count: <strong>{state.lastReveal.actualCount}</strong>
           {' '}(bid was {state.lastReveal.challengedBid.quantity}×{state.lastReveal.challengedBid.face})
         </div>
@@ -74,7 +82,7 @@ export function GameStatus({ state, myPlayerId }: Props) {
 
       {/* Winner */}
       {state.phase === 'Finished' && state.winner && (
-        <div className={styles.statusWinner}>
+        <div className={styles.statusWinner} role="status" aria-live="assertive" aria-atomic="true">
           {state.winner === myPlayerId ? 'You win!' : (
             <>
               {state.players.find(p => p.id === state.winner)?.displayName ?? 'Unknown'} wins!

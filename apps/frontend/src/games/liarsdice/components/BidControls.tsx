@@ -65,8 +65,17 @@ export function BidControls({ currentBid, players, me, dispatch }: Props) {
     <div className={styles.bidControls} aria-label="Bid controls">
       {/* Quantity stepper */}
       <div className={styles.bidSection}>
-        <label className={styles.bidLabel} htmlFor="bid-quantity">Quantity</label>
-        <div className={styles.bidStepper} id="bid-quantity">
+        <div
+          className={styles.bidLabel}
+          id="bid-quantity-label"
+        >
+          Quantity
+        </div>
+        <div
+          className={styles.bidStepper}
+          role="group"
+          aria-labelledby="bid-quantity-label"
+        >
           <button
             type="button"
             className={styles.bidStepBtn}
@@ -77,7 +86,12 @@ export function BidControls({ currentBid, players, me, dispatch }: Props) {
           >
             −
           </button>
-          <span className={styles.bidStepValue} aria-live="polite" aria-label={`Quantity: ${quantity}`}>
+          <span
+            className={styles.bidStepValue}
+            aria-live="polite"
+            aria-label={`Quantity: ${quantity}`}
+            aria-atomic="true"
+          >
             {quantity}
           </span>
           <button

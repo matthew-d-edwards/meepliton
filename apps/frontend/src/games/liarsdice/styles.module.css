@@ -166,7 +166,9 @@
 }
 
 .cupEliminated {
-  opacity: 0.45;
+  /* Raised from 0.45 to avoid collapsing text contrast below WCAG AA (4.5:1).
+     The dimmed appearance is preserved while keeping content legible. */
+  opacity: 0.6;
 }
 
 .cupHeader {
@@ -365,6 +367,11 @@
   color: var(--color-primary, var(--accent));
 }
 
+.bidStepBtn:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
+}
+
 .bidStepBtn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
@@ -403,6 +410,11 @@
   border-color: var(--color-primary, var(--accent));
 }
 
+.bidFaceBtn:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
+}
+
 .bidFaceBtnSelected {
   border-color: var(--color-primary, var(--accent));
   background: color-mix(in srgb, var(--color-primary, var(--accent)) 15%, transparent);
@@ -434,6 +446,11 @@
 .bidActionBtn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.bidActionBtn:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
 }
 
 .bidActionBtnPlace {

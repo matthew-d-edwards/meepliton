@@ -57,13 +57,14 @@ export function DiceFace({ value, size = 'md', highlighted = false, wild = false
   const pipR = px * 0.08
   const cornerR = px * 0.1
   const pips = PIP_LAYOUTS[value]
+  const label = wild ? `Die showing ${value}, wild` : `Die showing ${value}`
 
   return (
     <svg
       width={px}
       height={px}
       viewBox={`0 0 ${px} ${px}`}
-      aria-label={`Die showing ${value}`}
+      aria-label={label}
       role="img"
       className={`${styles.diceFace} ${highlighted ? styles.diceFaceHighlighted : ''} ${wild ? styles.diceFaceWild : ''}`}
     >
@@ -111,7 +112,7 @@ export function DiceFace({ value, size = 'md', highlighted = false, wild = false
           textAnchor="end"
           fontSize={px * 0.2}
           className={styles.diceFaceWildMark}
-          aria-label="wild"
+          aria-hidden="true"
         >
           ★
         </text>
