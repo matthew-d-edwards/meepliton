@@ -193,7 +193,7 @@ function GameLoader({
  * Styled full-page loading screen shown while room data or a game module loads.
  * Uses design token CSS variables — no raw values.
  */
-function RoomLoadingScreen({ label = 'Loading…' }: { label?: string }) {
+function RoomLoadingScreen({ label = 'Loading room…' }: { label?: string }) {
   return (
     <div
       style={{

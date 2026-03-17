@@ -1179,9 +1179,9 @@ GET  /api/auth/google/callback             → handles OAuth return, sets cookie
 POST /api/auth/link/google                 → [auth required] links Google to existing account
 
 ─── Account ───────────────────────────────────────────────────────────────────
-GET  /api/auth/me                          → UserDto (id, displayName, avatarUrl, theme, loginMethods[])
+GET  /api/auth/me                          → UserDto (id, displayName, avatarUrl, email, theme)
 PUT  /api/auth/me                          → { displayName?, avatarUrl?, theme? } → 204
-GET  /api/auth/me/login-methods            → LoginMethodDto[] (which providers are linked)
+GET  /api/auth/me/login-methods            → LoginMethodDto[] (which providers are linked) [deferred]
 
 ─── Lobby & Rooms ─────────────────────────────────────────────────────────────
 GET  /api/lobby                            → LobbyDto  (my rooms + game catalogue)
@@ -1699,7 +1699,7 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 - [ ] Password reset flow (`POST /api/auth/forgot-password` + `POST /api/auth/reset-password`)
 - [ ] Google OAuth via `.AddGoogle()`; auto-create account on first sign-in
 - [ ] Account linking: add password to Google account; link Google to email account
-- [ ] `GET /api/auth/me` returning login methods alongside profile
+- [ ] `GET /api/auth/me` returning `UserDto` (id, displayName, avatarUrl, email, theme) — login methods deferred to `GET /api/auth/me/login-methods`
 - [ ] Transactional email via `IEmailSender` (SendGrid or SMTP)
 - [ ] Lobby API: `GET /api/lobby`, `POST /api/rooms`, `POST /api/rooms/join`
 - [ ] `GameDispatcher`: load state → validate → reduce → persist → broadcast

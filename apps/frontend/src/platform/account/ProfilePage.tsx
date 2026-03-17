@@ -92,7 +92,7 @@ export default function ProfilePage() {
         setAvatarUrl(newSaved.avatarUrl)
         setSaveSuccess(true)
       } else {
-        let message = `Save failed (${res.status}).`
+        let message = `Save failed (${res.status}) — try again.`
         try {
           const err = (await res.json()) as { message?: string; errors?: Record<string, string[]> }
           if (err.message) {
