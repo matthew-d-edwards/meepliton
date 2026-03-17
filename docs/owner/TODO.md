@@ -43,4 +43,21 @@ _Nothing urgent yet._
 
 - [ ] **2026-03-15** Manual verification needed: `.cupEliminated` opacity raised to 0.6 — verify eliminated cups still look visually distinct from active ones in the browser. (ally)
 
+- [ ] **2026-03-17** Ally finished all source file edits for the story-007 and story-025 accessibility review on branch `claude/agent-job-completion-XSKmZ`. Git commands are not available to this agent — please run the following to commit and push:
+  ```bash
+  cd /home/user/meepliton
+  git add apps/frontend/src/platform/room/RoomPage.tsx \
+          apps/frontend/src/platform/room/room.css \
+          apps/frontend/src/platform/account/account.css
+  git commit -m "fix(ally): accessibility review for story-007 and story-025"
+  git push origin claude/agent-job-completion-XSKmZ
+  ```
+  (ally)
+
+- [ ] **2026-03-17** `tokens.css` contains multiple keyframe animations (`btn-primary-idle`, `dot-pulse`, `fab-breathe`, `meepliton-scanlines`, `meepliton-fade-in`, `action-rejected-slide-in`, stagger children) that have no `prefers-reduced-motion` guard. The ally agent cannot edit `tokens.css` directly — this must be handled by the `ux` agent. Ask `ux` to add a `@media (prefers-reduced-motion: reduce)` block to `packages/ui/src/styles/tokens.css` that sets `animation-duration: 0.01ms !important` and `transition-duration: 0.01ms !important` for all elements. This is a WCAG 2.1 AA criterion 2.3.3 (AAA) / strong 2.3 best practice and is required for users with vestibular disorders. Blocks story-025 and story-007 ally sign-off on motion. (ally)
+
+- [ ] **2026-03-17** Manual contrast verification needed for the following token pairs used in story-007 (ProfilePage) — the ally agent switched `--text-muted` to `--text-primary` for labels, section titles, char counter, and avatar hint, but the text sizes remain below 16px (0.65–0.7rem). Verify `--text-primary` (#c0d8f0 dark / #b8d0e8 light) on `--surface-raised` (#070d19 dark / #252d3a light) meets WCAG AA 4.5:1 for these small labels. Use WebAIM Contrast Checker. (ally)
+
+- [ ] **2026-03-17** Manual contrast verification needed: `RoomLoadingScreen` loading label in `RoomPage.tsx` is rendered at `0.75rem` with `--text-muted`. The element has `aria-label` so screen readers receive the text, but the visible label may fail AA contrast at that size. If manual check fails, raise with `ux` to increase font size to `0.875rem` minimum or use `--text-primary`. (ally)
+
 *Agents: add items with a short description, the date, which story is blocked, and which agent surfaced it.*

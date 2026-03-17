@@ -214,13 +214,14 @@ function RoomLoadingScreen({ label = 'Loading…' }: { label?: string }) {
         className="room-spinner"
       />
       <span
+        aria-hidden="true"
         style={{
           fontFamily: 'var(--font-display)',
           fontSize: '.75rem',
           fontWeight: 700,
           letterSpacing: '3px',
           textTransform: 'uppercase',
-          color: 'var(--text-muted)',
+          color: 'var(--text-primary)',
         }}
       >
         {label}
