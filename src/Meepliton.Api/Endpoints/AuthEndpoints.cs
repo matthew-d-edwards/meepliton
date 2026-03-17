@@ -63,6 +63,25 @@ public static class AuthEndpoints
             return result.Succeeded ? Results.NoContent() : Results.BadRequest(result.Errors);
         });
 
+        group.MapPost("/resend-confirmation", async (
+            ResendConfirmationRequest req,
+            UserManager<ApplicationUser> userManager,
+            IEmailSender<ApplicationUser> emailSender,
+            IConfiguration configuration) =>
+        {
+            // Always return 204 — no email enumeration
+            var user = await userManager.FindByEmailAsync(req.Email);
+            if (user is not null && !await userManager.IsEmailConfirmedAsync(user))
+            {
+                var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
+                var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+                var frontendBase = configuration["Frontend:BaseUrl"] ?? "https://meepliton.com";
+                var confirmationLink = $"{frontendBase}/confirm-email?userId={user.Id}&token={encodedToken}";
+                await emailSender.SendConfirmationLinkAsync(user, req.Email, confirmationLink);
+            }
+            return Results.NoContent();
+        });
+
         group.MapPost("/forgot-password", async (
             ForgotPasswordRequest req,
             UserManager<ApplicationUser> userManager,
@@ -195,5 +214,6 @@ public static class AuthEndpoints
     record ForgotPasswordRequest(string Email);
     record ResetPasswordRequest(string UserId, string Token, string NewPassword);
     record LoginRequest(string Email, string Password);
+    record ResendConfirmationRequest(string Email);
     record UserDto(string Id, string DisplayName, string? AvatarUrl, string Email, string Theme);
 }
