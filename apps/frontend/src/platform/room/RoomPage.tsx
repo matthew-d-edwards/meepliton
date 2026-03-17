@@ -168,14 +168,17 @@ function GameLoader({
   load,
   ctx,
 }: {
-  load: () => Promise<{ default: import('@meepliton/contracts').GameModule }>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  load: () => Promise<{ default: import('@meepliton/contracts').GameModule<any> }>
   ctx: GameContext<unknown>
 }) {
-  const [mod, setMod] = useState<import('@meepliton/contracts').GameModule | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [mod, setMod] = useState<import('@meepliton/contracts').GameModule<any> | null>(null)
   useEffect(() => { load().then(m => setMod(m.default)) }, [load])
   if (!mod) return <RoomLoadingScreen label="Loading game…" />
   const { Component } = mod
-  return <Component {...(ctx as never)} />
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return <Component {...(ctx as any)} />
 }
 
 /**

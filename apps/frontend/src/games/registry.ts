@@ -1,7 +1,10 @@
 import type { GameModule } from '@meepliton/contracts'
 
-// ← Only this file changes when a new game is added
-export const gameRegistry: Record<string, () => Promise<{ default: GameModule }>> = {
+// Each game exports a GameModule<TState> — the registry erases TState to keep the lookup type simple.
+// Type safety is enforced inside each game's own Component, not at the registry level.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyGameModule = GameModule<any>
+export const gameRegistry: Record<string, () => Promise<{ default: AnyGameModule }>> = {
   skyline: () => import('./skyline'),
   liarsdice: () => import('./liarsdice'),
   // Add new games here ↓
