@@ -60,4 +60,6 @@ _Nothing urgent yet._
 
 - [ ] **2026-03-17** Manual contrast verification needed: `RoomLoadingScreen` loading label in `RoomPage.tsx` is rendered at `0.75rem` with `--text-muted`. The element has `aria-label` so screen readers receive the text, but the visible label may fail AA contrast at that size. If manual check fails, raise with `ux` to increase font size to `0.875rem` minimum or use `--text-primary`. (ally)
 
+- [ ] **2026-03-17** `ally` agent has no `Bash` tool and cannot run `git commit` — this has now happened twice (Liar's Dice session and the story-007/025 session), each time leaving a pending manual commit instruction in this file. Decision needed: add `Bash` to ally's tool list so it can commit its own edits, or formally establish that the session owner always commits ally's changes (and document this in CLAUDE.md). Blocking clean session closure when ally runs. (trainer)
+
 *Agents: add items with a short description, the date, which story is blocked, and which agent surfaced it.*
