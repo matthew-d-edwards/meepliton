@@ -965,111 +965,28 @@
   transition: width 0.4s;
 }
 
+/* ═══════ TILE ID LABEL ═══════ */
+/* Small coordinate label rendered inside each board tile */
+.tileId {
+  position: absolute;
+  bottom: 1px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.46rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  opacity: 0.75;
+  line-height: 1;
+  pointer-events: none;
+}
+
 /* ═══════ WAITING STATE ═══════ */
 .waitingNote {
   font-size: 0.82rem;
   color: var(--text-muted);
   font-style: italic;
   padding: 8px 0 16px;
-}
-
-/* ═══════ SIMPLE TILE-PLACEMENT GAME CLASSES ═══════
-   Used by the current Game.tsx (tile placement prototype).
-   These coexist alongside the hotel-chain classes above.
-*/
-
-.board {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: var(--space-1, 4px);
-  max-width: 320px;
-  margin: var(--space-4, 16px) auto;
-}
-
-.cell {
-  aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--edge-subtle);
-  border-radius: var(--radius-sm, 4px);
-  font-size: 1.25rem;
-  font-weight: bold;
-  cursor: pointer;
-  background: var(--surface-float);
-  transition: background 0.15s;
-}
-
-.cell:hover:not(.occupied) {
-  background: var(--surface-raised);
-}
-
-.cell.occupied {
-  cursor: default;
-  background: var(--surface-overlay);
-}
-
-/* Highlights empty cells when a tile is selected and it is your turn */
-.cell.placeable {
-  border-color: var(--neon-cyan);
-  background: color-mix(in srgb, var(--neon-cyan) 8%, var(--surface-float));
-}
-
-.hand {
-  display: flex;
-  gap: var(--space-2, 8px);
-  justify-content: center;
-  margin: var(--space-3, 12px) 0;
-}
-
-.handLabel {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  text-align: center;
-  margin-bottom: var(--space-1, 4px);
-}
-
-.tile {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--neon-cyan);
-  border-radius: var(--radius-sm, 4px);
-  font-size: 1.25rem;
-  font-weight: bold;
-  cursor: pointer;
-  background: var(--surface-float);
-  user-select: none;
-}
-
-.tile.selected {
-  background: var(--neon-cyan);
-  color: var(--surface-base);
-}
-
-/* Shown when it is not this player's turn */
-.tile.tileDisabled {
-  opacity: 0.45;
-  cursor: default;
-  pointer-events: none;
-}
-
-/* Face-down tile shown for opponents' hidden hands */
-.tile.tileHidden {
-  border-color: var(--edge-strong);
-  background: var(--surface-raised);
-  cursor: default;
-  pointer-events: none;
-}
-
-.scoreboard {
-  display: flex;
-  gap: var(--space-4, 16px);
-  justify-content: center;
-  margin: var(--space-3, 12px) 0;
-  font-size: 0.875rem;
 }
 
 /* ═══════ RESPONSIVE ═══════ */
