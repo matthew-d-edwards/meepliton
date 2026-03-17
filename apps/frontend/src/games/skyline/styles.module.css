@@ -1,9 +1,989 @@
+/* ═══════ LAYOUT ═══════ */
+.gameLayout {
+  display: grid;
+  grid-template-columns: 1fr 270px;
+  min-height: calc(100vh - 58px);
+}
+
+.mainCol {
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.sideCol {
+  background: var(--surface-overlay);
+  border-left: 1px solid var(--edge-subtle);
+  padding: 18px;
+  overflow-y: auto;
+}
+
+/* ═══════ PHASE STRIP ═══════ */
+.phaseStrip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--neon-cyan);
+  border-radius: 8px;
+  padding: 9px 14px;
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--neon-cyan) 20%, transparent),
+    inset 0 0 16px color-mix(in srgb, var(--neon-cyan) 5%, transparent);
+}
+
+.phDots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.phDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--edge-strong);
+  transition: all 0.25s;
+}
+
+.phDotDone {
+  background: color-mix(in srgb, var(--neon-cyan) 50%, transparent);
+}
+
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 6px var(--neon-magenta), 0 0 14px color-mix(in srgb, var(--neon-magenta) 40%, transparent); }
+  50%       { box-shadow: 0 0 12px var(--neon-magenta), 0 0 28px color-mix(in srgb, var(--neon-magenta) 50%, transparent); }
+}
+
+.phDotActive {
+  background: var(--neon-magenta);
+  width: 22px;
+  border-radius: 4px;
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+.phLabel {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--neon-cyan);
+  flex: 1;
+  text-shadow: 0 0 10px var(--neon-cyan), 0 0 20px color-mix(in srgb, var(--neon-cyan) 30%, transparent);
+}
+
+.phCounter {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: color-mix(in srgb, var(--neon-cyan) 60%, var(--text-muted));
+  white-space: nowrap;
+}
+
+/* ═══════ BOARD ═══════ */
+.boardWrap {
+  margin-bottom: 22px;
+}
+
+.boardLabel {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+  background: var(--surface-float);
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--edge-subtle);
+}
+
+.tile {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  transition: all 0.18s;
+  cursor: default;
+  position: relative;
+  user-select: none;
+}
+
+.tileEmpty {
+  background: var(--surface-raised);
+  color: var(--edge-strong);
+  border-color: var(--edge-subtle);
+}
+
+.tileNeutral {
+  background: var(--surface-float);
+  color: var(--text-muted);
+  border-color: var(--edge-strong);
+}
+
+.tileLuxor       { background: var(--surface-base); color: var(--hotel-luxor);       border-color: var(--hotel-luxor);       box-shadow: inset 0 0 8px var(--hotel-luxor-glow),       0 0 6px var(--hotel-luxor-glow); }
+.tileTower       { background: var(--surface-base); color: var(--hotel-tower);       border-color: var(--hotel-tower);       box-shadow: inset 0 0 8px var(--hotel-tower-glow),       0 0 6px var(--hotel-tower-glow); }
+.tileAmerican    { background: var(--surface-base); color: var(--hotel-american);    border-color: var(--hotel-american);    box-shadow: inset 0 0 8px var(--hotel-american-glow),    0 0 6px var(--hotel-american-glow); }
+.tileFestival    { background: var(--surface-base); color: var(--hotel-festival);    border-color: var(--hotel-festival);    box-shadow: inset 0 0 8px var(--hotel-festival-glow),    0 0 6px var(--hotel-festival-glow); }
+.tileWorldwide   { background: var(--surface-base); color: var(--hotel-worldwide);   border-color: var(--hotel-worldwide);   box-shadow: inset 0 0 8px var(--hotel-worldwide-glow),   0 0 6px var(--hotel-worldwide-glow); }
+.tileContinental { background: var(--surface-base); color: var(--hotel-continental); border-color: var(--hotel-continental); box-shadow: inset 0 0 8px var(--hotel-continental-glow), 0 0 6px var(--hotel-continental-glow); }
+.tileImperial    { background: var(--surface-base); color: var(--hotel-imperial);    border-color: var(--hotel-imperial);    box-shadow: inset 0 0 8px var(--hotel-imperial-glow),    0 0 6px var(--hotel-imperial-glow); }
+
+@keyframes pulseGold {
+  0%, 100% { box-shadow: 0 0 6px var(--accent-dim); }
+  50%       { box-shadow: 0 0 14px var(--accent); }
+}
+
+.tilePlayable {
+  border-color: var(--accent) !important;
+  cursor: pointer;
+  animation: pulseGold 2s infinite;
+}
+
+.tilePlayable:hover {
+  transform: scale(1.18);
+  z-index: 20;
+  box-shadow: 0 0 20px var(--accent) !important;
+}
+
+.tileSelected {
+  border-color: #fff !important;
+  transform: scale(1.14);
+  z-index: 20;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.5) !important;
+  animation: none !important;
+}
+
+.tileIllegal {
+  background-color: rgba(140, 10, 18, 0.35) !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,            transparent 3px,
+    rgba(255, 50, 60, 0.45) 3px, rgba(255, 50, 60, 0.45) 5px
+  ) !important;
+  color: rgba(255, 80, 90, 0.85) !important;
+  border: 1.5px solid rgba(255, 60, 70, 0.85) !important;
+  box-shadow:
+    inset 0 0 10px rgba(220, 20, 30, 0.5),
+    0 0 8px rgba(220, 20, 30, 0.4) !important;
+  cursor: not-allowed !important;
+}
+
+/* ═══════ HAND ═══════ */
+.handSection {
+  margin-bottom: 18px;
+}
+
+.handLabel {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.handRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.htile {
+  width: 52px;
+  height: 60px;
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s;
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-raised);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow), inset 0 0 8px var(--accent-dim);
+  user-select: none;
+}
+
+.htile:hover {
+  background: var(--accent);
+  color: var(--surface-base);
+  transform: translateY(-6px);
+  box-shadow: 0 10px 30px var(--accent-glow), 0 0 40px var(--accent-dim);
+}
+
+.htileSel {
+  background: var(--accent);
+  color: var(--surface-base);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px var(--accent-glow), 0 0 50px var(--accent-dim);
+}
+
+.htileEmpty {
+  border-color: var(--edge-subtle);
+  color: var(--edge-subtle);
+  box-shadow: none;
+  cursor: default;
+  opacity: 0.4;
+}
+
+.htileEmpty:hover {
+  transform: none;
+  background: var(--surface-raised);
+}
+
+.htileIllegal {
+  border-color: rgba(255, 60, 70, 0.85);
+  color: rgba(255, 80, 90, 0.85);
+  background-color: rgba(140, 10, 18, 0.35);
+  box-shadow: inset 0 0 10px rgba(220, 20, 30, 0.5), 0 0 8px rgba(220, 20, 30, 0.4);
+  cursor: not-allowed;
+}
+
+.htileIllegal:hover {
+  transform: none;
+  background-color: rgba(140, 10, 18, 0.35);
+  box-shadow: inset 0 0 10px rgba(220, 20, 30, 0.5), 0 0 8px rgba(220, 20, 30, 0.4);
+}
+
+/* ═══════ ACTION CARD ═══════ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.actionCard {
+  background: var(--surface-overlay);
+  border: 1px solid var(--edge-strong);
+  border-top: 2px solid var(--neon-magenta);
+  box-shadow:
+    0 -2px 20px color-mix(in srgb, var(--neon-magenta) 20%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--neon-magenta) 12%, transparent);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+  animation: fadeIn 0.2s ease;
+}
+
+.actionTitle {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-bright);
+  margin-bottom: 6px;
+  text-shadow: 0 0 20px color-mix(in srgb, var(--neon-magenta) 30%, transparent);
+}
+
+.actionSub {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+/* ═══════ BUTTONS ═══════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 22px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none !important;
+  transform: none !important;
+  text-shadow: none !important;
+}
+
+@keyframes btnPrimaryIdle {
+  0%, 100% { box-shadow: 0 0 10px var(--neon-magenta), 0 0 22px color-mix(in srgb, var(--neon-magenta) 30%, transparent), 0 2px 8px rgba(0,0,0,.5); }
+  50%       { box-shadow: 0 0 18px var(--neon-magenta), 0 0 40px color-mix(in srgb, var(--neon-magenta) 40%, transparent), 0 2px 8px rgba(0,0,0,.5); }
+}
+
+.btnPrimary {
+  background: transparent;
+  color: var(--neon-magenta);
+  border: 1.5px solid var(--neon-magenta);
+  text-shadow: 0 0 12px var(--neon-magenta);
+  animation: btnPrimaryIdle 2.8s ease-in-out infinite;
+}
+
+.btnPrimary:hover {
+  background: var(--neon-magenta);
+  color: var(--surface-base);
+  text-shadow: none;
+  box-shadow: 0 0 24px var(--neon-magenta), 0 0 50px color-mix(in srgb, var(--neon-magenta) 40%, transparent);
+  animation: none;
+  transform: translateY(-1px);
+}
+
+.btnPrimary:active {
+  transform: translateY(0);
+  animation: none;
+}
+
+.btnGhost {
+  background: transparent;
+  color: var(--neon-cyan);
+  border: 1.5px solid var(--neon-cyan);
+  box-shadow:
+    var(--glow-sm) color-mix(in srgb, var(--neon-cyan) 30%, transparent),
+    inset 0 0 8px color-mix(in srgb, var(--neon-cyan) 8%, transparent);
+  text-shadow: 0 0 10px var(--neon-cyan);
+}
+
+.btnGhost:hover {
+  color: var(--surface-base);
+  background: var(--neon-cyan);
+  box-shadow: var(--glow-md) var(--neon-cyan), var(--glow-lg) color-mix(in srgb, var(--neon-cyan) 30%, transparent);
+  text-shadow: none;
+  transform: translateY(-1px);
+}
+
+.btnGhost:active {
+  transform: translateY(0);
+}
+
+.btnSm {
+  padding: 7px 14px;
+  font-size: 0.74rem;
+}
+
+.btnFull {
+  width: 100%;
+}
+
+.btnRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+/* ═══════ FOUND HOTEL GRID ═══════ */
+.foundGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.foundBtn {
+  padding: 12px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-align: center;
+  letter-spacing: 1px;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  background: var(--surface-float);
+}
+
+.foundBtn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 14px currentColor;
+}
+
+.foundBtnSel {
+  border-color: #fff !important;
+  transform: scale(1.04);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.25) !important;
+}
+
+/* ═══════ MERGE OPTIONS ═══════ */
+.mergeOpt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 7px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mergeOpt:hover {
+  border-color: var(--accent);
+  box-shadow: var(--glow-sm) var(--accent-glow);
+}
+
+.mergeOptSel {
+  border-color: var(--accent);
+  background: var(--surface-raised);
+  box-shadow: var(--glow-sm) var(--accent-glow), var(--glow-md) var(--accent-dim);
+}
+
+.mergeDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ═══════ BUY STOCKS ═══════ */
+.buyRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: var(--surface-raised);
+  border: 1px solid var(--edge-subtle);
+}
+
+.buyHotel {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.buyPrice {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.qtyCtrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qbtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--surface-float);
+  border: 1.5px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  box-shadow:
+    0 0 6px color-mix(in srgb, var(--neon-cyan) 25%, transparent),
+    inset 0 0 5px color-mix(in srgb, var(--neon-cyan) 6%, transparent);
+}
+
+.qbtn:hover {
+  background: var(--neon-cyan);
+  color: var(--surface-base);
+  box-shadow: var(--glow-sm) var(--neon-cyan), var(--glow-md) color-mix(in srgb, var(--neon-cyan) 35%, transparent);
+}
+
+.qval {
+  font-family: var(--font-mono);
+  width: 26px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.buySummaryBar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.buySummaryBar span {
+  white-space: nowrap;
+}
+
+/* ═══════ DISPOSE ═══════ */
+.disposeCard {
+  background: var(--surface-float);
+  border: 1px solid var(--edge-strong);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.disposeGrid {
+  display: grid;
+  grid-template-columns: 5.5rem auto 1fr;
+  align-items: center;
+  row-gap: 10px;
+  column-gap: 10px;
+}
+
+.disposeLabel {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--text-bright);
+  flex: 1;
+  min-width: 80px;
+}
+
+.disposeQueue {
+  margin: 10px 0 12px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  line-height: 1.8;
+  font-family: var(--font-mono);
+}
+
+.disposeWaiting {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* ═══════ SIDEBAR ═══════ */
+.sideSection {
+  margin-bottom: 20px;
+}
+
+.sideTitle {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--edge-subtle);
+}
+
+/* Hotel chips */
+.hotelChip {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  transition: all 0.25s;
+}
+
+.hotelChipOff {
+  background: var(--surface-float);
+  color: var(--text-muted);
+  border-color: var(--edge-subtle);
+}
+
+.hcRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.hcName {
+  font-size: 0.72rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hcRight {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.hcSize {
+  font-size: 0.68rem;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.hcPrice {
+  font-size: 0.65rem;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.hcTag {
+  font-size: 0.55rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  opacity: 0.9;
+}
+
+.hcBarWrap {
+  margin-top: 6px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  position: relative;
+}
+
+.hcBarFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.hcLeaders {
+  display: flex;
+  gap: 5px;
+  margin-top: 7px;
+  flex-wrap: wrap;
+}
+
+.hcLeader {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body);
+  font-size: 0.66rem;
+  font-weight: 500;
+  padding: 2px 7px 2px 4px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  white-space: nowrap;
+}
+
+.hcLeaderAmt {
+  opacity: 0.65;
+  font-size: 0.6rem;
+  margin-left: 2px;
+}
+
+/* Player cards */
+.playerCard {
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--edge-subtle);
+  background: var(--surface-float);
+  transition: all 0.25s;
+}
+
+.playerCardActive {
+  border-color: var(--accent);
+  box-shadow: var(--glow-sm) var(--accent-glow), var(--glow-md) var(--accent-dim), inset 0 0 20px var(--accent-dim);
+}
+
+.pcHeader {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 6px;
+}
+
+.pcAvatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.pcName {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.pcNet {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-top: 1px;
+}
+
+.pcNetLabel {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pcCash {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.pcBarWrap {
+  margin: 7px 0 4px;
+  height: 4px;
+  border-radius: 3px;
+  background: var(--surface-raised);
+  overflow: hidden;
+  display: flex;
+  gap: 1px;
+}
+
+.pcBarSeg {
+  height: 100%;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.pcStocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.stockPip {
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ═══════ LOG ═══════ */
+.logEntry {
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  color: var(--text-muted);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--edge-subtle);
+  line-height: 1.6;
+}
+
+.logMoreBtn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 7px;
+  background: var(--surface-float);
+  border: 1px solid var(--edge-strong);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.logMoreBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ═══════ GAME OVER ═══════ */
+.goCard {
+  background: var(--surface-float);
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--glow-md) var(--accent-glow), var(--glow-lg) var(--accent-dim);
+  animation: fadeIn 0.4s ease;
+}
+
+.goTitle {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--accent);
+  text-shadow: var(--glow-sm) var(--accent-glow);
+  margin-bottom: 2px;
+}
+
+.goWinner {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 18px;
+}
+
+.goSubtitle {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--edge-subtle);
+  padding-bottom: 6px;
+}
+
+.goRow {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  grid-template-rows: auto auto auto;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--edge-subtle);
+  align-items: center;
+}
+
+.goRow:last-child {
+  border: none;
+}
+
+.goRank {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  font-size: 1.3rem;
+  align-self: center;
+}
+
+.goName {
+  grid-column: 2;
+  grid-row: 1;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.goNet {
+  grid-column: 3;
+  grid-row: 1;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-align: right;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.goBreakdown {
+  grid-column: 2 / 4;
+  grid-row: 2;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 0;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.goBdItem {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.goBdItem + .goBdItem::before {
+  content: '·';
+  margin: 0 6px;
+  opacity: 0.4;
+}
+
+.goBdLabel {
+  opacity: 0.7;
+}
+
+.goBdVal {
+  color: var(--text-primary);
+}
+
+.goBdValHighlight {
+  color: var(--accent);
+}
+
+.goBar {
+  grid-column: 2 / 4;
+  grid-row: 3;
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+  margin-top: 4px;
+  gap: 1px;
+  background: var(--edge-subtle);
+}
+
+.goBarSeg {
+  height: 100%;
+  border-radius: 1px;
+  transition: width 0.4s;
+}
+
+/* ═══════ WAITING STATE ═══════ */
+.waitingNote {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 0 16px;
+}
+
+/* ═══════ SIMPLE TILE-PLACEMENT GAME CLASSES ═══════
+   Used by the current Game.tsx (tile placement prototype).
+   These coexist alongside the hotel-chain classes above.
+*/
+
 .board {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--space-1);
+  gap: var(--space-1, 4px);
   max-width: 320px;
-  margin: var(--space-4) auto;
+  margin: var(--space-4, 16px) auto;
 }
 
 .cell {
@@ -12,7 +992,7 @@
   align-items: center;
   justify-content: center;
   border: 2px solid var(--edge-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-sm, 4px);
   font-size: 1.25rem;
   font-weight: bold;
   cursor: pointer;
@@ -29,11 +1009,24 @@
   background: var(--surface-overlay);
 }
 
+/* Highlights empty cells when a tile is selected and it is your turn */
+.cell.placeable {
+  border-color: var(--neon-cyan);
+  background: color-mix(in srgb, var(--neon-cyan) 8%, var(--surface-float));
+}
+
 .hand {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-2, 8px);
   justify-content: center;
-  margin: var(--space-3) 0;
+  margin: var(--space-3, 12px) 0;
+}
+
+.handLabel {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: var(--space-1, 4px);
 }
 
 .tile {
@@ -43,11 +1036,12 @@
   align-items: center;
   justify-content: center;
   border: 2px solid var(--neon-cyan);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-sm, 4px);
   font-size: 1.25rem;
   font-weight: bold;
   cursor: pointer;
   background: var(--surface-float);
+  user-select: none;
 }
 
 .tile.selected {
@@ -55,10 +1049,51 @@
   color: var(--surface-base);
 }
 
+/* Shown when it is not this player's turn */
+.tile.tileDisabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Face-down tile shown for opponents' hidden hands */
+.tile.tileHidden {
+  border-color: var(--edge-strong);
+  background: var(--surface-raised);
+  cursor: default;
+  pointer-events: none;
+}
+
 .scoreboard {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-4, 16px);
   justify-content: center;
-  margin: var(--space-3) 0;
+  margin: var(--space-3, 12px) 0;
   font-size: 0.875rem;
+}
+
+/* ═══════ RESPONSIVE ═══════ */
+@media (max-width: 700px) {
+  .gameLayout {
+    grid-template-columns: 1fr;
+    display: block;
+  }
+
+  .sideCol {
+    display: none;
+  }
+
+  .mainCol {
+    padding: 12px 12px 80px;
+  }
+
+  .htile {
+    width: 44px;
+    height: 52px;
+    font-size: 0.65rem;
+  }
+
+  .handRow {
+    gap: 7px;
+  }
 }

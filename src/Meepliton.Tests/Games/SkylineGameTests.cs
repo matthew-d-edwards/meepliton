@@ -466,6 +466,105 @@ public class SkylineGameTests
         newState.Board[1][1].Should().Be(tileValue);
     }
 
+    // ── State projection (secret tile hands) ─────────────────────────────────
+
+    /// <summary>
+    /// Builds a JsonDocument from a SkylineState and calls ProjectStateForPlayer
+    /// via the IGameModule interface, mirroring how GameDispatcher invokes it.
+    /// </summary>
+    private SkylineState ProjectViaInterface(SkylineState state, string playerId)
+    {
+        var doc = JsonDocument.Parse(JsonSerializer.Serialize(state));
+        var projected = ((IGameModule)_module).ProjectStateForPlayer(doc, playerId);
+        projected.Should().NotBeNull("ProjectForPlayer must return a non-null document when HasStateProjection is true");
+        return JsonSerializer.Deserialize<SkylineState>(projected!.RootElement.GetRawText())!;
+    }
+
+    [Fact]
+    public void HasStateProjection_IsTrue()
+    {
+        ((IGameModule)_module).HasStateProjection.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ProjectForPlayer_RequestingPlayerSeesOwnHand()
+    {
+        var state = _module.CreateInitialState(TwoPlayers(), options: null);
+        var p1Hand = state.Players.First(p => p.Id == "p1").Hand;
+
+        var projected = ProjectViaInterface(state, "p1");
+
+        var p1Projected = projected.Players.First(p => p.Id == "p1");
+        p1Projected.Hand.Should().BeEquivalentTo(p1Hand,
+            because: "the requesting player must see their own tiles");
+    }
+
+    [Fact]
+    public void ProjectForPlayer_OtherPlayersHandIsHidden()
+    {
+        var state = _module.CreateInitialState(TwoPlayers(), options: null);
+
+        var projected = ProjectViaInterface(state, "p1");
+
+        var p2Projected = projected.Players.First(p => p.Id == "p2");
+        p2Projected.Hand.Should().BeEmpty(
+            because: "opponents' tile hands must not be revealed");
+    }
+
+    [Fact]
+    public void ProjectForPlayer_AllPlayersHandCountsArePreserved()
+    {
+        // The hand count (not values) is public information — clients need it
+        // to show how many tiles each opponent is holding. The Hand list is cleared
+        // for opponents, so the count is lost; this test documents that design choice.
+        var state = _module.CreateInitialState(FourPlayers(), options: null);
+
+        var projected = ProjectViaInterface(state, "p1");
+
+        // p1 keeps their hand; p2/p3/p4 hands are empty arrays (count not preserved)
+        projected.Players.First(p => p.Id == "p1").Hand.Should().HaveCount(3);
+        projected.Players.Where(p => p.Id != "p1")
+            .Should().AllSatisfy(p => p.Hand.Should().BeEmpty());
+    }
+
+    [Fact]
+    public void ProjectForPlayer_BoardAndCashAreFullyVisible()
+    {
+        var state = _module.CreateInitialState(TwoPlayers(), options: null);
+
+        var projected = ProjectViaInterface(state, "p1");
+
+        projected.Board.Should().BeEquivalentTo(state.Board,
+            because: "the board is public information");
+        projected.Players.Select(p => p.Cash)
+            .Should().BeEquivalentTo(state.Players.Select(p => p.Cash),
+            because: "cash balances are public information");
+    }
+
+    [Fact]
+    public void ProjectForPlayer_UnknownPlayerSeesNoHands()
+    {
+        var state = _module.CreateInitialState(TwoPlayers(), options: null);
+
+        var projected = ProjectViaInterface(state, "spectator-xyz");
+
+        projected.Players.Should().AllSatisfy(p => p.Hand.Should().BeEmpty(),
+            because: "an unknown player ID matches no player so all hands are hidden");
+    }
+
+    [Fact]
+    public void ProjectForPlayer_DoesNotMutateInputState()
+    {
+        var state = _module.CreateInitialState(TwoPlayers(), options: null);
+        var doc = JsonDocument.Parse(JsonSerializer.Serialize(state));
+        var originalJson = doc.RootElement.GetRawText();
+
+        ((IGameModule)_module).ProjectStateForPlayer(doc, "p1");
+
+        doc.RootElement.GetRawText().Should().Be(originalJson,
+            because: "ProjectForPlayer must be pure and must not mutate the input document");
+    }
+
     // ── Game metadata ─────────────────────────────────────────────────────────
 
     [Fact]
