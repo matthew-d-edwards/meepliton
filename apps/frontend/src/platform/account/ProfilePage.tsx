@@ -127,10 +127,6 @@ export default function ProfilePage() {
 
   return (
     <div className="account-page">
-      <header className="account-header">
-        <span className="account-logo">MEEPLITON</span>
-      </header>
-
       <main className="account-content">
         <nav>
           <Link to="/lobby" className="account-back">

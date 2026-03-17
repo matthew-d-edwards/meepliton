@@ -46,6 +46,8 @@ export default function RoomPage({ join }: { join?: boolean }) {
         }
         const data = await r.json() as { id: string }
         navigate(`/room/${data.id}`, { replace: true })
+      }).catch(() => {
+        navigate(`/room-not-found?code=${encodeURIComponent(code)}`, { replace: true })
       })
     }
   }, [join, code, navigate])
@@ -54,7 +56,10 @@ export default function RoomPage({ join }: { join?: boolean }) {
   useEffect(() => {
     if (!roomId) return
     fetch(`/api/rooms/${roomId}`, { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) { navigate('/lobby', { replace: true }); return Promise.reject() }
+        return r.json()
+      })
       .then((loadedRoom: RoomData) => {
         setRoom(loadedRoom)
 
@@ -64,6 +69,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
           .then((data: Array<Omit<PlayerInfo, 'connected'>>) =>
             setPlayers(data.map(p => ({ ...p, connected: true })))
           )
+          .catch(() => { /* player list is non-fatal — game can still load */ })
 
         // Load game info to get minPlayers
         fetch('/api/lobby', { credentials: 'include' })
@@ -72,7 +78,9 @@ export default function RoomPage({ join }: { join?: boolean }) {
             const game = data.games?.find(g => g.gameId === loadedRoom.gameId)
             if (game) setMinPlayers(game.minPlayers)
           })
+          .catch(() => { /* minPlayers is non-fatal — defaults to 2 */ })
       })
+      .catch(() => { /* navigation already handled above for non-ok responses */ })
   }, [roomId])
 
   // Connect SignalR

@@ -330,17 +330,8 @@ public static class AuthEndpoints
             else
             {
                 user = (await userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey))!;
-
-                // AC-12: Only update avatarUrl if user has NOT set a custom override.
-                // null AvatarUrl means the user has never set one — safe to populate from Google.
-                // Any existing value means the user set it themselves (or it was set on first login) —
-                // do NOT overwrite it.
-                var pictureUrl = info.Principal.FindFirstValue("picture");
-                if (user.AvatarUrl is null && pictureUrl is not null)
-                {
-                    user.AvatarUrl = pictureUrl;
-                    await userManager.UpdateAsync(user);
-                }
+                // AC-12: Do not overwrite AvatarUrl on subsequent sign-ins.
+                // The Google picture was captured on first login; after that the user controls it.
             }
 
             user.LastSeenAt = DateTimeOffset.UtcNow;
