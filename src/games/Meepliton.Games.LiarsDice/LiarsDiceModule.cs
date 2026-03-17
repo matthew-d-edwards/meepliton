@@ -10,19 +10,22 @@ namespace Meepliton.Games.LiarsDice;
 /// Any player may challenge the current bid; the loser drops one die.
 /// Last player with dice wins.
 /// </summary>
-public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction, LiarsDiceOptions>
+public class LiarsDiceModule : IGameModule, IGameHandler
 {
-    public override string GameId      => "liarsdice";
-    public override string Name        => "Liar's Dice";
-    public override string Description => "Bid on hidden dice and call out bluffs. The last player with dice wins.";
-    public override int    MinPlayers  => LiarsDiceConstants.MinPlayers;
-    public override int    MaxPlayers  => LiarsDiceConstants.MaxPlayers;
-    public override bool   AllowLateJoin => false;
-    public override bool   SupportsUndo  => false;
+    public string GameId      => "liarsdice";
+    public string Name        => "Liar's Dice";
+    public string Description => "Bid on hidden dice and call out bluffs. The last player with dice wins.";
+    public int    MinPlayers  => LiarsDiceConstants.MinPlayers;
+    public int    MaxPlayers  => LiarsDiceConstants.MaxPlayers;
+    public bool   AllowLateJoin => false;
+    public bool   SupportsAsync => false;
+    public bool   SupportsUndo  => false;
+    public string? ThumbnailUrl => null;
+    public bool HasStateProjection => true;
 
-    // ── Explicit IGameHandler.Handle — adds GameOverEffect when game ends ─────
+    // ── IGameHandler implementation to add GameOverEffect ───────────────────────
 
-    GameResult IGameHandler.Handle(GameContext ctx)
+    public GameResult Handle(GameContext ctx)
     {
         var state  = Deserialize<LiarsDiceState>(ctx.CurrentState);
         var action = Deserialize<LiarsDiceAction>(ctx.Action);
@@ -37,9 +40,16 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
 
     // ── Per-player state projection ───────────────────────────────────────────
 
-    public override bool HasStateProjection => true;
+    JsonDocument? IGameModule.ProjectStateForPlayer(JsonDocument fullState, string playerId)
+    {
+        var state = Deserialize<LiarsDiceState>(fullState);
+        if (state is null) return null;
+        var projected = ProjectForPlayer(state, playerId);
+        if (projected is null) return null;
+        return Serialize(projected);
+    }
 
-    protected override LiarsDiceState? ProjectForPlayer(LiarsDiceState fullState, string playerId)
+    protected LiarsDiceState? ProjectForPlayer(LiarsDiceState fullState, string playerId)
     {
         // During Reveal and Finished phases all information is public
         if (fullState.Phase is LiarsDicePhase.Reveal or LiarsDicePhase.Finished)
@@ -57,7 +67,10 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
 
     // ── Initial state ─────────────────────────────────────────────────────────
 
-    public override LiarsDiceState CreateInitialState(
+    JsonDocument IGameModule.CreateInitialState(IReadOnlyList<PlayerInfo> players, JsonDocument? options)
+        => Serialize(CreateInitialState(players, options is null ? null : Deserialize<LiarsDiceOptions>(options)));
+
+    public LiarsDiceState CreateInitialState(
         IReadOnlyList<PlayerInfo> players,
         LiarsDiceOptions? options)
     {
@@ -88,7 +101,7 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
 
     // ── Validate ──────────────────────────────────────────────────────────────
 
-    public override string? Validate(LiarsDiceState state, LiarsDiceAction action, string playerId)
+    public string? Validate(LiarsDiceState state, LiarsDiceAction action, string playerId)
     {
         if (state.Phase == LiarsDicePhase.Finished)
             return "The game is over.";
@@ -159,7 +172,7 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
 
     // ── Apply ─────────────────────────────────────────────────────────────────
 
-    public override LiarsDiceState Apply(LiarsDiceState state, LiarsDiceAction action) =>
+    public LiarsDiceState Apply(LiarsDiceState state, LiarsDiceAction action) =>
         action.Type switch
         {
             LiarsDiceActionType.PlaceBid        => ApplyPlaceBid(state, action.Bid!),
@@ -373,4 +386,12 @@ public class LiarsDiceModule : ReducerGameModule<LiarsDiceState, LiarsDiceAction
         Enumerable.Range(0, count)
             .Select(_ => Random.Shared.Next(LiarsDiceConstants.MinDiceFace, LiarsDiceConstants.DiceFaceCount))
             .ToList();
+
+    // ── Serialization helpers ────────────────────────────────────────────────
+
+    protected static T Deserialize<T>(JsonDocument doc) =>
+        JsonSerializer.Deserialize<T>(doc.RootElement.GetRawText())!;
+
+    protected static JsonDocument Serialize<T>(T obj) =>
+        JsonDocument.Parse(JsonSerializer.Serialize(obj));
 }

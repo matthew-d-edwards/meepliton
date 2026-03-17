@@ -3,6 +3,7 @@ using FluentAssertions;
 using Meepliton.Contracts;
 using Meepliton.Games.Skyline;
 using Meepliton.Games.Skyline.Models;
+using Xunit;
 
 namespace Meepliton.Tests.Games;
 
