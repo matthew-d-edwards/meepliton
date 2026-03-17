@@ -1,0 +1,3837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SKYLINE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=Share+Tech+Mono&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════ RESET & ROOT ═══════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/*
+ ╔══════════════════════════════════════════════════════╗
+ ║  SKYLINE — DESIGN TOKEN SYSTEM                       ║
+ ║                                                      ║
+ ║  To create a new theme, copy one of the blocks       ║
+ ║  below and override only the tokens you need.        ║
+ ║                                                      ║
+ ║  TOKEN LAYERS:                                       ║
+ ║  --surface-*   Background layers (base → overlay)   ║
+ ║  --edge-*      Borders (subtle → strong)             ║
+ ║  --text-*      Text (muted → primary → bright)       ║
+ ║  --accent-*    Brand/primary accent color            ║
+ ║  --neon-*      BR accent neons (cyan/magenta/orange) ║
+ ║  --glow-*      Glow intensities keyed to accents     ║
+ ║  --hotel-*     One set per hotel (color + glow)      ║
+ ║  --font-*      Typeface tokens (swap in one line)    ║
+ ╚══════════════════════════════════════════════════════╝
+*/
+
+/* ── DARK THEME — Blade Runner night city ── */
+:root {
+  /* Surfaces — darkest to lightest */
+  --surface-base:    #03060b;   /* page background */
+  --surface-raised:  #070d19;   /* board, inputs */
+  --surface-float:   #0a1220;   /* cards, chips */
+  --surface-overlay: #0d1828;   /* panel, sidebar, header */
+
+  /* Edges */
+  --edge-subtle:  #132030;      /* hairlines, empty tiles */
+  --edge-strong:  #1c3050;      /* active borders */
+
+  /* Text */
+  --text-muted:   #3d5a78;      /* labels, placeholders */
+  --text-primary: #c0d8f0;      /* body copy */
+  --text-bright:  #e8f6ff;      /* headings, values */
+
+  /* Accent — gold/amber (primary brand) */
+  --accent:       #f0c040;
+  --accent-dim:   #f0c04018;
+  --accent-glow:  #f0c04055;
+
+  /* Blade Runner neons */
+  --neon-cyan:    #00d4ff;
+  --neon-magenta: #ff2060;
+  --neon-orange:  #ff6010;
+
+  /* Glow intensities (used in box-shadow / text-shadow) */
+  --glow-sm:   0 0 8px;
+  --glow-md:   0 0 18px;
+  --glow-lg:   0 0 35px;
+  --glow-inset: inset 0 0 10px;
+
+  /* Hotel colors — neon vivid for dark bg */
+  --hotel-luxor:          #f5c430; --hotel-luxor-glow:       #f5c43055;
+  --hotel-tower:          #ff2a50; --hotel-tower-glow:       #ff2a5055;
+  --hotel-american:       #2080ff; --hotel-american-glow:    #2080ff55;
+  --hotel-festival:       #00e070; --hotel-festival-glow:    #00e07055;
+  --hotel-worldwide:      #b830f0; --hotel-worldwide-glow:   #b830f055;
+  --hotel-continental:    #00c8c0; --hotel-continental-glow: #00c8c055;
+  --hotel-imperial:       #ff5808; --hotel-imperial-glow:    #ff580855;
+
+  /* Fonts — swap these two lines to re-skin typography entirely */
+  --font-display: 'Orbitron', sans-serif;
+  --font-mono:    'Share Tech Mono', monospace;
+  --font-body:    'Outfit', sans-serif;
+
+  /* Legacy aliases — keeps old var() refs working during transition */
+  --bg:      var(--surface-base);
+  --bg2:     var(--surface-raised);
+  --bg3:     var(--surface-float);
+  --panel:   var(--surface-overlay);
+  --border:  var(--edge-subtle);
+  --border2: var(--edge-strong);
+  --text:    var(--text-primary);
+  --dim:     var(--text-muted);
+  --bright:  var(--text-bright);
+  --gold:    var(--accent);
+  --gold-dim:var(--accent-dim);
+  /* Hotel aliases for hColor() CSS-var lookup */
+  --luxor:       var(--hotel-luxor);       --luxor-glow:       var(--hotel-luxor-glow);
+  --tower:       var(--hotel-tower);       --tower-glow:       var(--hotel-tower-glow);
+  --american:    var(--hotel-american);    --american-glow:    var(--hotel-american-glow);
+  --festival:    var(--hotel-festival);    --festival-glow:    var(--hotel-festival-glow);
+  --worldwide:   var(--hotel-worldwide);   --worldwide-glow:   var(--hotel-worldwide-glow);
+  --continental: var(--hotel-continental); --continental-glow: var(--hotel-continental-glow);
+  --imperial:    var(--hotel-imperial);    --imperial-glow:    var(--hotel-imperial-glow);
+  --br-cyan:   var(--neon-cyan);
+  --br-magenta:var(--neon-magenta);
+  --br-orange: var(--neon-orange);
+}
+
+/* ── LIGHT THEME — neon signs on a rainy afternoon ──
+   Mid-tone wet concrete: dark enough for neon to glow,
+   light enough to feel like daytime overcast.            */
+[data-theme="light"] {
+  --surface-base:    #1e2530;   /* wet asphalt — main bg */
+  --surface-raised:  #252d3a;   /* slightly lifted */
+  --surface-float:   #2c3545;   /* cards, chips */
+  --surface-overlay: #323d50;   /* panels, header */
+
+  --edge-subtle:  #3a4a60;
+  --edge-strong:  #4a5e78;
+
+  --text-muted:   #6a88a8;
+  --text-primary: #b8d0e8;
+  --text-bright:  #ddeeff;
+
+  --accent:       #f0c040;
+  --accent-dim:   #f0c04018;
+  --accent-glow:  #f0c04044;
+
+  --neon-cyan:    #00d4ff;
+  --neon-magenta: #ff2060;
+  --neon-orange:  #ff6010;
+
+  /* Glow slightly softer than full night — overcast diffuses light */
+  --glow-sm:   0 0 6px;
+  --glow-md:   0 0 14px;
+  --glow-lg:   0 0 28px;
+  --glow-inset: inset 0 0 8px;
+
+  /* Hotel neons — same vivid hues, slightly reduced glow opacity */
+  --hotel-luxor:          #f5c430; --hotel-luxor-glow:       #f5c43044;
+  --hotel-tower:          #ff2a50; --hotel-tower-glow:       #ff2a5044;
+  --hotel-american:       #2080ff; --hotel-american-glow:    #2080ff44;
+  --hotel-festival:       #00e070; --hotel-festival-glow:    #00e07044;
+  --hotel-worldwide:      #b830f0; --hotel-worldwide-glow:   #b830f044;
+  --hotel-continental:    #00c8c0; --hotel-continental-glow: #00c8c044;
+  --hotel-imperial:       #ff5808; --hotel-imperial-glow:    #ff580844;
+}
+
+html { height: 100%; }
+body {
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background .3s, color .3s;
+}
+
+/* Atmospheric city-glow background */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 90% 40% at 15% 0%,   #001830 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 85% 100%,  #200040 0%, transparent 55%),
+    radial-gradient(ellipse 50% 30% at 50% 50%,   #080018 0%, transparent 70%);
+  transition: opacity .3s;
+}
+[data-theme="light"] body::before {
+  background:
+    radial-gradient(ellipse 90% 40% at 15% 0%,  #1a2840 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 85% 100%, #28183a 0%, transparent 55%);
+  opacity: .7;
+}
+body > * { position: relative; z-index: 1; }
+
+/* ═══════ TYPOGRAPHY ═══════ */
+.font-display { font-family: var(--font-display); }
+.font-mono    { font-family: var(--font-mono); }
+/* Legacy class aliases */
+.syne { font-family: var(--font-display); }
+.mono { font-family: var(--font-mono); }
+
+/*
+ ═══════ NEON UTILITY CLASSES ═══════
+ Use these instead of repeating text-shadow/box-shadow inline.
+ Add to any element to apply the standard neon glow.
+*/
+.neon-gold    { color: var(--accent);       text-shadow: var(--glow-sm) var(--accent-glow), var(--glow-md) var(--accent-dim); }
+.neon-cyan    { color: var(--neon-cyan);    text-shadow: var(--glow-sm) var(--neon-cyan),    var(--glow-md) color-mix(in srgb, var(--neon-cyan) 30%, transparent); }
+.neon-magenta { color: var(--neon-magenta); text-shadow: var(--glow-sm) var(--neon-magenta), var(--glow-md) color-mix(in srgb, var(--neon-magenta) 30%, transparent); }
+.neon-orange  { color: var(--neon-orange);  text-shadow: var(--glow-sm) var(--neon-orange),  var(--glow-md) color-mix(in srgb, var(--neon-orange) 30%, transparent); }
+
+.box-neon-gold    { box-shadow: var(--glow-sm) var(--accent-glow), var(--glow-md) var(--accent-dim); }
+.box-neon-cyan    { box-shadow: var(--glow-sm) var(--neon-cyan); }
+.box-neon-magenta { box-shadow: var(--glow-sm) var(--neon-magenta); }
+
+/* Scanline overlay — Blade Runner CRT feel */
+@keyframes scanlines {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 8px; }
+}
+.scanlines::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 10;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px, transparent 3px,
+    rgba(0,0,0,.12) 3px, rgba(0,0,0,.12) 4px
+  );
+  animation: scanlines 0.5s linear infinite;
+  border-radius: inherit;
+}
+[data-theme="light"] .scanlines::after { opacity: .3; }
+
+/* ═══════ SCREENS ═══════ */
+.screen { display: none; animation: fadeIn .25s ease; }
+.screen.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ═══════ HEADER ═══════ */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px; height: 58px;
+  background: var(--surface-overlay);
+  border-bottom: 1px solid var(--edge-subtle);
+  box-shadow: 0 1px 0 var(--edge-strong), 0 4px 30px rgba(0,0,0,.4);
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(16px);
+}
+.logo {
+  font-family: var(--font-display); font-weight: 900;
+  font-size: 1.4rem; letter-spacing: 8px; color: var(--accent);
+  text-shadow: var(--glow-sm) var(--accent-glow), var(--glow-lg) var(--accent-dim);
+}
+.logo em {
+  color: var(--neon-cyan); font-style: normal;
+  text-shadow: var(--glow-sm) var(--neon-cyan), var(--glow-md) color-mix(in srgb, var(--neon-cyan) 40%, transparent);
+}
+#hdr-right { font-family: var(--font-mono); font-size: .7rem; color: var(--text-muted); text-align: right; line-height: 1.9; }
+#hdr-right b { color: var(--accent); }
+
+.theme-toggle {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--edge-strong); background: none; color: var(--text-muted);
+  cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;
+  transition: all .2s; flex-shrink: 0;
+}
+.theme-toggle:hover {
+  border-color: var(--accent); color: var(--accent);
+  box-shadow: var(--glow-sm) var(--accent-glow), var(--glow-md) var(--accent-dim);
+}
+
+/* ═══════ HOME SCREEN ═══════ */
+#s-home { padding: 40px 36px; max-width: 820px; margin: 0 auto; }
+.home-title {
+  font-family: 'Orbitron', sans-serif; font-size: 2.8rem; font-weight: 900;
+  color: var(--gold); line-height: 1.1; margin-bottom: 6px;
+  text-shadow: 0 0 30px var(--gold), 0 0 60px var(--gold-dim);
+  letter-spacing: 10px;
+}
+.home-sub { color: var(--dim); font-size: .82rem; margin-bottom: 32px; font-family: 'Share Tech Mono', monospace; letter-spacing: 1px; }
+
+.tab-row { display: flex; gap: 0; margin-bottom: 28px; border-bottom: 1px solid var(--edge-subtle); }
+.tab-btn {
+  padding: 10px 22px; font-family: var(--font-display); font-size: .85rem; font-weight: 700;
+  letter-spacing: 1.5px; cursor: pointer; color: var(--text-muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .2s;
+}
+.tab-btn.on {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  text-shadow: var(--glow-sm) var(--accent-glow);
+}
+
+/* Setup grid */
+.setup-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.panel {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+}
+.panel-title { font-family: 'Orbitron', sans-serif; font-size: .85rem; font-weight: 700; letter-spacing: 2px; color: var(--gold); margin-bottom: 16px; text-transform: uppercase; }
+
+/* Player rows */
+.prow { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+.prow-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+input, select {
+  background: var(--bg3); border: 1px solid var(--border2); color: var(--text);
+  padding: 9px 12px; font-family: 'Share Tech Mono', monospace; font-size: .78rem;
+  border-radius: 5px; outline: none; width: 100%; transition: border-color .2s, box-shadow .2s;
+}
+input:focus, select:focus { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-dim); }
+input::placeholder { color: var(--dim); }
+.rm { background: none; border: 1px solid var(--border2); color: var(--dim); cursor: pointer; border-radius: 4px; padding: 8px 9px; font-size: .8rem; transition: all .15s; }
+.rm:hover { border-color: var(--tower); color: var(--tower); }
+
+/* Buttons */
+/* ═══════════════════════════════
+   BUTTONS — Blade Runner neon
+═══════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 22px; font-family: var(--font-display); font-weight: 700;
+  font-size: .82rem; letter-spacing: 1.5px; text-transform: uppercase;
+  border: none; border-radius: 6px; cursor: pointer; transition: all .2s;
+  position: relative; overflow: hidden;
+}
+
+/* Primary CTA — electric magenta, the most "do this now" Blade Runner color */
+@keyframes btn-primary-idle {
+  0%, 100% { box-shadow: 0 0 10px var(--neon-magenta), 0 0 22px color-mix(in srgb, var(--neon-magenta) 30%, transparent), 0 2px 8px rgba(0,0,0,.5); }
+  50%       { box-shadow: 0 0 18px var(--neon-magenta), 0 0 40px color-mix(in srgb, var(--neon-magenta) 40%, transparent), 0 2px 8px rgba(0,0,0,.5); }
+}
+.btn-gold {
+  background: transparent;
+  color: var(--neon-magenta);
+  border: 1.5px solid var(--neon-magenta);
+  text-shadow: 0 0 12px var(--neon-magenta);
+  animation: btn-primary-idle 2.8s ease-in-out infinite;
+}
+.btn-gold:hover {
+  background: var(--neon-magenta);
+  color: var(--surface-base);
+  text-shadow: none;
+  box-shadow: 0 0 24px var(--neon-magenta), 0 0 50px color-mix(in srgb, var(--neon-magenta) 40%, transparent);
+  animation: none;
+  transform: translateY(-1px);
+}
+.btn-gold:active { transform: translateY(0); animation: none; }
+
+/* Light theme: less bloom */
+
+/* Ghost / secondary — cyan neon border */
+.btn-ghost {
+  background: transparent;
+  color: var(--neon-cyan);
+  border: 1.5px solid var(--neon-cyan);
+  box-shadow: var(--glow-sm) color-mix(in srgb, var(--neon-cyan) 30%, transparent),
+              inset 0 0 8px color-mix(in srgb, var(--neon-cyan) 8%, transparent);
+  text-shadow: 0 0 10px var(--neon-cyan);
+}
+.btn-ghost:hover {
+  color: var(--surface-base);
+  background: var(--neon-cyan);
+  box-shadow: var(--glow-md) var(--neon-cyan), var(--glow-lg) color-mix(in srgb, var(--neon-cyan) 30%, transparent);
+  text-shadow: none;
+  transform: translateY(-1px);
+}
+.btn-ghost:active { transform: translateY(0); }
+
+
+.btn-sm { padding: 7px 14px; font-size: .74rem; }
+.btn:disabled { opacity: .35; cursor: not-allowed; box-shadow: none !important; transform: none !important; text-shadow: none !important; }
+
+/* Color pickers for player */
+.color-pick { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+.cp-dot {
+  width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; transition: transform .15s, border-color .15s;
+}
+.cp-dot:hover { transform: scale(1.2); }
+.cp-dot.chosen { border-color: white; transform: scale(1.15); }
+
+.info-box {
+  background: var(--bg3); border-left: 3px solid var(--gold); padding: 12px 15px;
+  font-size: .8rem; color: var(--dim); line-height: 1.7; border-radius: 0 5px 5px 0; margin-bottom: 16px;
+}
+.info-box b { color: var(--text); }
+.info-box.red { border-left-color: var(--tower); }
+
+/* Existing game banner */
+.saved-banner {
+  background: var(--surface-float);
+  border: 1px solid var(--hotel-festival);
+  border-radius: 8px; padding: 14px 16px; margin-bottom: 24px;
+  display: flex; flex-direction: column; gap: 12px;
+  box-shadow: var(--glow-sm) var(--hotel-festival-glow);
+}
+.saved-banner .sb-text { flex: 1; min-width: 0; }
+.saved-banner .sb-title { font-family: var(--font-display); font-weight: 700; color: var(--hotel-festival); font-size: .9rem; }
+.saved-banner .sb-sub { font-size: .78rem; color: var(--dim); margin-top: 3px; }
+.saved-banner .sb-btns { display: flex; gap: 8px; align-items: center; }
+
+/* ═══════ PASS SCREEN ═══════ */
+#s-pass {
+  display: none; position: fixed; inset: 0; background: var(--bg);
+  z-index: 200; align-items: center; justify-content: center; flex-direction: column;
+  text-align: center; gap: 24px;
+}
+#s-pass.active { display: flex; }
+.pass-avatar {
+  width: 80px; height: 80px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-size: 2rem; font-weight: 800;
+  margin: 0 auto;
+}
+.pass-name { font-family: 'Orbitron', sans-serif; font-size: 2rem; font-weight: 800; color: var(--bright); }
+.pass-label { font-family: 'Share Tech Mono', monospace; font-size: .78rem; color: var(--dim); letter-spacing: 1px; }
+
+/* ═══════ GAME LAYOUT ═══════ */
+#s-game { display: none; }
+#s-game.active { display: grid; grid-template-columns: 1fr 270px; min-height: calc(100vh - 58px); }
+
+.main-col { padding: 20px 24px; overflow-y: auto; }
+.side-col { background: var(--panel); border-left: 1px solid var(--border); padding: 18px; overflow-y: auto; }
+
+/* ═══════ BOARD ═══════ */
+.board-wrap { margin-bottom: 22px; }
+.board-label { font-family: 'Orbitron', sans-serif; font-size: .72rem; font-weight: 700; letter-spacing: 2px; color: var(--dim); margin-bottom: 10px; text-transform: uppercase; }
+.board {
+  display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px;
+  background: var(--bg3); padding: 10px; border-radius: 10px; border: 1px solid var(--border);
+}
+
+.tile {
+  aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Share Tech Mono', monospace; font-size: .52rem; font-weight: 700;
+  border: 1px solid transparent; transition: all .18s; cursor: default; position: relative;
+  user-select: none;
+}
+.tile-empty { background: var(--bg2); color: var(--border2); border-color: var(--border); }
+.tile-neutral { background: var(--bg3); color: var(--dim); border-color: var(--border2); }
+/* ── ILLEGAL TILES — clearly blocked, not "empty" ── */
+.tile-illegal {
+  background-color: rgba(140, 10, 18, 0.35) !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,              transparent 3px,
+    rgba(255, 50, 60, 0.45)   3px, rgba(255, 50, 60, 0.45) 5px
+  ) !important;
+  color: rgba(255, 80, 90, 0.85) !important;
+  border: 1.5px solid rgba(255, 60, 70, 0.85) !important;
+  box-shadow:
+    inset 0 0 10px rgba(220, 20, 30, 0.5),
+    0 0 8px rgba(220, 20, 30, 0.4) !important;
+  cursor: not-allowed !important;
+}
+[data-theme="light"] .tile-illegal {
+  /* On dark concrete, same vivid red as night mode */
+  background-color: rgba(140, 10, 18, 0.35) !important;
+  box-shadow: inset 0 0 10px rgba(220, 20, 30, 0.5), 0 0 8px rgba(220, 20, 30, 0.4) !important;
+}
+[data-theme="light"] .htile-illegal {
+  background-color: rgba(140, 10, 18, 0.4) !important;
+  box-shadow: inset 0 0 14px rgba(220, 20, 30, 0.55), 0 0 12px rgba(220, 20, 30, 0.45) !important;
+}
+
+.htile-illegal {
+  background-color: rgba(140, 10, 18, 0.4) !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,              transparent 4px,
+    rgba(255, 50, 60, 0.5)    4px, rgba(255, 50, 60, 0.5) 6px
+  ) !important;
+  border: 2px solid rgba(255, 60, 70, 0.9) !important;
+  box-shadow:
+    inset 0 0 14px rgba(220, 20, 30, 0.55),
+    0 0 12px rgba(220, 20, 30, 0.45) !important;
+  cursor: not-allowed !important;
+  animation: none !important;
+  /* suppress the gold pulse from .htile base */
+  color: rgba(255, 80, 90, 0.9) !important;
+}
+.htile-illegal::before, .htile-illegal::after {
+  border-color: rgba(255, 60, 70, 0.8) !important;
+}
+.htile-illegal:hover {
+  transform: none !important;
+  background-color: rgba(140, 10, 18, 0.4) !important;
+  box-shadow:
+    inset 0 0 14px rgba(220, 20, 30, 0.55),
+    0 0 12px rgba(220, 20, 30, 0.45) !important;
+}
+
+/* Hotel tile icon watermark */
+.tile-icon {
+  position: absolute; top: 1px; left: 2px;
+  width: 18%; height: 18%; opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Hotel tile 3D building */
+.tile-building {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; overflow: visible;
+}
+.tile-id {
+  position: absolute; bottom: 1px; left: 0; right: 0;
+  text-align: center; font-size: .46rem; font-family: 'Share Tech Mono', monospace;
+  font-weight: 700; opacity: 0.75; line-height: 1;
+  pointer-events: none;
+}
+
+/* Hotel tiles — dark base so building pops, remove old watermark icon */
+.th-luxor       { background: var(--surface-base); color: var(--luxor);       border-color: var(--luxor);       box-shadow: inset 0 0 8px var(--luxor-glow),       0 0 6px var(--luxor-glow); }
+.th-tower       { background: var(--surface-base); color: var(--tower);       border-color: var(--tower);       box-shadow: inset 0 0 8px var(--tower-glow),       0 0 6px var(--tower-glow); }
+.th-american    { background: var(--surface-base); color: var(--american);    border-color: var(--american);    box-shadow: inset 0 0 8px var(--american-glow),    0 0 6px var(--american-glow); }
+.th-festival    { background: var(--surface-base); color: var(--festival);    border-color: var(--festival);    box-shadow: inset 0 0 8px var(--festival-glow),    0 0 6px var(--festival-glow); }
+.th-worldwide   { background: var(--surface-base); color: var(--worldwide);   border-color: var(--worldwide);   box-shadow: inset 0 0 8px var(--worldwide-glow),   0 0 6px var(--worldwide-glow); }
+.th-continental { background: var(--surface-base); color: var(--continental); border-color: var(--continental); box-shadow: inset 0 0 8px var(--continental-glow), 0 0 6px var(--continental-glow); }
+.th-imperial    { background: var(--surface-base); color: var(--imperial);    border-color: var(--imperial);    box-shadow: inset 0 0 8px var(--imperial-glow),    0 0 6px var(--imperial-glow); }
+
+.tile.playable { border-color: var(--gold) !important; cursor: pointer; animation: pulse-gold 2s infinite; }
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 6px var(--gold-dim); }
+  50%       { box-shadow: 0 0 14px var(--gold); }
+}
+.tile.playable:hover { transform: scale(1.18); z-index: 20; box-shadow: 0 0 20px var(--gold) !important; }
+.tile.tile-sel { border-color: #fff !important; transform: scale(1.14); z-index: 20; box-shadow: 0 0 18px #fff8 !important; animation: none !important; }
+
+/* ═══════ HAND ═══════ */
+.hand-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+
+.htile {
+  width: 52px; height: 60px; border-radius: 7px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  font-family: var(--font-mono); font-size: .72rem; font-weight: 700;
+  cursor: pointer; transition: all .18s; position: relative; overflow: hidden;
+  background: var(--surface-raised);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow), inset 0 0 8px var(--accent-dim);
+  user-select: none;
+}
+/* No corner brackets, no pulse — clean neon frame is enough */
+.htile::before, .htile::after { display: none; }
+
+.htile:hover {
+  background: var(--accent); color: var(--surface-base);
+  transform: translateY(-6px);
+  box-shadow: 0 10px 30px var(--accent-glow), 0 0 40px var(--accent-dim);
+}
+.htile.hsel {
+  background: var(--accent); color: var(--surface-base);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px var(--accent-glow), 0 0 50px var(--accent-dim);
+}
+.htile-empty {
+  border-color: var(--edge-subtle); color: var(--edge-subtle);
+  box-shadow: none;
+  cursor: default; opacity: .4;
+}
+.htile-empty:hover { transform: none; background: var(--surface-raised); }
+
+/* ═══════ PHASE STATUS STRIP ═══════ */
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 6px var(--neon-magenta), 0 0 14px color-mix(in srgb, var(--neon-magenta) 40%, transparent); }
+  50%       { box-shadow: 0 0 12px var(--neon-magenta), 0 0 28px color-mix(in srgb, var(--neon-magenta) 50%, transparent); }
+}
+
+.phase-strip {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--neon-cyan);
+  border-radius: 8px; padding: 9px 14px;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--neon-cyan) 20%, transparent),
+              inset 0 0 16px color-mix(in srgb, var(--neon-cyan) 5%, transparent);
+  transition: border-color .15s, box-shadow .15s;
+}
+@media (max-width: 700px) {
+  .phase-strip { cursor: pointer; }
+  .phase-strip:active { box-shadow: 0 0 22px color-mix(in srgb, var(--neon-cyan) 40%, transparent); }
+}
+.ph-dots { display: flex; gap: 5px; align-items: center; }
+.ph-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--edge-strong); transition: all .25s;
+}
+.ph-dot.done {
+  background: color-mix(in srgb, var(--neon-cyan) 50%, transparent);
+}
+.ph-dot.active {
+  background: var(--neon-magenta); width: 22px; border-radius: 4px;
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+.ph-label {
+  font-family: var(--font-display); font-weight: 700; font-size: .75rem;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--neon-cyan); flex: 1;
+  text-shadow: 0 0 10px var(--neon-cyan), 0 0 20px color-mix(in srgb, var(--neon-cyan) 30%, transparent);
+}
+.ph-counter {
+  font-family: var(--font-mono); font-size: .68rem;
+  color: color-mix(in srgb, var(--neon-cyan) 60%, var(--text-muted));
+  white-space: nowrap;
+}
+
+/* Light theme: illegal tiles slightly adjusted */
+
+/* ═══════ BOTTOM SHEET ═══════ */
+.sheet-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  z-index: 110; backdrop-filter: blur(2px);
+}
+.sheet-overlay.open { display: block; }
+
+.bottom-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 120;
+  background: var(--panel);
+  border-top: 1px solid var(--border2);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 40px rgba(0,0,0,.6);
+  max-height: 85vh; overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform .32s cubic-bezier(.4,0,.2,1);
+}
+.bottom-sheet.open { transform: translateY(0); }
+
+.sheet-handle {
+  width: 44px; height: 4px; border-radius: 2px;
+  margin: 10px auto 0; cursor: pointer;
+  background: var(--neon-cyan);
+  box-shadow: 0 0 10px var(--neon-cyan), 0 0 20px color-mix(in srgb, var(--neon-cyan) 40%, transparent);
+  opacity: .6; transition: opacity .2s;
+}
+.sheet-handle:hover { opacity: 1; }
+.sheet-inner { padding: 16px 20px 32px; }
+.sheet-title {
+  font-family: var(--font-display); font-weight: 800; font-size: 1.1rem;
+  color: var(--text-bright); margin-bottom: 4px;
+}
+.sheet-sub { font-size: .82rem; color: var(--text-muted); margin-bottom: 18px; line-height: 1.6; }
+
+/* Desktop: action card — neon border accent */
+.action-card {
+  background: var(--surface-overlay);
+  border: 1px solid var(--edge-strong);
+  border-top: 2px solid var(--neon-magenta);
+  box-shadow: 0 -2px 20px color-mix(in srgb, var(--neon-magenta) 20%, transparent),
+              inset 0 1px 0 color-mix(in srgb, var(--neon-magenta) 12%, transparent);
+  border-radius: 10px; padding: 20px; margin-bottom: 16px; animation: fadeIn .2s ease;
+}
+.action-title {
+  font-family: var(--font-display); font-weight: 700; font-size: 1rem;
+  color: var(--text-bright); margin-bottom: 6px;
+  text-shadow: 0 0 20px color-mix(in srgb, var(--neon-magenta) 30%, transparent);
+}
+.action-sub { font-size: .82rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.6; }
+
+/* Found hotel grid */
+.found-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.found-btn {
+  padding: 12px 10px; border-radius: 7px; cursor: pointer; font-family: var(--font-display);
+  font-weight: 700; font-size: .78rem; text-align: center; letter-spacing: 1px;
+  border: 2px solid transparent; transition: all .2s; text-transform: uppercase;
+  background: var(--surface-float);
+}
+.found-btn:hover { transform: scale(1.04); box-shadow: 0 0 14px currentColor; }
+.found-btn.fsel { border-color: #fff !important; transform: scale(1.04); box-shadow: 0 0 18px rgba(255,255,255,.25) !important; }
+
+/* Merge opts */
+.merge-opt {
+  display: flex; align-items: center; gap: 10px; padding: 12px;
+  border: 1px solid var(--edge-strong); border-radius: 7px; margin-bottom: 8px;
+  cursor: pointer; transition: all .2s;
+}
+.merge-opt:hover { border-color: var(--accent); box-shadow: var(--glow-sm) var(--accent-glow); }
+.merge-opt.msel {
+  border-color: var(--accent); background: var(--surface-raised);
+  box-shadow: var(--glow-sm) var(--accent-glow), var(--glow-md) var(--accent-dim);
+}
+.merge-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+
+/* Buy stocks */
+.buy-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  padding: 10px 12px; border-radius: 7px;
+  background: var(--surface-raised); border: 1px solid var(--edge-subtle);
+}
+.buy-hotel { flex: 1; font-size: .82rem; font-weight: 500; }
+.buy-price { font-family: var(--font-mono); font-size: .72rem; color: var(--text-muted); }
+.qty-ctrl { display: flex; align-items: center; gap: 6px; }
+.qbtn {
+  width: 28px; height: 28px; border-radius: 5px; font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: all .15s;
+  background: var(--surface-float);
+  border: 1.5px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--neon-cyan) 25%, transparent),
+              inset 0 0 5px color-mix(in srgb, var(--neon-cyan) 6%, transparent);
+}
+.qbtn:hover {
+  background: var(--neon-cyan); color: var(--surface-base);
+  box-shadow: var(--glow-sm) var(--neon-cyan), var(--glow-md) color-mix(in srgb, var(--neon-cyan) 35%, transparent);
+}
+.qval { font-family: var(--font-mono); width: 26px; text-align: center; font-size: .85rem; font-weight: 700; }
+
+/* ═══════ SIDEBAR ═══════ */
+.side-section { margin-bottom: 20px; }
+.side-title { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: .68rem; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+/* Hotel chips */
+.hotel-chip {
+  display: block;
+  padding: 8px 10px; border-radius: 6px; margin-bottom: 6px;
+  font-family: var(--font-mono); font-size: .68rem; font-weight: 700;
+  border: 1px solid transparent; transition: all .25s;
+  /* active chips get hotel-colored box-shadow applied inline */
+}
+.hotel-chip.off { background: var(--surface-float); color: var(--text-muted); border-color: var(--edge-subtle); }
+.hc-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.hc-name { font-size: .72rem; font-family: 'Orbitron', sans-serif; font-weight: 700; }
+.hc-right { display: flex; align-items: center; gap: 7px; }
+.hc-size { font-size: .68rem; opacity: .85; white-space: nowrap; }
+.hc-price { font-size: .65rem; opacity: .75; white-space: nowrap; }
+.hc-tag {
+  font-size: .55rem; font-family: 'Orbitron', sans-serif; font-weight: 700;
+  letter-spacing: .8px; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 3px;
+  background: rgba(255,255,255,.15); opacity: .9;
+}
+.hc-bar-wrap {
+  margin-top: 6px; height: 3px; border-radius: 2px;
+  background: rgba(0,0,0,.35); overflow: visible; position: relative;
+}
+.hc-bar-fill {
+  height: 100%; border-radius: 2px; transition: width .4s ease;
+  position: relative;
+  /* hotel color + glow applied inline; CSS gives it a consistent blur shadow */
+  filter: drop-shadow(0 0 3px currentColor);
+}
+/* Safe threshold tick at 11/108 ≈ 10.2% */
+.hc-bar-wrap::after {
+  content: ''; position: absolute;
+  left: 10.2%; top: -2px; width: 1px; height: 7px;
+  background: rgba(255,255,255,.35); border-radius: 1px;
+}
+
+/* Bonus leaders row */
+.hc-leaders {
+  display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap;
+}
+.hc-leader {
+  display: flex; align-items: center; gap: 4px;
+  font-family: 'Outfit', sans-serif; font-size: .66rem; font-weight: 500;
+  padding: 2px 7px 2px 4px; border-radius: 20px;
+  background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.12);
+  white-space: nowrap;
+}
+.hc-leader-icon { width: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.hc-leader-medal { font-size: .62rem; margin-right: 1px; }
+.hc-leader-amt { opacity: .65; font-size: .6rem; margin-left: 2px; }
+
+/* Player cards */
+.player-card {
+  border-radius: 8px; padding: 12px; margin-bottom: 8px;
+  border: 1px solid var(--edge-subtle); background: var(--surface-float); transition: all .25s;
+}
+.player-card.active-player {
+  border-color: var(--accent);
+  box-shadow: var(--glow-sm) var(--accent-glow), var(--glow-md) var(--accent-dim), inset 0 0 20px var(--accent-dim);
+  /* per-player color applied inline via JS */
+}
+.pc-header { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; }
+.pc-avatar { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: .85rem; }
+.pc-name { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: .88rem; }
+.pc-cash { font-family: 'Share Tech Mono', monospace; font-size: .72rem; color: var(--dim); }
+.pc-cash span { color: var(--gold); }
+.pc-net { font-family: 'Share Tech Mono', monospace; font-size: .82rem; font-weight: 700; color: var(--bright); margin-top: 1px; }
+.pc-net-label { font-size: .6rem; color: var(--dim); font-weight: 400; margin-left: 4px; text-transform: uppercase; letter-spacing: .5px; }
+.pc-bar-wrap { margin: 7px 0 4px; height: 4px; border-radius: 3px; background: var(--bg2); overflow: hidden; display: flex; gap: 1px; }
+.pc-bar-seg { height: 100%; transition: width .4s ease; min-width: 2px; }
+.pc-stocks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.stock-pip {
+  padding: 2px 7px; border-radius: 3px; font-family: 'Share Tech Mono', monospace;
+  font-size: .6rem; font-weight: 700;
+}
+
+/* Buy summary bar */
+.buy-summary-bar {
+  display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+  font-family: 'Share Tech Mono', monospace; font-size: .72rem; color: var(--dim);
+}
+.buy-summary-bar span { white-space: nowrap; }
+
+/* In-sheet stats toggle */
+.sheet-stats-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; margin: 0 0 12px;
+  background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px;
+  cursor: pointer; font-family: 'Orbitron', sans-serif; font-weight: 700;
+  font-size: .75rem; color: var(--dim); letter-spacing: .5px;
+  transition: border-color .15s, color .15s; user-select: none;
+}
+.sheet-stats-toggle:hover, .sheet-stats-toggle.open { border-color: var(--gold); color: var(--bright); }
+.sheet-stats-toggle .sst-arrow { transition: transform .2s; font-size: .65rem; }
+.sheet-stats-toggle.open .sst-arrow { transform: rotate(180deg); }
+.sheet-stats-panel {
+  display: none; margin-bottom: 14px;
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+}
+.sheet-stats-panel.open { display: block; }
+.ssp-section-hdr {
+  padding: 4px 10px; background: var(--bg3);
+  font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: .6rem;
+  color: var(--dim); letter-spacing: .8px; text-transform: uppercase;
+}
+.ssp-hotel {
+  display: flex; align-items: flex-start; gap: 7px;
+  padding: 5px 10px; border-bottom: 1px solid var(--border);
+  font-size: .68rem;
+}
+.ssp-hotel-body { flex: 1; min-width: 0; }
+.ssp-hotel:last-of-type { border-bottom: 1px solid var(--border2); }
+.ssp-dot { width: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding-top: 2px; }
+.ssp-name { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: .62rem; }
+.ssp-meta { color: var(--dim); font-family: 'Share Tech Mono', monospace; font-size: .58rem; }
+.ssp-price { font-family: 'Share Tech Mono', monospace; font-size: .58rem; white-space: nowrap; }
+.ssp-bonus-row { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.ssp-bonus-pill {
+  font-family: 'Share Tech Mono', monospace; font-size: .58rem;
+  background: var(--surface-float); border-radius: 4px;
+  padding: 1px 5px; white-space: nowrap;
+}
+.ssp-player {
+  display: grid; grid-template-columns: 20px 1fr auto;
+  align-items: center; gap: 7px;
+  padding: 5px 10px; border-bottom: 1px solid var(--border);
+}
+.ssp-player:last-child { border-bottom: none; }
+.ssp-av {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: .58rem;
+}
+.ssp-pname { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: .7rem; }
+.ssp-pnet { font-family: 'Share Tech Mono', monospace; font-size: .6rem; color: var(--dim); text-align: right; }
+
+/* Dispose controls */
+.dispose-card {
+  background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px;
+  padding: 14px; margin-bottom: 10px;
+}
+.dispose-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.dispose-label { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: .82rem; color: var(--bright); flex: 1; min-width: 80px; }
+.dispose-summary { font-family: 'Share Tech Mono', monospace; font-size: .68rem; color: var(--dim); margin-top: 6px; }
+.dispose-summary b { color: var(--gold); }
+.dispose-waiting { font-size: .78rem; color: var(--dim); font-style: italic; padding: 8px 0; }
+
+/* Log */
+.log-entry { font-family: 'Share Tech Mono', monospace; font-size: .63rem; color: var(--dim); padding: 4px 0; border-bottom: 1px solid var(--border); line-height: 1.6; }
+
+/* ═══════ GAME OVER ═══════ */
+.go-card {
+  background: var(--surface-float);
+  border: 2px solid var(--accent); border-radius: 12px;
+  padding: 20px; margin-bottom: 16px;
+  box-shadow: var(--glow-md) var(--accent-glow), var(--glow-lg) var(--accent-dim);
+  animation: fadeIn .4s ease;
+}
+.go-title {
+  font-family: var(--font-display); font-size: 1.5rem; font-weight: 800;
+  color: var(--accent); text-shadow: var(--glow-sm) var(--accent-glow);
+  margin-bottom: 2px;
+}
+.go-winner {
+  font-family: var(--font-display); font-size: 1rem; font-weight: 700;
+  color: var(--text-bright); margin-bottom: 18px;
+}
+.go-subtitle {
+  font-family: var(--font-mono); font-size: .68rem; color: var(--text-muted);
+  margin-bottom: 8px; letter-spacing: 2px; text-transform: uppercase;
+  border-bottom: 1px solid var(--edge-subtle); padding-bottom: 6px;
+}
+.go-table { margin-bottom: 18px; }
+
+/* Grid: medal | name | net | breakdown-bar */
+.go-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 10px; row-gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--edge-subtle);
+  align-items: center;
+}
+.go-row:last-child { border: none; }
+
+.go-rank  { grid-column: 1; grid-row: 1 / 3; font-size: 1.3rem; align-self: center; }
+.go-name  { grid-column: 2; grid-row: 1; font-family: var(--font-display); font-weight: 700; font-size: .88rem; }
+.go-net   { grid-column: 3; grid-row: 1; font-family: var(--font-mono); font-weight: 700; font-size: .95rem; text-align: right; color: var(--accent); white-space: nowrap; }
+
+/* Breakdown spans full width under name+net */
+.go-breakdown {
+  grid-column: 2 / 4; grid-row: 2;
+  font-family: var(--font-mono); font-size: .62rem; color: var(--text-muted);
+  display: flex; gap: 0; align-items: center;
+}
+.go-bd-item { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+.go-bd-item + .go-bd-item::before { content: '·'; margin: 0 6px; opacity: .4; }
+.go-bd-label { opacity: .7; }
+.go-bd-val   { color: var(--text-primary); }
+.go-bd-val.has-value { color: var(--accent); }
+
+/* Mini bar showing proportion of cash / stocks / bonus */
+.go-bar {
+  grid-column: 2 / 4; grid-row: 3;
+  height: 3px; border-radius: 2px; overflow: hidden;
+  display: flex; margin-top: 4px; gap: 1px;
+  background: var(--edge-subtle);
+}
+.go-bar-seg { height: 100%; border-radius: 1px; transition: width .4s; }
+
+/* ═══════ TOAST ═══════ */
+.toast {
+  position: fixed; bottom: 22px; right: 22px; z-index: 999;
+  background: var(--panel); border: 1px solid var(--gold); border-radius: 8px;
+  padding: 12px 18px; font-family: 'Share Tech Mono', monospace; font-size: .76rem;
+  color: var(--text); max-width: 280px;
+  transform: translateY(80px); opacity: 0; transition: all .3s;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+
+hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+/* Color classes for hotel styling */
+.col-luxor       { color: var(--luxor); }
+.col-tower       { color: var(--tower); }
+.col-american    { color: var(--american); }
+.col-festival    { color: var(--festival); }
+.col-worldwide   { color: var(--worldwide); }
+.col-continental { color: var(--continental); }
+.col-imperial    { color: var(--imperial); }
+.bg-luxor        { background: var(--luxor);       color: var(--surface-base); }
+.bg-tower        { background: var(--tower);        color: #fff; }
+.bg-american     { background: var(--american);     color: #fff; }
+.bg-festival     { background: var(--festival);     color: var(--surface-base); }
+.bg-worldwide    { background: var(--worldwide);    color: #fff; }
+.bg-continental  { background: var(--continental);  color: var(--surface-base); }
+.bg-imperial     { background: var(--imperial);     color: #fff; }
+
+/* ═══════ DRAWER ═══════ */
+.drawer-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55);
+  z-index: 80; backdrop-filter: blur(2px);
+}
+.drawer-overlay.open { display: block; }
+
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(340px, 92vw);
+  background: var(--panel); border-left: 1px solid var(--border2);
+  z-index: 90; overflow-y: auto; padding: 20px 18px;
+  transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1);
+  box-shadow: -8px 0 40px rgba(0,0,0,.5);
+}
+.drawer.open { transform: translateX(0); }
+
+.drawer-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+}
+.drawer-title { font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 1rem; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); }
+.drawer-close {
+  width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border2);
+  background: none; color: var(--dim); cursor: pointer; font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center; transition: all .15s;
+}
+.drawer-close:hover { border-color: var(--tower); color: var(--tower); }
+
+/* Stats FAB button (mobile) — neon pill */
+@keyframes fab-breathe {
+  0%, 100% { box-shadow: 0 0 12px var(--neon-cyan), 0 4px 20px rgba(0,0,0,.5); }
+  50%       { box-shadow: 0 0 24px var(--neon-cyan), 0 0 40px color-mix(in srgb, var(--neon-cyan) 30%, transparent), 0 4px 20px rgba(0,0,0,.5); }
+}
+.fab-stats {
+  display: none; position: fixed; bottom: 22px; right: 18px; z-index: 70;
+  height: 44px; padding: 0 16px; border-radius: 22px;
+  background: var(--surface-overlay);
+  border: 1.5px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  font-family: var(--font-display); font-weight: 700; font-size: .62rem;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 0 12px var(--neon-cyan), 0 4px 20px rgba(0,0,0,.5);
+  animation: fab-breathe 3s ease-in-out infinite;
+  transition: all .2s;
+  align-items: center; justify-content: center; gap: 6px;
+  white-space: nowrap;
+}
+.fab-stats:hover {
+  background: var(--neon-cyan); color: var(--surface-base);
+  animation: none;
+  box-shadow: 0 0 30px var(--neon-cyan), 0 6px 24px rgba(0,0,0,.6);
+}
+
+/* Log pagination */
+.log-more-btn {
+  display: block; width: 100%; margin-top: 8px; padding: 7px;
+  background: var(--bg3); border: 1px solid var(--border2); border-radius: 5px;
+  color: var(--dim); font-family: 'Share Tech Mono', monospace; font-size: .68rem;
+  cursor: pointer; text-align: center; transition: all .15s;
+}
+.log-more-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+/* Responsive */
+@media (max-width: 700px) {
+  #s-game.active { grid-template-columns: 1fr; display: block; }
+  .side-col { display: none; }
+  .setup-cols { grid-template-columns: 1fr; }
+  header { padding: 0 14px; }
+  .logo { font-size: 1.3rem; letter-spacing: 3px; }
+  #hdr-right { display: none; }
+  .hdr-turn-pill {
+    display: flex !important; align-items: center; gap: 7px;
+    background: var(--surface-float);
+    border: 1.5px solid var(--edge-strong);
+    border-radius: 20px; padding: 5px 12px 5px 7px;
+    font-family: var(--font-mono); font-size: .68rem; color: var(--text-primary);
+    cursor: pointer; transition: all .2s;
+  }
+  .hdr-turn-pill:hover { border-color: var(--accent); box-shadow: var(--glow-sm) var(--accent-glow); }
+  .fab-stats { display: flex; }
+  /* Extra bottom padding so FAB doesn't overlap content */
+  .main-col { padding: 12px 12px 30px; }
+  .hand-row { gap: 7px; }
+  .htile { width: 44px; height: 52px; font-size: .65rem; }
+  /* On mobile, inline action-area is hidden — sheet takes over */
+  #action-area { display: none; }
+}
+@media (min-width: 701px) {
+  .hdr-turn-pill { display: none !important; }
+  .fab-stats { display: none !important; }
+  .drawer-overlay { display: none !important; }
+  .drawer { display: none !important; }
+  /* Sheet never shows on desktop */
+  .sheet-overlay { display: none !important; }
+  .bottom-sheet  { display: none !important; }
+}
+/* ═══════ PRICE REFERENCE MODAL ═══════ */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  z-index: 500; backdrop-filter: blur(4px);
+  align-items: center; justify-content: center; padding: 16px;
+}
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--panel); border: 1px solid var(--border2); border-radius: 12px;
+  width: 100%; max-width: 560px; max-height: 90vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.7); animation: fadeIn .2s ease;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.modal-title { font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 1.1rem; color: var(--gold); letter-spacing: 1px; }
+.modal-close {
+  width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border2);
+  background: none; color: var(--dim); cursor: pointer; font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center; transition: all .15s;
+  flex-shrink: 0;
+}
+.modal-close:hover { border-color: var(--tower); color: var(--tower); }
+.modal-body { padding: 18px 20px 24px; overflow-y: auto; flex: 1; }
+
+/* Price table */
+.price-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: .7rem; }
+
+
+
+
+
+
+
+
+
+
+
+/* Price table */
+.price-table { width: 100%; border-collapse: collapse; font-family: 'Share Tech Mono', monospace; font-size: .7rem; }
+.price-table th {
+  padding: 8px 6px; text-align: center; font-family: 'Orbitron', sans-serif;
+  font-weight: 700; font-size: .7rem; letter-spacing: .5px; border-bottom: 2px solid var(--border2);
+  white-space: nowrap;
+}
+.price-table th.col-tiles { text-align: left; color: var(--dim); }
+.price-table td {
+  padding: 6px 6px; text-align: center; border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.price-table td.col-tiles {
+  text-align: left; font-family: 'Orbitron', sans-serif; font-size: .72rem;
+  font-weight: 700; color: var(--dim); white-space: nowrap;
+}
+.price-table tr:last-child td { border-bottom: none; }
+
+/* Bonus table */
+.bonus-note { font-size: .75rem; color: var(--dim); line-height: 1.7; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.bonus-note b { color: var(--text); }
+
+/* Help button */
+.help-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--border2); background: none; color: var(--dim);
+  cursor: pointer; font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: .85rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; flex-shrink: 0;
+}
+.help-btn:hover { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 10px var(--gold-dim); }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="logo">SKY<em>LI</em>NE</div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark">☀</button>
+    <button class="help-btn" onclick="openPriceModal()" title="Stock price reference">?</button>
+    <div id="hdr-right">Pass &amp; Play</div>
+    <!-- Mobile: tappable turn pill that opens drawer -->
+    <div class="hdr-turn-pill" id="hdr-turn-pill" onclick="openDrawer()" style="display:none;">
+      <div id="hdr-pill-avatar" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-weight:800;font-size:.7rem;"></div>
+      <span id="hdr-pill-text">—</span>
+      <span style="color:var(--dim);font-size:.75rem;">⠿</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════ PRICE REFERENCE MODAL ═══════ -->
+<div class="modal-overlay" id="price-modal" onclick="if(event.target===this)closePriceModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Stock Price Reference</div>
+      <button class="modal-close" onclick="closePriceModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="overflow-x:auto;">
+        <div id="price-table-el"><!-- filled by JS --></div>
+      </div>
+      <div id="price-legend-el" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)"></div>
+      <div class="bonus-note">
+        <b>Merger bonuses</b> are 10× (majority) and 5× (minority) the share price at time of merger.<br>
+        <b>Tie for majority</b> → both bonuses split equally, no minority paid.<br>
+        <b>Tie for minority</b> → minority bonus split equally.<br>
+        <b>Sole shareholder</b> → receives both bonuses.<br>
+        All amounts rounded <b>up</b> to nearest $100.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════ DRAWER (mobile stats/log) ═══════ -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title">Stats &amp; Log</div>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="side-section">
+    <div class="side-title">Hotels</div>
+    <div id="d-hotels-list"></div>
+  </div>
+  <div class="side-section">
+    <div class="side-title">Players</div>
+    <div id="d-player-list"></div>
+  </div>
+  <div class="side-section">
+    <div class="side-title">Log</div>
+    <div id="d-game-log"></div>
+  </div>
+</div>
+
+<!-- FAB: open drawer on mobile -->
+<button class="fab-stats" id="fab-stats" onclick="openDrawer()" title="Stats &amp; Log">⬡ STATS</button>
+
+<!-- ═══════ BOTTOM SHEET (mobile actions) ═══════ -->
+<div class="sheet-overlay" id="sheet-overlay"></div>
+<div class="bottom-sheet" id="bottom-sheet">
+  <div class="sheet-handle" onclick="closeSheet()"></div>
+  <div class="sheet-inner" id="sheet-inner"></div>
+</div>
+
+<!-- ═══════ GAME OVER OVERLAY ═══════ -->
+<div class="gameover-screen" id="go-screen" style="display:none"></div>
+
+<!-- ═══════ PASS SCREEN ═══════ -->
+<div class="screen" id="s-pass">
+  <div class="pass-avatar" id="pass-avatar">?</div>
+  <div class="pass-label" id="pass-context-label">NOW PLAYING</div>
+  <div class="pass-name" id="pass-name">—</div>
+  <div class="pass-label" style="font-size:.68rem;" id="pass-hint">Hand the device to this player</div>
+  <button class="btn btn-gold" onclick="proceedToGame()">I'm Ready &rarr;</button>
+</div>
+
+<!-- ═══════ HOME SCREEN ═══════ -->
+<div class="screen active" id="s-home">
+  <div style="padding:36px 32px;max-width:820px;margin:0 auto;">
+    <div class="home-title">SKYLINE</div>
+    <div class="home-sub">Corporate raider · Hotel empires · Pass &amp; Play · 2–6 players</div>
+
+    <div id="saved-game-area"></div>
+
+    <div class="tab-row">
+      <div class="tab-btn on" id="tb-new" onclick="homeTab('new')">New Game</div>
+      <div class="tab-btn" id="tb-rules" onclick="homeTab('rules')">How to Play</div>
+    </div>
+
+    <div id="tab-new">
+      <div class="setup-cols">
+        <div class="panel">
+          <div class="panel-title">Players</div>
+          <div id="prows"></div>
+          <button class="btn btn-ghost btn-sm" onclick="addPlayerRow()" style="margin-top:10px;">+ Add Player</button>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Options</div>
+          <div class="info-box">
+            <b>Pass &amp; Play mode</b> — all data lives in this browser tab.
+            Hand the device around. Each player sees only the public board;
+            private tile hands are shown only on your turn.
+          </div>
+          <label style="font-size:.7rem;color:var(--dim);display:block;margin-bottom:5px;">Starting Cash</label>
+          <select id="opt-cash">
+            <option value="6000" selected>$6,000 — Standard</option>
+            <option value="3000">$3,000 — Quick game</option>
+          </select>
+          <br><br>
+          <button class="btn btn-gold" onclick="createGame()">Start Game &rarr;</button>
+          <br><br>
+          <button class="btn btn-ghost btn-sm" onclick="clearSavedGame()" style="color:var(--dim);font-size:.7rem;">🗑 Clear saved game data</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-rules" style="display:none;">
+      <div class="panel" style="max-width:580px;line-height:1.9;font-size:.88rem;color:var(--dim);">
+        <div class="panel-title">Rules Overview</div>
+
+        <b style="color:var(--text);">Goal:</b> Have the highest net worth when the game ends. Net worth = cash + stock value + merger bonuses you'd earn.<br><br>
+
+        <b style="color:var(--text);">On your turn:</b><br>
+        <b style="color:var(--gold);">1.</b> Place a tile from your hand onto the board.<br>
+        <b style="color:var(--gold);">2.</b> Resolve what the tile does (see below).<br>
+        <b style="color:var(--gold);">3.</b> Buy up to 3 stocks total in any active hotel(s).<br>
+        <b style="color:var(--gold);">4.</b> Draw a replacement tile to refill your hand to 6.<br><br>
+
+        <b style="color:var(--text);">What a tile can do:</b><br>
+        <b style="color:var(--bright);">Isolated</b> — sits alone, nothing happens.<br>
+        <b style="color:var(--bright);">Extend</b> — joins an existing chain, growing it by 1+ tiles.<br>
+        <b style="color:var(--bright);">Found</b> — connects two or more neutral tiles (or sits next to one) with no existing chain nearby. You choose which hotel opens and receive 1 free share.<br>
+        <b style="color:var(--bright);">Merger</b> — connects two or more existing chains. See below.<br><br>
+
+        <b style="color:var(--text);">Mergers:</b><br>
+        The <b style="color:var(--bright);">larger chain survives</b>. If chains are tied in size, the player who placed the tile chooses the survivor.<br>
+        The defunct chain's shareholders receive <b style="color:var(--bright);">bonuses</b>: the majority holder gets 10× the share price; the minority holder gets 5×. Ties split the combined amount evenly. The sole shareholder gets both.<br>
+        Then, starting with the merger-maker and going clockwise, each shareholder of the defunct chain independently chooses what to do with their stock:<br>
+        &nbsp;&nbsp;💰 <b style="color:var(--bright);">Sell</b> — receive the pre-merger price per share in cash.<br>
+        &nbsp;&nbsp;🔄 <b style="color:var(--bright);">Trade 2-for-1</b> — swap pairs of defunct shares for shares of the surviving chain.<br>
+        &nbsp;&nbsp;📦 <b style="color:var(--bright);">Keep</b> — hold the defunct shares; they're worthless unless that chain re-founds later.<br>
+        If multiple chains are absorbed, each is resolved one at a time.<br><br>
+
+        <b style="color:var(--text);">Safe chains</b> (11+ tiles) cannot be acquired in a merger. Two safe chains cannot be merged.<br><br>
+
+        <b style="color:var(--text);">Game ends</b> when any chain reaches 41+ tiles, or all active chains are safe. Any player may declare the end on their turn. Final bonuses are paid on all active chains, then net worth determines the winner.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ GAME SCREEN ═══════ -->
+<div class="screen" id="s-game">
+  <!-- Main column -->
+  <div class="main-col">
+    <div class="phase-strip" id="phase-bar"></div>
+
+    <div class="board-wrap">
+      <div class="board-label" style="display:flex;align-items:center;justify-content:between;gap:10px">
+        <span>Board — 9×12</span>
+        <span style="font-size:.58rem;opacity:.5;margin-left:auto">drag to rotate · pinch/scroll to zoom</span>
+      </div>
+      <div style="position:relative">
+        <canvas id="board-3d" style="width:100%;border-radius:10px;border:1px solid var(--border);display:block;touch-action:none"></canvas>
+        <div id="board" style="display:none"></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:18px;">
+      <div class="board-label" id="hand-label">Your Hand</div>
+      <div class="hand-row" id="hand"></div>
+    </div>
+
+    <!-- Desktop: inline action area -->
+    <div id="action-area"></div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="side-col">
+    <div class="side-section">
+      <div class="side-title">Hotels</div>
+      <div id="hotels-list"></div>
+    </div>
+    <div class="side-section">
+      <div class="side-title">Players</div>
+      <div id="player-list"></div>
+    </div>
+    <div class="side-section">
+      <div class="side-title">Log</div>
+      <div id="game-log"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  THEME
+// ═══════════════════════════════════════════
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const next = isLight ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next === 'dark' ? '' : 'light');
+  localStorage.setItem('skyline-theme', next);
+  document.getElementById('theme-toggle').textContent = next === 'light' ? '☾' : '☀';
+  // Re-render any live game elements whose inline styles bake resolved hex colors
+  if(G) {
+    renderHotels();
+    renderPlayerList();
+    renderAction();
+  }
+}
+// Apply saved theme on load
+(function(){
+  const t = localStorage.getItem('skyline-theme');
+  if(t === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('theme-toggle');
+      if(btn) btn.textContent = '☾';
+    });
+  }
+})();
+
+// ═══════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════
+/*
+ ╔══════════════════════════════════════════════════════╗
+ ║  HOTEL_DEFS — single source of truth for all hotels  ║
+ ║  id, label, icon shape. Colors live in CSS vars.     ║
+ ║  To add/rename a hotel: edit this object only.       ║
+ ╚══════════════════════════════════════════════════════╝
+*/
+const HOTEL_DEFS = {
+  luxor:       { label: 'Luxor',       iconPath: 'M12,2 L22,12 L12,22 L2,12 Z',                                                                                                              iconLabel: '◆ diamond'  },
+  tower:       { label: 'Tower',       iconPath: 'M12,3 L21,21 L3,21 Z',                                                                                                                      iconLabel: '▲ triangle' },
+  american:    { label: 'American',    iconPath: 'M12,2 L15.5,8.5 L22,9.5 L17,14.5 L18.5,22 L12,18.5 L5.5,22 L7,14.5 L2,9.5 L8.5,8.5 Z',                                                   iconLabel: '★ star'     },
+  festival:    { label: 'Festival',    iconPath: 'M12,2 A10,10 0 1,1 11.999,2 Z',                                                                                                             iconLabel: '● circle'   },
+  worldwide:   { label: 'Worldwide',   iconPath: 'M12,2 L20,7 L20,17 L12,22 L4,17 L4,7 Z',                                                                                                   iconLabel: '⬡ hexagon'  },
+  continental: { label: 'Continental', iconPath: 'M3,3 H21 V21 H3 Z',                                                                                                                        iconLabel: '■ square'   },
+  imperial:    { label: 'Imperial',    iconPath: 'M12,2 L13.8,8.2 L20,6 L15.8,11 L22,12 L15.8,13 L20,18 L13.8,15.8 L12,22 L10.2,15.8 L4,18 L8.2,13 L2,12 L8.2,11 L4,6 L10.2,8.2 Z',      iconLabel: '✦ 4-star'   },
+};
+
+// Derived helpers — computed once from HOTEL_DEFS so nothing is duplicated
+const HOTELS = Object.keys(HOTEL_DEFS);
+const HL     = Object.fromEntries(HOTELS.map(h => [h, HOTEL_DEFS[h].label]));
+// HICONS kept for backward compat with hIcon / hIconWatermark helpers
+const HICONS = Object.fromEntries(
+  HOTELS.map(h => [h, { path: HOTEL_DEFS[h].iconPath, label: HOTEL_DEFS[h].iconLabel }])
+);
+// Text color for dark text on light backgrounds (player avatars on colored bg)
+// Update this when changing to a very light theme
+const DARK_TEXT_ON_LIGHT = '#06090f';
+
+const ROWS = 'ABCDEFGHI'.split('');
+const ALL_TILES = [];
+for(const r of ROWS) for(let c=1;c<=12;c++) ALL_TILES.push(r+c);
+const TILES_PER_HAND = 6;
+const SAFE = 11;
+const TOTAL_STOCK = 25;
+
+// Player color palette (for avatars/accents)
+const P_COLORS = ['#f5c842','#ff4f6d','#3b8eff','#2ecc71','#c353f5','#ff7c2a'];
+const P_NAMES  = ['Alice','Bob','Carol','Dave','Eve','Frank'];
+
+// Returns an inline SVG icon for a hotel at given pixel size
+function hIcon(h, size=14, color=null, opacity=1) {
+  const ic = HICONS[h];
+  if(!ic) return '';
+  // Use CSS variable reference so icons update when theme changes
+  const c = color || `var(--hotel-${h})`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="display:inline-block;vertical-align:middle;flex-shrink:0;opacity:${opacity}" aria-label="${ic.label}">
+    <path d="${ic.path}" fill="${c}"/>
+  </svg>`;
+}
+
+// Returns an absolutely-positioned SVG isometric building for a hotel board tile.
+// Each hotel has a distinct silhouette. Color comes from CSS vars.
+function hBuilding(h) {
+  // Isometric projection helpers (30° angle, flat-top)
+  // origin is the bottom-center of the tile footprint in SVG space
+  // isoX/isoY convert grid (right, back, up) → screen (x, y)
+  // For a 40×44 viewBox: ground level at y≈36, perspective tilted 30°
+  const W = 40, H = 44;
+  // iso(r, b, u): right-axis, back-axis, up-axis → {x, y} in SVG coords
+  // origin = center-bottom of tile
+  const ox = W / 2, oy = H - 6;
+  const sx = 6.2, sy = 3.6, su = 5.2; // scale per axis
+  function iso(r, b, u) {
+    return { x: ox + r * sx - b * sx, y: oy - r * sy - b * sy - u * su };
+  }
+  function pt(r, b, u) { const p = iso(r,b,u); return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }
+  function poly(points, fill, opacity=1, extra='') {
+    return `<polygon points="${points.join(' ')}" fill="${fill}" opacity="${opacity}" ${extra}/>`;
+  }
+
+  const c   = `var(--hotel-${h})`;       // full neon color
+  const dim = `var(--hotel-${h}-glow)`;  // glow for shadow faces
+
+  // Face colors: top = brightest, left = medium, right = darkest
+  // We fake lighting with CSS color-mix opacity layers
+  let svg = '';
+
+  if(h === 'luxor') {
+    // Stepped pyramid — wide base, two setbacks, pointed top
+    // Base block 3×3, h=2
+    svg += poly([pt(-1.5,-1.5,0),pt(1.5,-1.5,0),pt(1.5,1.5,0),pt(-1.5,1.5,0)], c, 0.18);
+    svg += poly([pt(-1.5,1.5,0),pt(1.5,1.5,0),pt(1.5,1.5,2),pt(-1.5,1.5,2)], c, 0.55);
+    svg += poly([pt(1.5,-1.5,0),pt(1.5,1.5,0),pt(1.5,1.5,2),pt(1.5,-1.5,2)], c, 0.35);
+    svg += poly([pt(-1.5,-1.5,2),pt(1.5,-1.5,2),pt(1.5,1.5,2),pt(-1.5,1.5,2)], c, 0.8);
+    // Mid block 2×2, h=2
+    svg += poly([pt(-1,1,2),pt(1,1,2),pt(1,-1,2),pt(-1,-1,2)], c, 0.25);
+    svg += poly([pt(-1,1,2),pt(1,1,2),pt(1,1,4),pt(-1,1,4)], c, 0.6);
+    svg += poly([pt(1,-1,2),pt(1,1,2),pt(1,1,4),pt(1,-1,4)], c, 0.4);
+    svg += poly([pt(-1,-1,4),pt(1,-1,4),pt(1,1,4),pt(-1,1,4)], c, 0.9);
+    // Tip
+    svg += poly([pt(0,0,7),pt(-0.5,-0.5,4),pt(0.5,-0.5,4)], c, 0.7);
+    svg += poly([pt(0,0,7),pt(0.5,-0.5,4),pt(0.5,0.5,4)], c, 0.5);
+    svg += poly([pt(0,0,7),pt(0.5,0.5,4),pt(-0.5,0.5,4)], c, 0.9);
+
+  } else if(h === 'tower') {
+    // Tall thin skyscraper with antenna
+    // Slim base 1.5×1.5, tall
+    svg += poly([pt(-0.75,0.75,0),pt(0.75,0.75,0),pt(0.75,-0.75,0),pt(-0.75,-0.75,0)], c, 0.2);
+    svg += poly([pt(-0.75,0.75,0),pt(0.75,0.75,0),pt(0.75,0.75,7),pt(-0.75,0.75,7)], c, 0.55);
+    svg += poly([pt(0.75,-0.75,0),pt(0.75,0.75,0),pt(0.75,0.75,7),pt(0.75,-0.75,7)], c, 0.35);
+    svg += poly([pt(-0.75,-0.75,7),pt(0.75,-0.75,7),pt(0.75,0.75,7),pt(-0.75,0.75,7)], c, 0.9);
+    // Antenna
+    const a = iso(0, 0, 9); const ab = iso(0, 0, 7);
+    svg += `<line x1="${ab.x.toFixed(1)}" y1="${ab.y.toFixed(1)}" x2="${a.x.toFixed(1)}" y2="${a.y.toFixed(1)}" stroke="${c}" stroke-width="1.2" opacity="0.9"/>`;
+    const ad = iso(0, 0, 9);
+    svg += `<circle cx="${ad.x.toFixed(1)}" cy="${ad.y.toFixed(1)}" r="1" fill="${c}" opacity="1"/>`;
+
+  } else if(h === 'american') {
+    // Art deco — wide base, narrower tower, stepped crown
+    // Base 2.5×2.5 h=2
+    svg += poly([pt(-1.25,1.25,0),pt(1.25,1.25,0),pt(1.25,-1.25,0),pt(-1.25,-1.25,0)], c, 0.18);
+    svg += poly([pt(-1.25,1.25,0),pt(1.25,1.25,0),pt(1.25,1.25,2),pt(-1.25,1.25,2)], c, 0.5);
+    svg += poly([pt(1.25,-1.25,0),pt(1.25,1.25,0),pt(1.25,1.25,2),pt(1.25,-1.25,2)], c, 0.32);
+    svg += poly([pt(-1.25,-1.25,2),pt(1.25,-1.25,2),pt(1.25,1.25,2),pt(-1.25,1.25,2)], c, 0.75);
+    // Tower 1×1 h=5
+    svg += poly([pt(-0.5,0.5,2),pt(0.5,0.5,2),pt(0.5,-0.5,2),pt(-0.5,-0.5,2)], c, 0.25);
+    svg += poly([pt(-0.5,0.5,2),pt(0.5,0.5,2),pt(0.5,0.5,5),pt(-0.5,0.5,5)], c, 0.6);
+    svg += poly([pt(0.5,-0.5,2),pt(0.5,0.5,2),pt(0.5,0.5,5),pt(0.5,-0.5,5)], c, 0.38);
+    svg += poly([pt(-0.5,-0.5,5),pt(0.5,-0.5,5),pt(0.5,0.5,5),pt(-0.5,0.5,5)], c, 0.88);
+    // Crown step
+    svg += poly([pt(-0.3,0.3,5),pt(0.3,0.3,5),pt(0.3,-0.3,5),pt(-0.3,-0.3,5)], c, 0.3);
+    svg += poly([pt(-0.3,0.3,5),pt(0.3,0.3,5),pt(0.3,0.3,6.5),pt(-0.3,0.3,6.5)], c, 0.65);
+    svg += poly([pt(0.3,-0.3,5),pt(0.3,0.3,5),pt(0.3,0.3,6.5),pt(0.3,-0.3,6.5)], c, 0.42);
+    svg += poly([pt(-0.3,-0.3,6.5),pt(0.3,-0.3,6.5),pt(0.3,0.3,6.5),pt(-0.3,0.3,6.5)], c, 0.95);
+
+  } else if(h === 'festival') {
+    // Wide low resort — sprawling 3×2 low-rise with pool indent
+    svg += poly([pt(-1.5,1,0),pt(1.5,1,0),pt(1.5,-1,0),pt(-1.5,-1,0)], c, 0.18);
+    svg += poly([pt(-1.5,1,0),pt(1.5,1,0),pt(1.5,1,2.5),pt(-1.5,1,2.5)], c, 0.5);
+    svg += poly([pt(1.5,-1,0),pt(1.5,1,0),pt(1.5,1,2.5),pt(1.5,-1,2.5)], c, 0.32);
+    svg += poly([pt(-1.5,-1,2.5),pt(1.5,-1,2.5),pt(1.5,1,2.5),pt(-1.5,1,2.5)], c, 0.75);
+    // Central small tower
+    svg += poly([pt(-0.4,0.4,2.5),pt(0.4,0.4,2.5),pt(0.4,-0.4,2.5),pt(-0.4,-0.4,2.5)], c, 0.28);
+    svg += poly([pt(-0.4,0.4,2.5),pt(0.4,0.4,2.5),pt(0.4,0.4,4),pt(-0.4,0.4,4)], c, 0.58);
+    svg += poly([pt(0.4,-0.4,2.5),pt(0.4,0.4,2.5),pt(0.4,0.4,4),pt(0.4,-0.4,4)], c, 0.36);
+    svg += poly([pt(-0.4,-0.4,4),pt(0.4,-0.4,4),pt(0.4,0.4,4),pt(-0.4,0.4,4)], c, 0.88);
+    // Wings left + right
+    svg += poly([pt(-1.5,1,2.5),pt(-0.8,1,2.5),pt(-0.8,1,3.5),pt(-1.5,1,3.5)], c, 0.45);
+    svg += poly([pt(0.8,1,2.5),pt(1.5,1,2.5),pt(1.5,1,3.5),pt(0.8,1,3.5)], c, 0.45);
+
+  } else if(h === 'worldwide') {
+    // Hexagonal ziggurat — 3 stepped tiers
+    // Tier 1: 2×2 h=2
+    svg += poly([pt(-1,1,0),pt(1,1,0),pt(1,-1,0),pt(-1,-1,0)], c, 0.18);
+    svg += poly([pt(-1,1,0),pt(1,1,0),pt(1,1,2),pt(-1,1,2)], c, 0.5);
+    svg += poly([pt(1,-1,0),pt(1,1,0),pt(1,1,2),pt(1,-1,2)], c, 0.32);
+    svg += poly([pt(-1,-1,2),pt(1,-1,2),pt(1,1,2),pt(-1,1,2)], c, 0.78);
+    // Tier 2: 1.3×1.3 h=2
+    svg += poly([pt(-0.65,0.65,2),pt(0.65,0.65,2),pt(0.65,-0.65,2),pt(-0.65,-0.65,2)], c, 0.22);
+    svg += poly([pt(-0.65,0.65,2),pt(0.65,0.65,2),pt(0.65,0.65,4),pt(-0.65,0.65,4)], c, 0.58);
+    svg += poly([pt(0.65,-0.65,2),pt(0.65,0.65,2),pt(0.65,0.65,4),pt(0.65,-0.65,4)], c, 0.38);
+    svg += poly([pt(-0.65,-0.65,4),pt(0.65,-0.65,4),pt(0.65,0.65,4),pt(-0.65,0.65,4)], c, 0.85);
+    // Tier 3: 0.7×0.7 h=2
+    svg += poly([pt(-0.35,0.35,4),pt(0.35,0.35,4),pt(0.35,-0.35,4),pt(-0.35,-0.35,4)], c, 0.28);
+    svg += poly([pt(-0.35,0.35,4),pt(0.35,0.35,4),pt(0.35,0.35,6),pt(-0.35,0.35,6)], c, 0.65);
+    svg += poly([pt(0.35,-0.35,4),pt(0.35,0.35,4),pt(0.35,0.35,6),pt(0.35,-0.35,6)], c, 0.44);
+    svg += poly([pt(-0.35,-0.35,6),pt(0.35,-0.35,6),pt(0.35,0.35,6),pt(-0.35,0.35,6)], c, 0.92);
+
+  } else if(h === 'continental') {
+    // Elegant tall tower with spire — 1.2×1.2 very tall, needle top
+    svg += poly([pt(-0.6,0.6,0),pt(0.6,0.6,0),pt(0.6,-0.6,0),pt(-0.6,-0.6,0)], c, 0.2);
+    svg += poly([pt(-0.6,0.6,0),pt(0.6,0.6,0),pt(0.6,0.6,6),pt(-0.6,0.6,6)], c, 0.55);
+    svg += poly([pt(0.6,-0.6,0),pt(0.6,0.6,0),pt(0.6,0.6,6),pt(0.6,-0.6,6)], c, 0.35);
+    svg += poly([pt(-0.6,-0.6,6),pt(0.6,-0.6,6),pt(0.6,0.6,6),pt(-0.6,0.6,6)], c, 0.88);
+    // Cornice overhang
+    svg += poly([pt(-0.8,0.8,6),pt(0.8,0.8,6),pt(0.8,-0.8,6),pt(-0.8,-0.8,6)], c, 0.15);
+    svg += poly([pt(-0.8,0.8,6),pt(0.8,0.8,6),pt(0.8,0.8,6.5),pt(-0.8,0.8,6.5)], c, 0.6);
+    svg += poly([pt(0.8,-0.8,6),pt(0.8,0.8,6),pt(0.8,0.8,6.5),pt(0.8,-0.8,6.5)], c, 0.4);
+    svg += poly([pt(-0.8,-0.8,6.5),pt(0.8,-0.8,6.5),pt(0.8,0.8,6.5),pt(-0.8,0.8,6.5)], c, 0.9);
+    // Spire
+    const sp = iso(0,0,9.5), spb = iso(0,0,6.5);
+    svg += `<line x1="${spb.x.toFixed(1)}" y1="${spb.y.toFixed(1)}" x2="${sp.x.toFixed(1)}" y2="${sp.y.toFixed(1)}" stroke="${c}" stroke-width="1.5" opacity="0.95"/>`;
+
+  } else if(h === 'imperial') {
+    // Massive headquarters — wide base, bold mid-section, twin towers
+    // Base 3×2.5 h=1.5
+    svg += poly([pt(-1.5,1.25,0),pt(1.5,1.25,0),pt(1.5,-1.25,0),pt(-1.5,-1.25,0)], c, 0.18);
+    svg += poly([pt(-1.5,1.25,0),pt(1.5,1.25,0),pt(1.5,1.25,1.5),pt(-1.5,1.25,1.5)], c, 0.48);
+    svg += poly([pt(1.5,-1.25,0),pt(1.5,1.25,0),pt(1.5,1.25,1.5),pt(1.5,-1.25,1.5)], c, 0.3);
+    svg += poly([pt(-1.5,-1.25,1.5),pt(1.5,-1.25,1.5),pt(1.5,1.25,1.5),pt(-1.5,1.25,1.5)], c, 0.72);
+    // Mid block 2×1.5 h=2
+    svg += poly([pt(-1,0.75,1.5),pt(1,0.75,1.5),pt(1,-0.75,1.5),pt(-1,-0.75,1.5)], c, 0.22);
+    svg += poly([pt(-1,0.75,1.5),pt(1,0.75,1.5),pt(1,0.75,3.5),pt(-1,0.75,3.5)], c, 0.55);
+    svg += poly([pt(1,-0.75,1.5),pt(1,0.75,1.5),pt(1,0.75,3.5),pt(1,-0.75,3.5)], c, 0.35);
+    svg += poly([pt(-1,-0.75,3.5),pt(1,-0.75,3.5),pt(1,0.75,3.5),pt(-1,0.75,3.5)], c, 0.82);
+    // Left tower
+    svg += poly([pt(-1,0.75,3.5),pt(-0.4,0.75,3.5),pt(-0.4,0.75,6),pt(-1,0.75,6)], c, 0.6);
+    svg += poly([pt(-0.4,-0.4,3.5),pt(-0.4,0.75,3.5),pt(-0.4,0.75,6),pt(-0.4,-0.4,6)], c, 0.4);
+    svg += poly([pt(-1,-0.4,6),pt(-0.4,-0.4,6),pt(-0.4,0.75,6),pt(-1,0.75,6)], c, 0.88);
+    // Right tower
+    svg += poly([pt(0.4,0.75,3.5),pt(1,0.75,3.5),pt(1,0.75,6),pt(0.4,0.75,6)], c, 0.6);
+    svg += poly([pt(1,-0.4,3.5),pt(1,0.75,3.5),pt(1,0.75,6),pt(1,-0.4,6)], c, 0.4);
+    svg += poly([pt(0.4,-0.4,6),pt(1,-0.4,6),pt(1,0.75,6),pt(0.4,0.75,6)], c, 0.88);
+  }
+
+  return `<svg class="tile-building" viewBox="0 0 ${W} ${H}" aria-hidden="true"
+    style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible">
+    <defs>
+      <filter id="bf-${h}" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="1.5" result="blur"/>
+        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+      </filter>
+    </defs>
+    <g filter="url(#bf-${h})">${svg}</g>
+  </svg>`;
+}
+
+
+let G = null;
+let selTile = null;
+let phase = 'place'; // place | found | merge | buy | draw
+let pending = null;
+let buys = {};
+
+const SAVE_KEY = 'skyline_v1_game';
+
+// ═══════════════════════════════════════════
+//  HOME — SETUP
+// ═══════════════════════════════════════════
+let playerDefs = [];
+
+function initHome() {
+  playerDefs = [];
+  document.getElementById('prows').innerHTML = '';
+  // Default 3 players
+  addPlayerRow('Alice', 0);
+  addPlayerRow('Bob',   1);
+  addPlayerRow('Carol', 2);
+  renderSavedBanner();
+}
+
+function addPlayerRow(name='', colorIdx=null) {
+  if(playerDefs.length >= 6) { toast('Max 6 players'); return; }
+  const ci = colorIdx !== null ? colorIdx : playerDefs.length % P_COLORS.length;
+  const id = 'pr'+Date.now()+Math.random();
+  playerDefs.push({ id, name: name||'', color: P_COLORS[ci] });
+
+  const row = document.createElement('div');
+  row.className = 'prow'; row.id = id;
+  row.innerHTML = `
+    <div class="prow-inner">
+      <input placeholder="Player name" value="${name}"
+        oninput="setPD('${id}','name',this.value)">
+      <div class="color-pick">
+        ${P_COLORS.map((c,i)=>`<div class="cp-dot${P_COLORS[ci]===c?' chosen':''}"
+          style="background:${c}" onclick="setPD('${id}','color','${c}');
+          this.parentNode.querySelectorAll('.cp-dot').forEach(d=>d.classList.remove('chosen'));
+          this.classList.add('chosen')"></div>`).join('')}
+      </div>
+    </div>
+    <button class="rm" onclick="removePlayer('${id}')">✕</button>`;
+  document.getElementById('prows').appendChild(row);
+}
+
+function setPD(id, field, val) {
+  const d = playerDefs.find(p=>p.id===id);
+  if(d) d[field] = val;
+}
+
+function removePlayer(id) {
+  if(playerDefs.length <= 2) { toast('Need at least 2 players'); return; }
+  playerDefs = playerDefs.filter(p=>p.id!==id);
+  document.getElementById(id)?.remove();
+}
+
+function homeTab(id) {
+  document.getElementById('tab-new').style.display    = id==='new'   ? '' : 'none';
+  document.getElementById('tab-rules').style.display  = id==='rules' ? '' : 'none';
+  document.getElementById('tb-new').className   = 'tab-btn'+(id==='new'  ?' on':'');
+  document.getElementById('tb-rules').className = 'tab-btn'+(id==='rules'?' on':'');
+}
+
+function clearSavedGame() {
+  localStorage.removeItem(SAVE_KEY);
+  G = null;
+  document.getElementById('hdr-right').innerHTML = 'Pass &amp; Play';
+  const pill = document.getElementById('hdr-turn-pill');
+  if(pill) pill.style.display='none';
+  const els = ['hotels-list','player-list','game-log','d-hotels-list','d-player-list','d-game-log'];
+  els.forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=''; });
+  renderSavedBanner();
+  toast('Saved game cleared.');
+}
+
+function renderSavedBanner() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  const area = document.getElementById('saved-game-area');
+  if(!raw) { area.innerHTML=''; return; }
+  try {
+    const s = JSON.parse(raw);
+    const cur = s.players[s.currentPlayer];
+    area.innerHTML = `<div class="saved-banner">
+      <div class="sb-text">
+        <div class="sb-title">&#9654; Game in progress</div>
+        <div class="sb-sub">${s.players.map(p=>p.name).join(' · ')} &nbsp;|&nbsp; ${cur.name}'s turn</div>
+      </div>
+      <div class="sb-btns">
+        <button class="btn btn-gold btn-sm" onclick="resumeGame()">Resume</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearSave()">Clear</button>
+      </div>
+    </div>`;
+  } catch { area.innerHTML=''; }
+}
+
+function clearSave() {
+  localStorage.removeItem(SAVE_KEY);
+  G = null;
+  document.getElementById('hdr-right').innerHTML = 'Pass &amp; Play';
+  const pill = document.getElementById('hdr-turn-pill');
+  if(pill) pill.style.display='none';
+  const els = ['hotels-list','player-list','game-log','d-hotels-list','d-player-list','d-game-log'];
+  els.forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=''; });
+  renderSavedBanner();
+  toast('Saved game cleared.');
+}
+
+function repairChainSizes() {
+  // Clean up any orphaned __pending__ tiles (merger/found aborted mid-flow)
+  // If phase is 'found' and pending exists, leave them alone — they're in use
+  if(phase !== 'found') {
+    Object.keys(G.board).forEach(t => {
+      if(G.board[t] === '__pending__') G.board[t] = 'neutral';
+    });
+  }
+  // Recompute all chain sizes from board truth — fixes stale sizes in saved games
+  HOTELS.forEach(h => {
+    const tiles = Object.keys(G.board).filter(t => G.board[t] === h);
+    G.chains[h].tiles  = tiles;
+    G.chains[h].size   = tiles.length;
+    G.chains[h].active = tiles.length > 0;
+  });
+}
+
+function resumeGame() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if(!raw) return;
+  const saved = JSON.parse(raw);
+  // Support both old saves (bare G object) and new saves ({G, phase, pending})
+  if(saved.players) {
+    G = saved; phase = 'place'; pending = null;
+  } else {
+    G = saved.G; phase = saved.phase || 'place'; pending = saved.pending || null;
+  }
+  repairChainSizes();
+  // Repair any hands that are shorter than TILES_PER_HAND (bug from old saves)
+  G.players.forEach(p => {
+    while(p.hand.length < TILES_PER_HAND && G.bag.length) {
+      const t = G.bag.shift();
+      if(!p.hand.includes(t)) p.hand.push(t);
+    }
+  });
+  // If we're mid-merge/dispose, resume from the correct pass screen
+  if(phase === 'dispose' && pending?.disposeQueue) {
+    const cur = pending.disposeQueue[pending.disposeIdx];
+    showDisposePassScreen(cur.playerIdx, cur.defunct);
+  } else if(phase === 'merge') {
+    showPassScreen(G.currentPlayer, true);
+  } else {
+    showPassScreen(G.currentPlayer, true);
+  }
+}
+
+// ═══════════════════════════════════════════
+//  CREATE GAME
+// ═══════════════════════════════════════════
+function createGame() {
+  const players = playerDefs.filter(p=>p.name.trim());
+  if(players.length < 2) { toast('Need at least 2 players with names'); return; }
+
+  const cash = parseInt(document.getElementById('opt-cash').value);
+  const bag  = shuffle([...ALL_TILES]);
+
+  // Deal hands
+  const hands = players.map(()=>[]);
+  for(let i=0;i<TILES_PER_HAND;i++)
+    for(let pi=0;pi<players.length;pi++)
+      if(bag.length) hands[pi].push(bag.shift());
+
+  G = {
+    players: players.map((p,i) => ({
+      name: p.name.trim(), color: p.color,
+      cash, stocks: Object.fromEntries(HOTELS.map(h=>[h,0])), hand: hands[i]
+    })),
+    currentPlayer: 0,
+    board: {},
+    chains: Object.fromEntries(HOTELS.map(h => [h, { active:false, size:0, tiles:[] }])),
+    stockBank: Object.fromEntries(HOTELS.map(h => [h, TOTAL_STOCK])),
+    bag,
+    log: ['Game started — good luck!'],
+    gameOver: false,
+  };
+
+  save();
+  showPassScreen(0, false);
+}
+
+// ═══════════════════════════════════════════
+//  PASS SCREEN
+// ═══════════════════════════════════════════
+function showPassScreen(pi, isResume) {
+  const p = G.players[pi];
+  const av   = document.getElementById('pass-avatar');
+  const nm   = document.getElementById('pass-name');
+  const hint = document.getElementById('pass-hint');
+  const lbl  = document.getElementById('pass-context-label');
+
+  av.textContent = p.name[0].toUpperCase();
+  av.style.background = p.color;
+  av.style.color = isDark(p.color) ? '#fff' : '#080b0f';
+  nm.textContent = p.name;
+  nm.style.color = p.color;
+  if(lbl) lbl.textContent = 'NOW PLAYING';
+  hint.textContent = isResume ? 'Hand the device to this player' : 'Hand the device to this player — your turn!';
+
+  showScreen('s-pass');
+}
+
+function isDark(hex) {
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return (r*299+g*587+b*114)/1000 < 128;
+}
+
+function proceedToGame() {
+  // Only reset to a fresh turn if we're genuinely starting one.
+  // Mid-turn phases (buy, found, merge, dispose) must be preserved.
+  const midTurn = phase === 'buy' || phase === 'found' || phase === 'merge' || phase === 'dispose';
+  if(!midTurn) {
+    selTile=null; phase='place'; pending=null; buys={};
+    saveTurnSnapshot(); // capture state at turn start for undo
+  }
+  logShowAll=false;
+  repairChainSizes();
+  showScreen('s-game');
+  renderAll();
+  if(window.innerWidth <= 700 && phase !== 'place') openSheet();
+}
+
+function openDrawer() {
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+function openSheet() {
+  document.getElementById('bottom-sheet').classList.add('open');
+  document.getElementById('sheet-overlay').classList.add('open');
+}
+function closeSheet() {
+  document.getElementById('bottom-sheet').classList.remove('open');
+  document.getElementById('sheet-overlay').classList.remove('open');
+}
+
+// ═══════════════════════════════════════════
+//  RENDER ALL
+// ═══════════════════════════════════════════
+function renderAll() {
+  renderHdr(); renderPhaseBar(); renderBoard(); renderHand();
+  renderHotels(); renderPlayerList(); renderLog(); renderAction();
+}
+
+function renderHdr() {
+  if(G.gameOver) {
+    document.getElementById('hdr-right').innerHTML = `<b style="color:var(--accent)">🏆 ${G.winner} Wins!</b>`;
+    const pillEl = document.getElementById('hdr-turn-pill');
+    if(pillEl) { pillEl.style.borderColor=''; pillEl.style.boxShadow=''; }
+    return;
+  }
+  const p = G.players[G.currentPlayer];
+  const sv = stockValue(p);
+  const bv = bonusValue(p);
+  const nw = p.cash + sv + bv;
+  const parts = [`Cash <b>$${p.cash.toLocaleString()}</b>`];
+  if(sv>0) parts.push(`Stocks <b>$${sv.toLocaleString()}</b>`);
+  if(bv>0) parts.push(`Bonuses <b style="color:var(--accent)">$${bv.toLocaleString()}</b>`);
+  parts.push(`= <b style="color:${p.color}">$${nw.toLocaleString()}</b>`);
+  document.getElementById('hdr-right').innerHTML =
+    `<b style="color:${p.color}">${p.name}</b>'s Turn &nbsp;|&nbsp; ${parts.join(' + ')}`;
+
+  // Mobile pill — glow with active player color
+  const pillEl = document.getElementById('hdr-turn-pill');
+  const pill   = document.getElementById('hdr-pill-text');
+  const av     = document.getElementById('hdr-pill-avatar');
+  if(pill) { pill.textContent = p.name + ' · $'+nw.toLocaleString(); }
+  if(av)   { av.textContent=p.name[0]; av.style.background=p.color; av.style.color=isDark(p.color)?'#fff':DARK_TEXT_ON_LIGHT; }
+  if(pillEl) {
+    pillEl.style.borderColor = p.color;
+    pillEl.style.boxShadow   = `0 0 10px ${p.color}55, 0 0 20px ${p.color}22`;
+  }
+}
+
+// ─── PHASE BAR ────────────────────────
+function renderPhaseBar() {
+  const phaseBarEl = document.getElementById('phase-bar');
+  if(G.gameOver) { phaseBarEl.innerHTML = ''; return; }
+  const STEPS = [
+    { id:'place',   label:'Place Tile' },
+    { id:'found',   label:'Found Hotel' },
+    { id:'buy',     label:'Buy Stocks' },
+    { id:'draw',    label:'End Turn' },
+  ];
+  const ORDER = ['place','found','merge','dispose','buy','draw'];
+  const stepIdx = phase==='merge'||phase==='dispose' ? 1 : Math.max(0, STEPS.findIndex(s=>s.id===phase));
+  const cur = STEPS[stepIdx] || STEPS[0];
+
+  // For dispose, show player progress
+  let extraLabel = '';
+  let phaseLabel = cur.label;
+  if(phase==='dispose' && pending?.disposeQueue) {
+    const cur2 = currentDispose();
+    if(cur2) {
+      const p = G.players[cur2.playerIdx];
+      const idx = pending.disposeIdx+1;
+      const tot = pending.disposeQueue.length;
+      extraLabel = ` — ${p.name} (${idx}/${tot})`;
+    }
+    phaseLabel = 'Dispose Stock';
+  }
+
+  const dots = STEPS.map((s, i) => {
+    const cls = i < stepIdx ? 'done' : i === stepIdx ? 'active' : '';
+    return `<div class="ph-dot ${cls}"></div>`;
+  }).join('');
+
+  const tapHint = phase !== 'place'
+    ? `<span style="font-size:.55rem;color:var(--dim);opacity:.6;display:none" class="phase-tap-hint">▲ tap</span>` : '';
+
+  const bar = document.getElementById('phase-bar');
+  bar.innerHTML =
+    `<div class="ph-dots">${dots}</div>
+     <div class="ph-label">${phaseLabel}${extraLabel}</div>
+     <div class="ph-counter">Step ${stepIdx+1} of ${STEPS.length}</div>
+     ${tapHint}`;
+
+  // On mobile, tapping the phase bar reopens the sheet
+  if(window.innerWidth <= 700 && phase !== 'place') {
+    bar.onclick = () => openSheet();
+    bar.querySelector('.phase-tap-hint') && (bar.querySelector('.phase-tap-hint').style.display = '');
+  } else {
+    bar.onclick = null;
+  }
+}
+
+// ─── BOARD ────────────────────────────
+function renderBoard() {
+  // Initialize 3D board on first render
+  initBoard3D();
+
+  const hand = G.gameOver ? [] : G.players[G.currentPlayer].hand;
+  const illegalTiles = new Set();
+  if(phase === 'place' && !G.gameOver) {
+    hand.forEach(t => { if(t && analyze(t).type === 'illegal') illegalTiles.add(t); });
+  }
+
+  Board3D.update(G.board, G.chains, hand, G.gameOver ? '' : phase, selTile, illegalTiles);
+}
+
+// ─── HAND ─────────────────────────────
+function renderHand() {
+  if(G.gameOver) {
+    document.getElementById('hand').innerHTML = '';
+    document.getElementById('hand-label').textContent = '';
+    return;
+  }
+  const hand = G.players[G.currentPlayer].hand;
+  const el = document.getElementById('hand');
+  el.innerHTML = '';
+  const lbl = document.getElementById('hand-label');
+  lbl.style.color = G.players[G.currentPlayer].color;
+  lbl.textContent = G.players[G.currentPlayer].name + "'s Hand";
+
+  // Pre-compute illegal tiles during place phase
+  const illegalTiles = new Set();
+  if(phase==='place') {
+    hand.forEach(t => { if(t && analyze(t).type==='illegal') illegalTiles.add(t); });
+  }
+
+  for(let i=0;i<TILES_PER_HAND;i++) {
+    const t = hand[i];
+    const d = document.createElement('div');
+    if(!t) {
+      d.className='htile htile-empty'; d.textContent='—';
+    } else if(phase==='place' && illegalTiles.has(t)) {
+      d.className='htile htile-illegal';
+      d.innerHTML = `<span style="font-size:.55rem;opacity:.7">${t}</span><span style="font-size:1rem;line-height:1">✕</span>`;
+      d.title = analyze(t).reason || 'Cannot play this tile';
+    } else {
+      d.className='htile'+(selTile===t?' hsel':'');
+      d.textContent = t;
+      if(phase==='place') d.onclick = ()=>selectTile(t);
+    }
+    el.appendChild(d);
+  }
+}
+
+// ─── HOTELS SIDEBAR ───────────────────
+function renderHotels() {
+  const TOTAL_BOARD = ALL_TILES.length; // 108
+  const html = HOTELS.map(h => {
+    const ch = G.chains[h];
+    if(!ch.active) {
+      return `<div class="hotel-chip off">
+        <div class="hc-row">
+          <span class="hc-name" style="display:flex;align-items:center;gap:5px">${hIcon(h,13,'#576a7d')} ${HL[h]}</span>
+          <span class="hc-price" style="font-size:.62rem;color:var(--dim)">not founded</span>
+        </div>
+      </div>`;
+    }
+
+    const price  = stockPrice(h, ch.size);
+    const pct    = (ch.size / TOTAL_BOARD * 100).toFixed(1);
+    const isSafe = ch.size >= SAFE;
+    const isHuge = ch.size >= 41;
+    const tag    = isHuge ? 'GAME END' : isSafe ? 'SAFE' : ch.size === SAFE - 1 ? 'ALMOST SAFE' : '';
+    const tagHTML = tag ? `<span class="hc-tag">${tag}</span>` : '';
+
+    // Compute majority / minority bonus holders for display
+    const majority = price * 10;
+    const minority = price * 5;
+    const holdings = G.players
+      .map((p, i) => ({ i, name: p.name, color: p.color, shares: p.stocks[h] || 0 }))
+      .filter(p => p.shares > 0)
+      .sort((a, b) => b.shares - a.shares);
+
+    let leadersHTML = '';
+    if(holdings.length === 0) {
+      leadersHTML = `<div class="hc-leaders"><span style="font-size:.62rem;opacity:.4;font-family:'Outfit',sans-serif">no shareholders yet</span></div>`;
+    } else {
+      const topShares = holdings[0].shares;
+      const majorityTied = holdings.filter(p => p.shares === topShares);
+      const nonMajority  = holdings.filter(p => p.shares < topShares);
+      const isMajTie = majorityTied.length > 1;
+
+      let pills = '';
+
+      if(isMajTie) {
+        // Tie for majority: split both bonuses, no minority
+        const each = splitBonus(majority+minority, majorityTied.length);
+        pills = majorityTied.map(p =>
+          `<div class="hc-leader">
+            <span class="hc-leader-icon" style="color:${p.color}">${hIcon(h,13)}</span>
+            <span class="hc-leader-medal">🥇</span>${p.name}
+            <span style="opacity:.5">×${p.shares}</span>
+            <span class="hc-leader-amt">$${each.toLocaleString()} ea</span>
+          </div>`
+        ).join('') + `<div class="hc-leader" style="opacity:.5;font-size:.62rem;border-style:dashed">no 2nd — tied</div>`;
+      } else {
+        // Clear majority winner
+        const majorWinner = majorityTied[0];
+        if(nonMajority.length === 0) {
+          // Sole shareholder — gets both
+          pills = `<div class="hc-leader">
+            <span class="hc-leader-icon" style="color:${majorWinner.color}">${hIcon(h,13)}</span>
+            <span class="hc-leader-medal">🥇</span>${majorWinner.name}
+            <span style="opacity:.5">×${majorWinner.shares}</span>
+            <span class="hc-leader-amt">$${(majority+minority).toLocaleString()} both</span>
+          </div>`;
+        } else {
+          // Majority winner + minority (possibly tied)
+          pills = `<div class="hc-leader">
+            <span class="hc-leader-icon" style="color:${majorWinner.color}">${hIcon(h,13)}</span>
+            <span class="hc-leader-medal">🥇</span>${majorWinner.name}
+            <span style="opacity:.5">×${majorWinner.shares}</span>
+            <span class="hc-leader-amt">$${majority.toLocaleString()}</span>
+          </div>`;
+          const secondShares = nonMajority[0].shares;
+          const minorityTied = nonMajority.filter(p => p.shares === secondShares);
+          const minEach = splitBonus(minority, minorityTied.length);
+          pills += minorityTied.map(p =>
+            `<div class="hc-leader">
+              <span class="hc-leader-icon" style="color:${p.color}">${hIcon(h,13)}</span>
+              <span class="hc-leader-medal">🥈</span>${p.name}
+              <span style="opacity:.5">×${p.shares}</span>
+              <span class="hc-leader-amt">$${minEach.toLocaleString()}${minorityTied.length>1?' ea':''}</span>
+            </div>`
+          ).join('');
+        }
+      }
+      leadersHTML = `<div class="hc-leaders">${pills}</div>`;
+    }
+
+    return `<div class="hotel-chip" style="background:var(--surface-raised);border:1px solid var(--hotel-${h});color:var(--hotel-${h});box-shadow:0 0 10px var(--hotel-${h}-glow),inset 0 0 12px var(--hotel-${h}-glow)">
+      <div class="hc-row">
+        <span class="hc-name" style="display:flex;align-items:center;gap:5px">${hIcon(h,14)} ${HL[h]}</span>
+        <div class="hc-right">
+          ${tagHTML}
+          <span class="hc-size">${ch.size} / ${TOTAL_BOARD}</span>
+          <span class="hc-price">$${price}/sh</span>
+          <span style="font-size:.58rem;opacity:.6;font-family:'Outfit',sans-serif">${hIcon(h,9,null,0.5)}${G.stockBank[h]}</span>
+        </div>
+      </div>
+      <div class="hc-bar-wrap">
+        <div class="hc-bar-fill" style="width:${pct}%;background:${hColor(h)};opacity:.8"></div>
+      </div>
+      ${leadersHTML}
+    </div>`;
+  }).join('');
+
+  document.getElementById('hotels-list').innerHTML = html;
+  const d = document.getElementById('d-hotels-list');
+  if(d) d.innerHTML = html;
+}
+
+// ─── PLAYER LIST ──────────────────────
+function renderPlayerList() {
+  const nets = G.players.map(p => netWorth(p));
+  const maxNet = Math.max(...nets, 1);
+
+  const html = G.players.map((p,i) => {
+    const isActive = i===G.currentPlayer;
+    const sv = stockValue(p);
+    const bv = bonusValue(p);
+    const nw = p.cash + sv + bv;
+    const hotelHoldings = HOTELS.filter(h=>p.stocks[h]>0);
+    const stocks = hotelHoldings
+      .map(h=>`<span class="stock-pip" style="background:var(--surface-raised);color:var(--hotel-${h});border:1px solid var(--hotel-${h})">${hIcon(h,10)} ×${p.stocks[h]} <span style="opacity:.6">$${(p.stocks[h]*stockPrice(h,G.chains[h].size)).toLocaleString()}</span></span>`)
+      .join('');
+    const cashWidth = (p.cash / maxNet * 100).toFixed(1);
+    const bonusWidth = bv > 0 ? (bv / maxNet * 100).toFixed(1) : 0;
+    const barSegs = `<div class="pc-bar-seg" style="width:${cashWidth}%;background:var(--gold);opacity:.7"></div>`
+      + hotelHoldings.map(h=>{
+          const w = ((p.stocks[h]*stockPrice(h,G.chains[h].size)) / maxNet * 100).toFixed(1);
+          return `<div class="pc-bar-seg" style="width:${w}%;background:${hColor(h)}"></div>`;
+        }).join('')
+      + (bv>0 ? `<div class="pc-bar-seg" style="width:${bonusWidth}%;background:var(--gold);opacity:.35;background:repeating-linear-gradient(45deg,var(--gold)0,var(--gold)2px,transparent 2px,transparent 6px)"></div>` : '');
+    const borderStyle = isActive ? `border-color:${p.color};box-shadow:0 0 12px ${p.color}55, 0 0 28px ${p.color}22, inset 0 0 20px ${p.color}11;` : '';
+    const subline = [
+      `Cash <span>$${p.cash.toLocaleString()}</span>`,
+      sv>0 ? `Stocks <span>$${sv.toLocaleString()}</span>` : '',
+      bv>0 ? `Bonuses <span style="color:var(--gold)">$${bv.toLocaleString()}</span>` : '',
+    ].filter(Boolean).join(' · ');
+    return `<div class="player-card${isActive?' active-player':''}" style="${borderStyle}">
+      <div class="pc-header">
+        <div class="pc-avatar" style="background:${p.color};color:${isDark(p.color)?'#fff':DARK_TEXT_ON_LIGHT}">${p.name[0]}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="pc-name">${p.name}${isActive?' ◀':''}</div>
+          <div class="pc-net">$${nw.toLocaleString()}<span class="pc-net-label">net worth</span></div>
+          <div class="pc-cash">${subline}</div>
+        </div>
+      </div>
+      <div class="pc-bar-wrap">${barSegs}</div>
+      ${stocks?`<div class="pc-stocks">${stocks}</div>`:''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('player-list').innerHTML = html;
+  const d = document.getElementById('d-player-list');
+  if(d) d.innerHTML = html;
+}
+
+// ─── LOG ──────────────────────────────
+let logShowAll = false;
+const LOG_PREVIEW = 10;
+
+function renderLog() {
+  renderLogInto('game-log');
+  renderLogInto('d-game-log');
+}
+
+function renderLogInto(elId) {
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.innerHTML = '';
+  const entries = [...G.log].reverse();
+  const showing = logShowAll ? entries : entries.slice(0, LOG_PREVIEW);
+  showing.forEach(e=>{
+    const d=document.createElement('div'); d.className='log-entry'; d.innerHTML=e; el.appendChild(d);
+  });
+  if(entries.length > LOG_PREVIEW) {
+    const btn = document.createElement('button');
+    btn.className = 'log-more-btn';
+    btn.textContent = logShowAll
+      ? `▲ Show less`
+      : `▼ Show ${entries.length - LOG_PREVIEW} more entries`;
+    btn.onclick = () => { logShowAll = !logShowAll; renderLog(); };
+    el.appendChild(btn);
+  }
+}
+
+
+
+// ═══════════════════════════════════════════
+//  ACTION AREA
+// ═══════════════════════════════════════════
+function renderAction() {
+  const html = buildActionHTML();
+  // Desktop: inline
+  document.getElementById('action-area').innerHTML = html;
+  // Mobile: sheet
+  const sheetInner = document.getElementById('sheet-inner');
+  if(sheetInner) {
+    const isMobile = window.innerWidth <= 700;
+    if(isMobile) {
+      // Preserve open state of stats panel across re-renders
+      const wasOpen = document.getElementById('sheet-stats-panel')?.classList.contains('open');
+      const statsToggle = `<div class="sheet-stats-toggle${wasOpen?' open':''}" id="sheet-stats-toggle" onclick="toggleSheetStats()">
+        <span>📊 Hotels &amp; Players</span>
+        <span class="sst-arrow">▼</span>
+      </div>
+      <div class="sheet-stats-panel${wasOpen?' open':''}" id="sheet-stats-panel">${wasOpen?buildSheetStatsHTML():''}</div>`;
+      sheetInner.innerHTML = statsToggle + html;
+      const idle = phase==='place' && !selTile && !G.gameOver;
+      if(!idle) openSheet();
+      else closeSheet();
+    } else {
+      sheetInner.innerHTML = html;
+    }
+  }
+}
+
+function buildActionHTML() {
+  if(G.gameOver) {
+    // Resolve live player objects in ranked order (safe after save/load)
+    const order = G.rankedOrder || G.players.map((_,i)=>i).sort((a,b)=>netWorth(G.players[b])-netWorth(G.players[a]));
+    const medals = ['🥇','🥈','🥉'];
+    const rows = order.map((pi, i) => {
+      const p   = G.players[pi];
+      const cash = p.cash;
+      const sv   = stockValue(p);
+      const bv   = bonusValue(p);
+      const net  = cash + sv + bv;
+      const cashW  = net > 0 ? Math.round(cash / net * 100) : 100;
+      const stockW = net > 0 ? Math.round(sv   / net * 100) : 0;
+      const bonusW = Math.max(0, 100 - cashW - stockW);
+      const bar = `<div class="go-bar">
+        <div class="go-bar-seg" style="width:${cashW}%;background:var(--text-muted)"></div>
+        <div class="go-bar-seg" style="width:${stockW}%;background:var(--accent)"></div>
+        ${bonusW > 0 ? `<div class="go-bar-seg" style="width:${bonusW}%;background:var(--neon-cyan)"></div>` : ''}
+      </div>`;
+      return `<div class="go-row">
+        <div class="go-rank">${medals[i]||'#'+(i+1)}</div>
+        <div class="go-name" style="color:${p.color}">${p.name}</div>
+        <div class="go-net">$${net.toLocaleString()}</div>
+        <div class="go-breakdown">
+          <span class="go-bd-item"><span class="go-bd-label">cash</span> <span class="go-bd-val">$${cash.toLocaleString()}</span></span>
+          <span class="go-bd-item"><span class="go-bd-label">stocks</span> <span class="go-bd-val${sv>0?' has-value':''}">$${sv.toLocaleString()}</span></span>
+          ${bv>0?`<span class="go-bd-item"><span class="go-bd-label">bonus</span> <span class="go-bd-val has-value">$${bv.toLocaleString()}</span></span>`:''}
+        </div>
+        ${bar}
+      </div>`;
+    }).join('');
+    return `<div class="go-card">
+      <div class="go-title">🏆 GAME OVER</div>
+      <div class="go-winner" style="color:${G.players[order[0]].color}">${G.players[order[0]].name} Wins!</div>
+      <div class="go-subtitle">Final Standings</div>
+      <div class="go-table">${rows}</div>
+      <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:14px;font-family:var(--font-mono)">Review the board, then end the game when ready.</div>
+      <button class="btn btn-gold" style="width:100%" onclick="endGameAndReset()">End Game &amp; Return to Home →</button>
+    </div>`;
+  }
+
+  if(phase==='place') {
+    if(!selTile) {
+      return `<div class="action-card">
+        <div class="action-title">Place a Tile</div>
+        <div class="action-sub">Select a tile from your hand — glowing tiles on the board show your options.</div>
+        <button class="btn btn-ghost btn-sm" style="display:none" id="mobile-stats-btn" onclick="openDrawer()">📊 View Hotel &amp; Player Stats</button>
+        <script>if(window.innerWidth<=700)document.getElementById('mobile-stats-btn').style.display='';<\/script>
+      </div>`;
+    }
+    const an = analyze(selTile);
+    const descs = {
+      isolated: 'Places a lone tile — no adjacent tiles.',
+      extend:   `Extends <b style="color:${hColor(an.hotel)}">${HL[an.hotel]}</b> by one tile.`,
+      found:    'Founds a new hotel chain — you\'ll choose which one next.',
+      merge:    'Merges two or more hotel chains!',
+      illegal:  an.reason||'Cannot place here.',
+    };
+    return `<div class="action-card">
+      <div class="action-title">Place ${selTile}</div>
+      <div class="action-sub">${descs[an.type]}</div>
+      ${an.type!=='illegal'?`<button class="btn btn-gold" onclick="placeTile('${selTile}')">Confirm Placement &rarr;</button>`:''}
+    </div>`;
+  }
+
+  if(phase==='found') {
+    const avail = HOTELS.filter(h=>!G.chains[h].active);
+    return `<div class="action-card">
+      <div class="action-title">Found a Hotel Chain</div>
+      <div class="action-sub">Choose which hotel to establish on these tiles:</div>
+      <div class="found-grid">${avail.map(h=>`
+        <div class="found-btn${pending?.chosen===h?' fsel':''}"
+          style="background:var(--surface-raised);border-color:var(--hotel-${h});color:var(--hotel-${h})"
+          onclick="chooseFounding('${h}')">${hIcon(h,13)} ${HL[h]}</div>`).join('')}
+      </div>
+      <button class="btn btn-gold" ${pending?.chosen?'':'disabled'} onclick="confirmFounding()">Found Hotel &rarr;</button>
+    </div>`;
+  }
+
+  if(phase==='merge') {
+    if(!pending.survivorChosen && pending.survivors.length>1) {
+      return `<div class="action-card">
+        <div class="action-title">Merger — Choose Survivor</div>
+        <div class="action-sub">Two chains are tied in size. Which one survives?</div>
+        ${pending.survivors.map(h=>`
+          <div class="merge-opt${pending.survivor===h?' msel':''}" onclick="chooseSurvivor('${h}')">
+            <div class="merge-dot" style="background:${hColor(h)}"></div>
+            <b style="color:${hColor(h)}">${HL[h]}</b>
+            <span style="color:var(--dim);font-size:.78rem;">${G.chains[h].size} tiles</span>
+          </div>`).join('')}
+        <button class="btn btn-gold" ${pending.survivor?'':'disabled'} onclick="confirmSurvivor()">Confirm &rarr;</button>
+      </div>`;
+    }
+    return `<div class="action-card">
+      <div class="action-title">Merger — Resolve</div>
+      <div class="action-sub">Pay shareholder bonuses and dissolve defunct chain(s).</div>
+      <button class="btn btn-gold" onclick="processMerger()">Resolve Merger &rarr;</button>
+    </div>`;
+  }
+
+  if(phase==='dispose') {
+    const cur = currentDispose();
+    if(!cur) return '';
+    const {defunct, playerIdx} = cur;
+    const p = G.players[playerIdx];
+    const held = p.stocks[defunct];
+    const price = pending.defunctSizes?.[defunct] ? stockPrice(defunct, pending.defunctSizes[defunct]) : 0;
+    const {sell, trade} = getDisposeDecision();
+    const keep = held - sell - trade;
+    const survivorAvail = G.stockBank[pending.survivor];
+    const maxTrade = Math.min(held-sell, Math.floor(survivorAvail*2)*2); // even number
+    const tradeGains = trade/2;
+    const sellProceeds = sell * price;
+    const isActivePi = playerIdx === G.currentPlayer;
+
+    // Build player queue overview
+    const queueHTML = pending.disposeQueue.map((item,i)=>{
+      const pp = G.players[item.playerIdx];
+      const active = i===pending.disposeIdx;
+      const done = i<pending.disposeIdx;
+      return `<span style="font-size:.65rem;font-family:'Share Tech Mono',monospace;
+        color:${active?pp.color:done?'var(--dim)':'var(--border2)'};
+        ${active?`font-weight:700;text-decoration:underline`:''}">${pp.name}(${HL[item.defunct].slice(0,3)})</span>`;
+    }).join('<span style="color:var(--border2);margin:0 3px">›</span>');
+
+    return `<div class="action-card">
+      <div class="action-title">Stock Disposal — <span style="color:${hColor(defunct)}">${HL[defunct]}</span></div>
+      <div class="action-sub" style="margin-bottom:10px">
+        <b style="color:${p.color}">${p.name}</b> holds <b>${held}</b> share${held!==1?'s':''} of
+        <b style="color:${hColor(defunct)}">${HL[defunct]}</b> @ $${price}/sh
+      </div>
+
+      <div class="dispose-card">
+        <div style="display:grid;grid-template-columns:5.5rem auto 1fr;align-items:center;row-gap:10px;column-gap:10px;">
+          <span class="dispose-label">💰 Sell</span>
+          <div class="qty-ctrl">
+            <button class="qbtn" onclick="adjDispose('sell',-1)">−</button>
+            <div class="qval" style="color:var(--festival)">${sell}</div>
+            <button class="qbtn" onclick="adjDispose('sell',1)">+</button>
+          </div>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--festival)">+$${sellProceeds.toLocaleString()}</span>
+
+          <span class="dispose-label">🔄 Trade<br><span style="font-size:.6rem;font-weight:400;color:var(--dim)">(2→1 ${HL[pending.survivor]})</span></span>
+          <div class="qty-ctrl">
+            <button class="qbtn" onclick="adjDispose('trade',-2)">−</button>
+            <div class="qval" style="color:${hColor(pending.survivor)}">${trade}</div>
+            <button class="qbtn" onclick="adjDispose('trade',2)">+</button>
+          </div>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:${hColor(pending.survivor)}">→ ${tradeGains} ${survivorAvail<2?'<span style="color:var(--tower)">(none avail)</span>':''}</span>
+
+          <span class="dispose-label" style="opacity:.55">📦 Keep</span>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:.78rem;color:var(--dim)">${keep}</span>
+          <span style="font-size:.62rem;color:var(--dim)">${keep>0?'(held for re-founding)':''}</span>
+        </div>
+      </div>
+
+      <div style="margin:10px 0 12px;font-size:.65rem;color:var(--dim);line-height:1.8">${queueHTML}</div>
+      <button class="btn btn-gold" style="width:100%" onclick="confirmDispose()">Confirm &amp; Next →</button>
+    </div>`;
+  }
+
+  if(phase==='buy') {
+    const active = HOTELS.filter(h=>G.chains[h].active && G.stockBank[h]>0);
+    const total  = Object.values(buys).reduce((a,b)=>a+b,0);
+    const cost   = buyCost();
+    const me     = G.players[G.currentPlayer];
+    const remaining = me.cash - cost;
+    let rows = '';
+    for(const h of active) {
+      const price=stockPrice(h,G.chains[h].size), cur=buys[h]||0;
+      rows+=`<div class="buy-row">
+        <div class="buy-hotel" style="color:${hColor(h)};display:flex;align-items:center;gap:5px">${hIcon(h,13)} ${HL[h]}</div>
+        <div class="buy-price">$${price}/sh · ${G.stockBank[h]} left</div>
+        <div class="qty-ctrl">
+          <button class="qbtn" onclick="adjBuy('${h}',-1)">−</button>
+          <div class="qval" style="color:${hColor(h)}">${cur}</div>
+          <button class="qbtn" onclick="adjBuy('${h}',1)">+</button>
+        </div>
+      </div>`;
+    }
+    return `<div class="action-card">
+      <div class="action-title">Buy Stocks</div>
+      <div class="buy-summary-bar">
+        <span>Buying <b>${total}/3</b></span>
+        <span>Cost <b style="color:var(--gold)">$${cost.toLocaleString()}</b></span>
+        <span>Remaining <b style="color:${remaining<0?'var(--tower)':'var(--festival)'}">$${remaining.toLocaleString()}</b></span>
+      </div>
+      ${active.length ? rows : '<div style="color:var(--dim);font-size:.82rem;margin-bottom:14px;">No active hotels to buy from.</div>'}
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" style="white-space:nowrap;flex-shrink:0" onclick="undoTurn()">↩ Undo</button>
+        <button class="btn btn-gold" style="flex:1" ${remaining<0||total>3?'disabled':''} onclick="confirmBuy()">
+          ${active.length?'Buy &amp; Continue →':'Skip →'}
+        </button>
+      </div>
+    </div>`;
+  }
+
+  if(phase==='draw') {
+    return `<div class="action-card">
+      <div class="action-title">End Turn</div>
+      <div class="action-sub">Draw a replacement tile, then pass to the next player.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" style="white-space:nowrap;flex-shrink:0" onclick="undoTurn()">↩ Undo</button>
+        <button class="btn btn-gold" style="flex:1" onclick="endTurn()">Draw &amp; Pass →</button>
+      </div>
+    </div>`;
+  }
+
+  return '';
+}
+
+// ═══════════════════════════════════════════
+//  TILE ANALYSIS
+// ═══════════════════════════════════════════
+function neighbors(tid) {
+  const ri=ROWS.indexOf(tid[0]), col=parseInt(tid.slice(1)), n=[];
+  if(ri>0) n.push(ROWS[ri-1]+col);
+  if(ri<8) n.push(ROWS[ri+1]+col);
+  if(col>1) n.push(tid[0]+(col-1));
+  if(col<12) n.push(tid[0]+(col+1));
+  return n.filter(t=>ALL_TILES.includes(t));
+}
+
+function floodNeutrals(startTid) {
+  // BFS from startTid collecting all connected neutral tiles (and startTid itself)
+  const visited = new Set();
+  const queue = [startTid];
+  while(queue.length) {
+    const t = queue.shift();
+    if(visited.has(t)) continue;
+    visited.add(t);
+    for(const nb of neighbors(t)) {
+      if(!visited.has(nb) && G.board[nb]==='neutral') queue.push(nb);
+    }
+  }
+  return [...visited];
+}
+
+function analyze(tid) {
+  const occ  = neighbors(tid).filter(t=>G.board[t]);
+  const hots = [...new Set(occ.filter(t=>G.board[t]&&G.board[t]!=='neutral').map(t=>G.board[t]))];
+  const neut = occ.filter(t=>G.board[t]==='neutral');
+
+  if(!occ.length) return {type:'isolated'};
+  if(!hots.length) {
+    if(!HOTELS.some(h=>!G.chains[h].active)) return {type:'illegal',reason:'All 7 hotel chains are already active.'};
+    // Flood-fill all connected neutral tiles reachable from tid's neighbors
+    // Note: tid itself isn't on the board yet, so we seed from its neutral neighbors
+    const visited = new Set([tid]);
+    const queue = [...neut]; // neut = adjacent neutral tiles
+    while(queue.length) {
+      const t = queue.shift();
+      if(visited.has(t)) continue;
+      visited.add(t);
+      for(const nb of neighbors(t)) {
+        if(!visited.has(nb) && G.board[nb]==='neutral') queue.push(nb);
+      }
+    }
+    const allNeutrals = [...visited];
+    return {type:'found', neutralTiles: allNeutrals};
+  }
+  if(hots.length===1) return {type:'extend', hotel:hots[0], absorb:neut};
+
+  const safe=hots.filter(h=>G.chains[h].size>=SAFE);
+  if(safe.length>1) return {type:'illegal',reason:'Cannot merge two safe chains (11+ tiles each).'};
+  const maxSz=Math.max(...hots.map(h=>G.chains[h].size));
+  const survivors=hots.filter(h=>G.chains[h].size===maxSz);
+  return {type:'merge', hotels:hots, survivors, defunct:hots.filter(h=>!survivors.includes(h))};
+}
+
+// ═══════════════════════════════════════════
+//  PLACE TILE
+// ═══════════════════════════════════════════
+function selectTile(tid) {
+  if(phase!=='place') return;
+  selTile = selTile===tid ? null : tid;
+  renderBoard(); renderHand(); renderAction();
+}
+
+function placeTile(tid) {
+  const an=analyze(tid);
+  if(an.type==='illegal') return;
+  const me = G.players[G.currentPlayer];
+  me.hand = me.hand.filter(t=>t!==tid);
+
+  if(an.type==='isolated') {
+    G.board[tid]='neutral';
+    glog(`<b style="color:${me.color}">${me.name}</b> placed ${tid}.`);
+    phase='buy';
+  } else if(an.type==='extend') {
+    G.board[tid]=an.hotel;
+    // Flood-fill: absorb all neutrals connected through this tile into the hotel
+    const absorbed = floodNeutrals(tid).filter(t => t!==tid && G.board[t]==='neutral');
+    absorbed.forEach(t=>{G.board[t]=an.hotel;});
+    rebuildChain(an.hotel);
+    glog(`<b style="color:${me.color}">${me.name}</b> extended <b style="color:${hColor(an.hotel)}">${HL[an.hotel]}</b> with ${tid} (now ${G.chains[an.hotel].size} tiles).`);
+    phase='buy';
+  } else if(an.type==='found') {
+    an.neutralTiles.forEach(t=>{G.board[t]='__pending__';});
+    G.board[tid]='__pending__';
+    pending={type:'found', tiles:[...new Set([...an.neutralTiles, tid])], chosen:null};
+    phase='found';
+  } else if(an.type==='merge') {
+    G.board[tid]='neutral';
+    pending={type:'merge', tid, hotels:an.hotels, survivors:an.survivors,
+      defunct:an.defunct, survivor:an.survivors.length===1?an.survivors[0]:null,
+      survivorChosen:an.survivors.length===1};
+    phase='merge';
+  }
+
+  selTile=null; save(); renderAll();
+}
+
+// ═══════════════════════════════════════════
+//  FOUND
+// ═══════════════════════════════════════════
+function chooseFounding(h){pending.chosen=h; renderAction();}
+
+function confirmFounding(){
+  const h=pending.chosen; if(!h) return;
+  const me=G.players[G.currentPlayer];
+  pending.tiles.forEach(t=>{G.board[t]=h;});
+  // Use rebuildChain as single source of truth for size
+  G.chains[h].active = true;
+  rebuildChain(h);
+  if(G.stockBank[h]>0){ me.stocks[h]++; G.stockBank[h]--; }
+  glog(`<b style="color:${me.color}">${me.name}</b> founded <b style="color:${hColor(h)}">${HL[h]}</b> (${G.chains[h].size} tiles)${G.stockBank[h]<TOTAL_STOCK?' + 1 free share':''}.`);
+  pending=null; phase='buy'; save(); renderAll();
+}
+
+// ═══════════════════════════════════════════
+//  MERGER
+// ═══════════════════════════════════════════
+function chooseSurvivor(h){pending.survivor=h; renderAction();}
+function confirmSurvivor(){pending.survivorChosen=true; pending.defunct=pending.hotels.filter(h=>h!==pending.survivor); renderAction();}
+
+function processMerger(){
+  const {survivor, defunct, tid}=pending;
+
+  // Save defunct chain sizes for pricing during disposal (before we zero them)
+  pending.defunctSizes = Object.fromEntries(defunct.map(d=>[d, G.chains[d].size]));
+
+  // Pay bonuses for all defunct chains, repaint board, zero out chains
+  defunct.forEach(d=>{
+    payBonuses(d);
+    Object.keys(G.board).forEach(t=>{ if(G.board[t]===d) G.board[t]='__defunct_'+d; });
+    glog(`<b style="color:${hColor(d)}">${HL[d]}</b> is being absorbed by <b style="color:${hColor(survivor)}">${HL[survivor]}</b>.`);
+  });
+  // Place the trigger tile as survivor
+  G.board[tid]=survivor;
+  floodNeutrals(tid).forEach(t=>{ if(G.board[t]==='neutral') G.board[t]=survivor; });
+  // Convert defunct board marks → survivor now
+  Object.keys(G.board).forEach(t=>{
+    if(G.board[t] && G.board[t].startsWith('__defunct_')) G.board[t]=survivor;
+  });
+  rebuildChain(survivor);
+
+  // Build disposal queue: for each defunct chain, iterate players starting at merger-maker (currentPlayer), clockwise
+  const n = G.players.length;
+  const cp = G.currentPlayer;
+  const playerOrder = Array.from({length:n},(_,i)=>(cp+i)%n);
+
+  // Queue of {defunct, playerIdx} for all players who hold defunct stock
+  const disposeQueue = [];
+  for(const d of defunct) {
+    for(const pi of playerOrder) {
+      if(G.players[pi].stocks[d]>0) disposeQueue.push({defunct:d, playerIdx:pi});
+    }
+  }
+
+  if(disposeQueue.length===0) {
+    // Nobody holds defunct stock — skip straight to buy
+    defunct.forEach(d=>{ G.chains[d]={active:false,size:0,tiles:[]}; });
+    pending=null; phase='buy'; save(); renderAll();
+    return;
+  }
+
+  // Attach disposal state to pending
+  pending.disposeQueue = disposeQueue;
+  pending.disposeIdx   = 0;
+  pending.disposeDecisions = {};
+  defunct.forEach(d=>{ G.chains[d]={active:false,size:0,tiles:[]}; });
+
+  phase='dispose';
+  save();
+
+  // Pass device to first player in disposal queue
+  const first = disposeQueue[0];
+  showDisposePassScreen(first.playerIdx, first.defunct);
+}
+
+// Temporary disposal state (kept in pending.disposeDecisions[key])
+function disposeKey(defunct, pi){ return defunct+'_'+pi; }
+
+function currentDispose(){
+  if(!pending?.disposeQueue) return null;
+  return pending.disposeQueue[pending.disposeIdx];
+}
+
+function getDisposeDecision(){
+  const cur = currentDispose(); if(!cur) return {sell:0,trade:0};
+  const k = disposeKey(cur.defunct, cur.playerIdx);
+  return pending.disposeDecisions[k] || {sell:0, trade:0};
+}
+
+function setDisposeDecision(sell, trade){
+  const cur = currentDispose(); if(!cur) return;
+  const k = disposeKey(cur.defunct, cur.playerIdx);
+  pending.disposeDecisions[k] = {sell, trade};
+  renderAction();
+}
+
+function adjDispose(field, delta){
+  const cur = currentDispose(); if(!cur) return;
+  const p = G.players[cur.playerIdx];
+  const held = p.stocks[cur.defunct];
+  let {sell, trade} = getDisposeDecision();
+  const survivorAvail = G.stockBank[pending.survivor];
+
+  if(field==='sell') {
+    sell = Math.max(0, Math.min(sell+delta, held-trade));
+  }
+  if(field==='trade') {
+    // Must be even (2-for-1), capped by available survivor stock and remaining shares after sell
+    const maxByHeld     = held - sell;
+    const maxBySurvivor = Math.floor(survivorAvail) * 2; // each trade-pair needs 1 survivor share
+    const maxTrade      = Math.min(maxByHeld, maxBySurvivor);
+    const raw           = trade + delta; // delta is ±2
+    trade = Math.max(0, Math.min(raw - (raw % 2), maxTrade - (maxTrade % 2)));
+  }
+  setDisposeDecision(sell, trade);
+}
+
+function confirmDispose(){
+  const cur = currentDispose(); if(!cur) return;
+  const {defunct, playerIdx} = cur;
+  const p = G.players[playerIdx];
+  const price = pending.defunctSizes?.[defunct] ? stockPrice(defunct, pending.defunctSizes[defunct]) : 0;
+  const {sell, trade} = getDisposeDecision();
+  const keep = p.stocks[defunct] - sell - trade;
+
+  if(sell > 0){
+    const proceeds = sell * price;
+    p.cash += proceeds;
+    G.stockBank[defunct] += sell;
+    p.stocks[defunct] -= sell;
+    glog(`<b style="color:${p.color}">${p.name}</b> sold ${sell}×<b style="color:${hColor(defunct)}">${HL[defunct]}</b> @ $${price} = $${proceeds.toLocaleString()}.`);
+  }
+  if(trade > 0){
+    const gained = trade / 2;
+    p.stocks[defunct]          -= trade;
+    G.stockBank[defunct]       += trade;
+    p.stocks[pending.survivor] += gained;
+    G.stockBank[pending.survivor] -= gained;
+    glog(`<b style="color:${p.color}">${p.name}</b> traded ${trade}×<b style="color:${hColor(defunct)}">${HL[defunct]}</b> → ${gained}×<b style="color:${hColor(pending.survivor)}">${HL[pending.survivor]}</b>.`);
+  }
+  if(keep > 0){
+    glog(`<b style="color:${p.color}">${p.name}</b> kept ${keep}×<b style="color:${hColor(defunct)}">${HL[defunct]}</b>.`);
+  }
+
+  pending.disposeIdx++;
+  save();
+
+  if(pending.disposeIdx >= pending.disposeQueue.length){
+    const mergerMaker = G.currentPlayer;
+    pending = null; phase = 'buy';
+    save();
+    // Pass device back to the player who triggered the merger to buy stocks
+    const p = G.players[mergerMaker];
+    const av   = document.getElementById('pass-avatar');
+    const nm   = document.getElementById('pass-name');
+    const hint = document.getElementById('pass-hint');
+    const lbl  = document.getElementById('pass-context-label');
+    av.textContent = p.name[0].toUpperCase();
+    av.style.background = p.color;
+    av.style.color = isDark(p.color) ? '#fff' : '#080b0f';
+    nm.textContent = p.name;
+    nm.style.color = p.color;
+    if(lbl) lbl.innerHTML = `MERGER COMPLETE — RETURN DEVICE`;
+    hint.innerHTML = `Hand the device back to <b style="color:${p.color}">${p.name}</b> to buy stocks and finish their turn`;
+    showScreen('s-pass');
+  } else {
+    // Pass device to next player in disposal queue
+    const next = pending.disposeQueue[pending.disposeIdx];
+    showDisposePassScreen(next.playerIdx, next.defunct);
+  }
+}
+
+function showDisposePassScreen(pi, defunct) {
+  const p = G.players[pi];
+  const av = document.getElementById('pass-avatar');
+  const nm = document.getElementById('pass-name');
+  const hint = document.getElementById('pass-hint');
+  const lbl = document.getElementById('pass-context-label');
+  av.textContent = p.name[0].toUpperCase();
+  av.style.background = p.color;
+  av.style.color = isDark(p.color) ? '#fff' : '#080b0f';
+  nm.textContent = p.name;
+  nm.style.color = p.color;
+  if(lbl) lbl.innerHTML = `STOCK DISPOSAL — <span style="color:${hColor(defunct)}">${HL[defunct].toUpperCase()}</span>`;
+  hint.innerHTML = `Hand the device to <b style="color:${p.color}">${p.name}</b> — decide what to do with your ${HL[defunct]} stock`;
+  showScreen('s-pass');
+}
+
+function payBonuses(defunct){
+  const sz=G.chains[defunct].size, price=stockPrice(defunct,sz);
+  const majority=price*10, minority=price*5;
+  const holdings=G.players.map((p,i)=>({i,s:p.stocks[defunct]})).filter(p=>p.s>0).sort((a,b)=>b.s-a.s);
+  if(!holdings.length) return;
+
+  const topShares = holdings[0].s;
+  const majorityTied = holdings.filter(p=>p.s===topShares);
+
+  if(majorityTied.length > 1) {
+    const each = splitBonus(majority+minority, majorityTied.length);
+    majorityTied.forEach(p=>{G.players[p.i].cash+=each;});
+    glog(`Majority tie (${HL[defunct]}): ${majorityTied.map(p=>G.players[p.i].name).join(', ')} each get $${each.toLocaleString()}.`);
+  } else {
+    const majorWinner = majorityTied[0];
+    const nonMajority = holdings.filter(p=>p.s<topShares);
+    if(nonMajority.length === 0) {
+      G.players[majorWinner.i].cash += majority+minority;
+      glog(`<b style="color:${G.players[majorWinner.i].color}">${G.players[majorWinner.i].name}</b> sole holder of ${HL[defunct]}, gets both bonuses ($${(majority+minority).toLocaleString()}).`);
+    } else {
+      G.players[majorWinner.i].cash += majority;
+      glog(`<b style="color:${G.players[majorWinner.i].color}">${G.players[majorWinner.i].name}</b> majority bonus ${HL[defunct]} ($${majority.toLocaleString()}).`);
+      const secondShares = nonMajority[0].s;
+      const minorityTied = nonMajority.filter(p=>p.s===secondShares);
+      const each = splitBonus(minority, minorityTied.length);
+      minorityTied.forEach(p=>{G.players[p.i].cash+=each;});
+      if(minorityTied.length > 1) {
+        glog(`Minority tie (${HL[defunct]}): ${minorityTied.map(p=>G.players[p.i].name).join(', ')} each get $${each.toLocaleString()}.`);
+      } else {
+        glog(`<b style="color:${G.players[minorityTied[0].i].color}">${G.players[minorityTied[0].i].name}</b> minority bonus ${HL[defunct]} ($${each.toLocaleString()}).`);
+      }
+    }
+  }
+  // Note: stock disposal (sell/trade/keep) is handled separately in the dispose phase
+}
+
+function toggleSheetStats() {
+  const toggle = document.getElementById('sheet-stats-toggle');
+  const panel  = document.getElementById('sheet-stats-panel');
+  if(!toggle || !panel) return;
+  const open = panel.classList.toggle('open');
+  toggle.classList.toggle('open', open);
+  if(open) panel.innerHTML = buildSheetStatsHTML();
+}
+
+function buildSheetStatsHTML() {
+  const TOTAL_BOARD = ALL_TILES.length;
+  let html = `<div class="ssp-section-hdr">Hotels</div>`;
+  HOTELS.forEach(h => {
+    const ch = G.chains[h];
+    if(!ch.active) {
+      html += `<div class="ssp-hotel" style="opacity:.35">
+        <span class="ssp-dot" style="color:${hColor(h)}">${hIcon(h,13)}</span>
+        <span class="ssp-name" style="color:${hColor(h)}">${HL[h]}</span>
+        <span class="ssp-meta">not founded</span>
+        <span class="ssp-price"></span>
+      </div>`;
+      return;
+    }
+    const price = stockPrice(h, ch.size);
+    const majority = price * 10, minority = price * 5;
+    const isSafe = ch.size >= SAFE;
+    const tag = ch.size >= 41 ? ' · END' : isSafe ? ' · SAFE' : '';
+
+    const holders = G.players
+      .map((p,i) => ({ name:p.name, color:p.color, s:p.stocks[h]||0 }))
+      .filter(p => p.s > 0)
+      .sort((a,b) => b.s - a.s);
+
+    let bonusLines = '';
+    if(holders.length === 0) {
+      bonusLines = `<span class="ssp-meta" style="font-size:.6rem;opacity:.5">no shareholders</span>`;
+    } else {
+      const topShares = holders[0].s;
+      const majTied   = holders.filter(p => p.s === topShares);
+      const nonMaj    = holders.filter(p => p.s < topShares);
+
+      // Track who gets paid so we can dim the rest
+      const paidNames = new Set();
+
+      if(majTied.length > 1) {
+        // All tied for 1st — split both bonuses, no minority
+        const each = splitBonus(majority + minority, majTied.length);
+        bonusLines = majTied.map(p => {
+          paidNames.add(p.name);
+          return `<span class="ssp-bonus-pill" style="color:${p.color}">🥇 ${p.name[0]}×${p.s} <span style="opacity:.7">$${each.toLocaleString()}</span></span>`;
+        }).join('');
+      } else {
+        const majWinner = majTied[0];
+        paidNames.add(majWinner.name);
+        if(nonMaj.length === 0) {
+          bonusLines = `<span class="ssp-bonus-pill" style="color:${majWinner.color}">🥇 ${majWinner.name[0]}×${majWinner.s} <span style="opacity:.7">$${(majority+minority).toLocaleString()}</span></span>`;
+        } else {
+          bonusLines = `<span class="ssp-bonus-pill" style="color:${majWinner.color}">🥇 ${majWinner.name[0]}×${majWinner.s} <span style="opacity:.7">$${majority.toLocaleString()}</span></span>`;
+          const secondShares = nonMaj[0].s;
+          const minTied = nonMaj.filter(p => p.s === secondShares);
+          const minEach = splitBonus(minority, minTied.length);
+          bonusLines += minTied.map(p => {
+            paidNames.add(p.name);
+            return `<span class="ssp-bonus-pill" style="color:${p.color}">🥈 ${p.name[0]}×${p.s} <span style="opacity:.7">$${minEach.toLocaleString()}${minTied.length>1?' ea':''}</span></span>`;
+          }).join('');
+        }
+      }
+
+      // Show remaining holders who get no bonus, dimmed
+      holders.filter(p => !paidNames.has(p.name)).forEach(p => {
+        bonusLines += `<span class="ssp-bonus-pill" style="color:${p.color};opacity:.4">${p.name[0]}×${p.s} <span>—</span></span>`;
+      });
+    }
+
+    html += `<div class="ssp-hotel ssp-hotel-bonus">
+      <span class="ssp-dot" style="color:${hColor(h)}">${hIcon(h,13)}</span>
+      <div class="ssp-hotel-body">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span class="ssp-name" style="color:${hColor(h)}">${HL[h]}</span>
+          <span class="ssp-meta">${ch.size}t${tag}</span>
+          <span class="ssp-price" style="color:${hColor(h)}">$${price}/sh</span>
+        </div>
+        <div class="ssp-bonus-row">${bonusLines}</div>
+      </div>
+    </div>`;
+  });
+
+  html += `<div class="ssp-section-hdr" style="margin-top:0">Players</div>`;
+  const sorted = [...G.players].map((p,i)=>({...p,_i:i})).sort((a,b)=>netWorth(b)-netWorth(a));
+  sorted.forEach((p,rank) => {
+    const nw = netWorth(p);
+    const isActive = p._i === G.currentPlayer;
+    const stocks = HOTELS.filter(h=>p.stocks[h]>0).map(h=>`<span style="color:${hColor(h)}">${HL[h].slice(0,3)}×${p.stocks[h]}</span>`).join(' ');
+    html += `<div class="ssp-player" style="${isActive?`background:${p.color}11;`:``}">
+      <div class="ssp-av" style="background:${p.color};color:${isDark(p.color)?'#fff':DARK_TEXT_ON_LIGHT}">${p.name[0]}</div>
+      <div>
+        <div class="ssp-pname" style="color:${p.color}">${p.name}${isActive?' ◀':''}</div>
+        <div style="font-size:.58rem;color:var(--dim);font-family:'Share Tech Mono',monospace">${stocks||'no stock'}</div>
+      </div>
+      <div class="ssp-pnet">$${nw.toLocaleString()}</div>
+    </div>`;
+  });
+
+  return html;
+}
+
+// ═══════════════════════════════════════════
+//  UNDO TURN
+// ═══════════════════════════════════════════
+let turnSnapshot = null;
+
+function saveTurnSnapshot() {
+  turnSnapshot = JSON.stringify({ G, phase, pending, buys, selTile });
+}
+
+function undoTurn() {
+  if(!turnSnapshot) { toast('Nothing to undo.'); return; }
+  const s = JSON.parse(turnSnapshot);
+  G = s.G; phase = s.phase; pending = s.pending; buys = s.buys; selTile = s.selTile;
+  turnSnapshot = null;
+  repairChainSizes();
+  save();
+  renderAll();
+  toast('Turn undone.');
+}
+
+
+function adjBuy(h,d){
+  const cur=buys[h]||0, total=Object.values(buys).reduce((a,b)=>a+b,0);
+  if(d>0&&total>=3){toast('Max 3 stocks per turn');return;}
+  if(d>0&&G.stockBank[h]<=(cur)){toast('None left');return;}
+  buys[h]=Math.max(0,cur+d); renderAction();
+}
+function buyCost(){return Object.entries(buys).reduce((s,[h,q])=>s+q*stockPrice(h,G.chains[h].size),0);}
+
+function confirmBuy(){
+  const cost=buyCost(), me=G.players[G.currentPlayer];
+  if(cost>me.cash) return;
+  for(const [h,q] of Object.entries(buys)){
+    if(q>0){
+      me.stocks[h]+=q; G.stockBank[h]-=q;
+      glog(`<b style="color:${me.color}">${me.name}</b> bought ${q}×<b style="color:${hColor(h)}">${HL[h]}</b> ($${(q*stockPrice(h,G.chains[h].size)).toLocaleString()}).`);
+    }
+  }
+  me.cash-=cost; buys={}; phase='draw'; save(); renderAll();
+}
+
+// ═══════════════════════════════════════════
+//  END TURN
+// ═══════════════════════════════════════════
+function endTurn(){
+  const me=G.players[G.currentPlayer];
+  // Draw tiles until hand is full (or bag empty)
+  while(me.hand.length < TILES_PER_HAND && G.bag.length) {
+    const t = G.bag.shift();
+    if(!me.hand.includes(t)) me.hand.push(t);
+  }
+  me.hand = me.hand.filter(Boolean);
+
+  if(checkEndGame()) return;
+
+  G.currentPlayer=(G.currentPlayer+1)%G.players.length;
+  save();
+  showPassScreen(G.currentPlayer, false);
+}
+
+// ═══════════════════════════════════════════
+//  END GAME
+// ═══════════════════════════════════════════
+function checkEndGame(){
+  const active=HOTELS.filter(h=>G.chains[h].active);
+  if(!active.length) return false;
+  const allSafe=active.every(h=>G.chains[h].size>=SAFE);
+  const anyHuge=active.some(h=>G.chains[h].size>=41);
+  if(!allSafe&&!anyHuge) return false;
+
+  G.gameOver=true;
+
+  // Store only the sorted player indices — all display values are recomputed
+  // at render time from the live G.players references so indexOf() works correctly
+  const ranked = G.players
+    .map((p,i) => ({ i, net: netWorth(p) }))
+    .sort((a,b) => b.net - a.net);
+  G.rankedOrder = ranked.map(r => r.i); // just the indices, safe to serialize
+  G.winner = G.players[G.rankedOrder[0]].name;
+
+  glog(`🏆 Game over! ${G.winner} wins with $${ranked[0].net.toLocaleString()}!`);
+  save();
+
+  closeSheet();
+  renderAll();
+  return true;
+}
+
+function endGameAndReset(){
+  resetToHome();
+}
+
+function newGame(){
+  // legacy — same as reset
+  resetToHome();
+}
+
+function resetToHome(){
+  G=null; turnSnapshot=null;
+  localStorage.removeItem(SAVE_KEY);
+  // Reset header
+  document.getElementById('hdr-right').innerHTML = 'Pass &amp; Play';
+  const pill = document.getElementById('hdr-turn-pill');
+  if(pill) pill.style.display='none';
+  // Clear sidebar
+  const els = ['hotels-list','player-list','game-log','d-hotels-list','d-player-list','d-game-log'];
+  els.forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=''; });
+  closeSheet();
+  showScreen('s-home');
+  initHome();
+}
+
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
+function netWorth(p){
+  return p.cash + stockValue(p) + bonusValue(p);
+}
+function stockValue(p){
+  return HOTELS.reduce((s,h)=>s+(p.stocks[h]||0)*stockPrice(h,G.chains[h].size),0);
+}
+function bonusValue(p) {
+  // Estimate potential bonus if a merger happened now for each active chain
+  // Returns the bonus this player would receive as majority/minority holder
+  let total = 0;
+  HOTELS.forEach(h => {
+    const ch = G.chains[h];
+    if(!ch.active) return;
+    const price = stockPrice(h, ch.size);
+    const majority = price * 10, minority = price * 5;
+    const holdings = G.players
+      .map((pp,i) => ({i, s: pp.stocks[h]||0}))
+      .filter(pp => pp.s > 0)
+      .sort((a,b) => b.s - a.s);
+    if(!holdings.length) return;
+    const myShares = p.stocks[h] || 0;
+    if(!myShares) return;
+    const topShares = holdings[0].s;
+    const majTied = holdings.filter(pp => pp.s === topShares);
+    if(majTied.length > 1) {
+      // Tie for majority — check if player is in the tie
+      const pi = G.players.indexOf(p);
+      if(majTied.some(pp => pp.i === pi)) {
+        total += splitBonus(majority+minority, majTied.length);
+      }
+    } else {
+      const pi = G.players.indexOf(p);
+      if(holdings[0].i === pi) {
+        // Sole or clear majority
+        const nonMaj = holdings.filter(pp => pp.s < topShares);
+        total += nonMaj.length === 0 ? majority+minority : majority;
+      } else {
+        // Check minority
+        const nonMaj = holdings.filter(pp => pp.s < topShares);
+        if(nonMaj.length) {
+          const secondShares = nonMaj[0].s;
+          const minTied = nonMaj.filter(pp => pp.s === secondShares);
+          if(minTied.some(pp => pp.i === pi)) {
+            total += splitBonus(minority, minTied.length);
+          }
+        }
+      }
+    }
+  });
+  return total;
+}
+
+function rebuildChain(h){
+  G.chains[h].tiles=Object.keys(G.board).filter(t=>G.board[t]===h);
+  G.chains[h].size=G.chains[h].tiles.length;
+  G.chains[h].active=G.chains[h].size>0;
+}
+
+// Acquire bonus split: round pot to nearest $100, divide, floor each share to $100
+function splitBonus(total, n) {
+  if(n <= 0) return 0;
+  const pot = Math.round(total / 100) * 100;
+  return Math.floor(pot / n / 100) * 100;
+}
+
+function stockPrice(h,size){
+  const t={
+    luxor:     [0,200,300,400,500,600,700,800,900,1000,1100],
+    tower:     [0,200,300,400,500,600,700,800,900,1000,1100],
+    american:  [0,300,400,500,600,700,800,900,1000,1100,1200],
+    festival:  [0,300,400,500,600,700,800,900,1000,1100,1200],
+    worldwide: [0,300,400,500,600,700,800,900,1000,1100,1200],
+    continental:[0,400,500,600,700,800,900,1000,1100,1200,1300],
+    imperial:  [0,400,500,600,700,800,900,1000,1100,1200,1300],
+  };
+  const arr=t[h]||t.luxor;
+  const i=size<=0?0:size<=2?1:size<=3?2:size<=4?3:size<=5?4:size<=6?5:size<=10?6:size<=20?7:size<=30?8:size<=40?9:10;
+  return arr[Math.min(i,arr.length-1)];
+}
+
+function hColor(h){
+  // Return a CSS variable reference string so all inline style="" usages
+  // stay reactive when the theme switches (no resolved hex baked in)
+  return `var(--hotel-${h})`;
+}
+function hColorDark(h){
+  // Return a CSS variable *reference* string (not resolved value)
+  // so inline style="" attributes stay reactive when theme switches
+  return 'var(--surface-raised)';
+}
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=~~(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function glog(m){G.log.push(m);if(G.log.length>120)G.log.shift();}
+function save(){
+  if(G) localStorage.setItem(SAVE_KEY, JSON.stringify({ G, phase, pending }));
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById(id);
+  if(el){el.classList.add('active');}
+}
+
+let _tt;
+function toast(m){
+  const el=document.getElementById('toast');
+  el.textContent=m; el.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ═══════════════════════════════════════════
+//  PRICE REFERENCE MODAL
+// ═══════════════════════════════════════════
+function openPriceModal() {
+  buildPriceTable();
+  document.getElementById('price-modal').classList.add('open');
+}
+function closePriceModal() {
+  document.getElementById('price-modal').classList.remove('open');
+}
+
+function buildPriceTable() {
+  const TIERS = [
+    { hotels: ['luxor','tower'],                   label: 'Luxor · Tower' },
+    { hotels: ['american','festival','worldwide'],  label: 'Amer · Fest · WW' },
+    { hotels: ['continental','imperial'],           label: 'Cont · Imperial' },
+  ];
+  const ROWS = [
+    { label: '2',     size: 2  },
+    { label: '3',     size: 3  },
+    { label: '4',     size: 4  },
+    { label: '5',     size: 5  },
+    { label: '6–10',  size: 6  },
+    { label: '11–20', size: 11 },
+    { label: '21–30', size: 21 },
+    { label: '31–40', size: 31 },
+    { label: '41+',   size: 41 },
+  ];
+
+  // Map each active hotel to its current row index
+  const hotelRow = {};
+  if(G) {
+    HOTELS.forEach(h => {
+      if(!G.chains[h].active) return;
+      const sz = G.chains[h].size;
+      for(let i = ROWS.length-1; i >= 0; i--) {
+        if(sz >= ROWS[i].size) { hotelRow[h] = i; break; }
+      }
+    });
+  }
+
+  // Table only (no legend inside)
+  let html = `<table class="price-table"><thead><tr>
+    <th class="col-tiles">Tiles</th>
+    ${TIERS.map(t => {
+      const color = hColor(t.hotels[0]);
+      return `<th style="color:${color}">${t.label}</th><th style="color:${color};opacity:.55">Maj / Min</th>`;
+    }).join('')}
+  </tr></thead><tbody>`;
+
+  for(let ri = 0; ri < ROWS.length; ri++) {
+    const row = ROWS[ri];
+    html += `<tr><td class="col-tiles">${row.label}</td>`;
+    for(const tier of TIERS) {
+      const price = stockPrice(tier.hotels[0], row.size);
+      const maj = price * 10, min = price * 5;
+      const iconsHTML = tier.hotels
+        .filter(h => hotelRow[h] === ri)
+        .map(h => hIcon(h, 9, hColor(h)))
+        .join('');
+      html += `<td style="white-space:nowrap">$${price.toLocaleString()}${iconsHTML ? `<span style="margin-left:3px;vertical-align:middle">${iconsHTML}</span>` : ''}</td>`;
+      html += `<td><span style="opacity:.85">$${(maj/1000).toFixed(0)}k</span><span style="opacity:.4"> / $${(min/1000).toFixed(0)}k</span></td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table>`;
+  document.getElementById('price-table-el').innerHTML = html;
+
+  // Legend below table — use hotel icons instead of dots
+  const legendEl = document.getElementById('price-legend-el');
+  if(legendEl) {
+    legendEl.innerHTML = G
+      ? `<div style="font-family:'Orbitron',sans-serif;font-size:.65rem;font-weight:700;color:var(--dim);letter-spacing:.5px;margin-bottom:8px">ACTIVE HOTELS</div>`
+        + `<div style="display:flex;flex-wrap:wrap;gap:8px;">`
+        + HOTELS.filter(h=>G.chains[h].active).map(h=>
+          `<span style="display:inline-flex;align-items:center;gap:4px;font-family:'Share Tech Mono',monospace;font-size:.65rem;color:${hColor(h)}">
+            ${hIcon(h, 11)}
+            ${HL[h]} (${G.chains[h].size})
+          </span>`
+        ).join('') + `</div>`
+      : `<div style="display:flex;flex-wrap:wrap;gap:8px;">`
+        + HOTELS.map(h=>
+          `<span style="display:inline-flex;align-items:center;gap:4px;font-family:'Share Tech Mono',monospace;font-size:.65rem;color:${hColor(h)}">
+            ${hIcon(h, 11)}
+            ${HL[h]}
+          </span>`
+        ).join('') + `</div>`;
+  }
+}
+
+
+// ═══════════════════════════════════════════
+//  3D BOARD ENGINE (Three.js)
+// ═══════════════════════════════════════════
+const Board3D = (() => {
+  const COLS = 12, ROWS_N = 9;
+  const TILE_SIZE = 1.0, GAP = 0.08;
+  const STEP = TILE_SIZE + GAP;
+  const BOARD_W = COLS * STEP, BOARD_D = ROWS_N * STEP;
+
+  // Hotel color hex values (must match CSS vars — keep in sync)
+  const HOTEL_COLORS = {
+    luxor:       0xf5c430, tower:    0xff2a50, american:  0x2080ff,
+    festival:    0x00e070, worldwide:0xb830f0, continental:0x00c8c0,
+    imperial:    0xff5808,
+  };
+
+  // Stable per-tile height variation (hash tile id → 0..1)
+  function tileHash(tid) {
+    let h = 0;
+    for(let i=0;i<tid.length;i++) h = (h*31 + tid.charCodeAt(i)) & 0xffffffff;
+    return (h >>> 0) / 0xffffffff;
+  }
+
+  let renderer, scene, camera, animId;
+  let tileObjs = {}; // tid → {ground, label}
+  let chainObjs = {}; // hotel → {group, label, tileKey}
+  let raycaster, mouse;
+  let groundMeshes = []; // for click detection
+  let orbitState = { active:false, lastX:0, lastY:0, theta:0.6, phi:0.55, radius:14 };
+  let canvas;
+  let clickCallback = null;
+  let initialized = false;
+
+  // Resolve CSS var to hex integer
+  function cssColor(varName) {
+    const el = document.documentElement;
+    const val = getComputedStyle(el).getPropertyValue(varName).trim();
+    if(val.startsWith('#') && val.length === 7) {
+      return parseInt(val.slice(1), 16);
+    }
+    return 0x223344;
+  }
+
+  function tileToWorld(col, row) {
+    // col 0-11 left→right, row 0-8 front→back
+    const x = (col - (COLS-1)/2) * STEP;
+    const z = (row - (ROWS_N-1)/2) * STEP;
+    return { x, z };
+  }
+
+  function makeLabelSprite(text, color) {
+    const cv = document.createElement('canvas');
+    cv.width = 64; cv.height = 32;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0,0,64,32);
+    ctx.fillStyle = `#${color.toString(16).padStart(6,'0')}cc`;
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 32, 16);
+    const tex = new THREE.CanvasTexture(cv);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent:true, depthTest:false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(0.7, 0.35, 1);
+    return sprite;
+  }
+
+  function chainBuildingHeight(hotel, size) {
+    // Height grows with chain size — a 1-tile stub vs a 30-tile tower
+    return 0.18 + size * 0.07;
+  }
+
+  function makeChainLabel(hotel, size) {
+    const color = HOTEL_COLORS[hotel] || 0x888888;
+    const cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 64;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0,0,256,64);
+    const hex = '#' + color.toString(16).padStart(6,'0');
+    ctx.fillStyle = hex;
+    ctx.font = 'bold 28px "Orbitron", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(hotel.toUpperCase(), 128, 32);
+    const tex = new THREE.CanvasTexture(cv);
+    const mat = new THREE.SpriteMaterial({ map:tex, transparent:true, depthTest:false });
+    const sprite = new THREE.Sprite(mat);
+    return sprite;
+  }
+
+  // ── Rectangle finder that prefers compact/square shapes ─────────────────
+  // Scores each candidate rect by area × squareness, so a 2×2 beats a 1×4
+  // even though both have area 4. Long thin runs are strongly deprioritized.
+  function findMaxRect(tileSet) {
+    const entries = [...tileSet].map(s => s.split(',').map(Number));
+    if(!entries.length) return null;
+    const minC = Math.min(...entries.map(e=>e[0]));
+    const maxC = Math.max(...entries.map(e=>e[0]));
+    const minR = Math.min(...entries.map(e=>e[1]));
+    const maxR = Math.max(...entries.map(e=>e[1]));
+    const W = maxC - minC + 1, H = maxR - minR + 1;
+
+    const grid = Array.from({length:H}, ()=>new Array(W).fill(0));
+    for(const [c,r] of entries) grid[r-minR][c-minC] = 1;
+
+    // Score: area weighted toward squareness, but not so aggressively that
+    // thin rects never form. sqrt(squareness) keeps 1×3 and 1×4 viable
+    // while still strongly preferring 2×2 over 1×4, and 3×3 over 1×8.
+    function score(cols, rows) {
+      const sq = Math.min(cols,rows) / Math.max(cols,rows);
+      return cols * rows * Math.sqrt(sq);
+    }
+
+    let best = {score:0, area:0, c0:minC, r0:minR, cols:1, rows:1};
+    const heights = new Array(W).fill(0);
+    for(let row=0; row<H; row++) {
+      for(let col=0; col<W; col++) heights[col] = grid[row][col] ? heights[col]+1 : 0;
+      const stk = [];
+      for(let i=0; i<=W; i++) {
+        const h = i<W ? heights[i] : 0;
+        let start = i;
+        while(stk.length && stk[stk.length-1][0] > h) {
+          const [sh, si] = stk.pop();
+          const cols = i - si, rows = sh;
+          const s = score(cols, rows);
+          if(s > best.score) {
+            best = {score:s, area:cols*rows, c0:minC+si, r0:minR+row-sh+1, cols, rows};
+          }
+          start = si;
+        }
+        stk.push([h, start]);
+      }
+    }
+    return best.score > 0 ? best : null;
+  }
+
+  // Decompose tileSet into a list of non-overlapping rectangles, largest first.
+  // Each returned rect: {c0, r0, cols, rows, area, rank}
+  function decomposeRects(tileSet) {
+    const remaining = new Set(tileSet);
+    const rects = [];
+    while(remaining.size > 0) {
+      const r = findMaxRect(remaining);
+      if(!r || r.area === 0) break;
+      rects.push(r);
+      // Remove all tiles in this rect from remaining
+      for(let c=r.c0; c<r.c0+r.cols; c++)
+        for(let rr=r.r0; rr<r.r0+r.rows; rr++)
+          remaining.delete(`${c},${rr}`);
+    }
+    // Tag with rank (0 = largest/primary)
+    rects.forEach((r,i) => r.rank = i);
+    return rects;
+  }
+
+  // Build a connected hotel campus: every tile is covered by a rectangle,
+  // largest rect = grand hero, subsequent rects = progressively shorter sub-buildings,
+  // all sharing a seamless base podium and connected by mid-level bridges.
+  function makeChainBuilding(hotel, size, footW, footD, tilePositions, cx, cz) {
+    const color  = HOTEL_COLORS[hotel] || 0x888888;
+    const height = chainBuildingHeight(hotel, size);
+    const group  = new THREE.Group();
+    group.position.set(cx, 0, cz);
+
+    const S = TILE_SIZE;
+    const ST = STEP; // actual center-to-center spacing (TILE_SIZE + GAP = 1.08)
+
+    // World ↔ grid helpers — must use STEP (center-to-center), not TILE_SIZE
+    function worldToGrid(wx, wz) {
+      return {
+        col: Math.round(wx / ST + (COLS-1)/2),
+        row: Math.round(wz / ST + (ROWS_N-1)/2)
+      };
+    }
+    const tileGrid = tilePositions.map(p => {
+      const {col, row} = worldToGrid(p.x, p.z);
+      return {col, row, wx: p.x, wz: p.z};
+    });
+    const tileSet     = new Set(tileGrid.map(t => `${t.col},${t.row}`));
+    const tileByKey   = {};
+    tileGrid.forEach(t => tileByKey[`${t.col},${t.row}`] = t);
+
+    function hasNeighbor(col, row, dc, dr) { return tileSet.has(`${col+dc},${row+dr}`); }
+
+    // Decompose into rectangles
+    const rects = decomposeRects(tileSet);
+    const PH    = height * 0.18;  // shared podium height (all tiles)
+
+    // ── Drawing helpers ───────────────────────────────────────────────────
+    function mat(ei=0.22) {
+      return new THREE.MeshLambertMaterial({color, emissive:color, emissiveIntensity:ei});
+    }
+    function addMesh(geo, px,py,pz, ei=0.22) {
+      const m = new THREE.Mesh(geo, mat(ei));
+      m.position.set(px,py,pz); group.add(m); return m;
+    }
+    function box(w,h,d, px,py,pz, ei=0.22, edges=false) {
+      addMesh(new THREE.BoxGeometry(w,h,d), px,py,pz, ei);
+      if(edges) {
+        const eg = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(w,h,d)),
+          new THREE.LineBasicMaterial({color, transparent:true, opacity:0.26})
+        );
+        eg.position.set(px,py,pz); group.add(eg);
+      }
+    }
+    function cyl(rt,rb,h, px,py,pz, segs=8, ei=0.22) {
+      addMesh(new THREE.CylinderGeometry(rt,rb,h,segs), px,py,pz, ei);
+    }
+    function cone(r,h, px,py,pz, segs=4, ei=0.88) {
+      addMesh(new THREE.ConeGeometry(r,h,segs), px,py,pz, ei);
+    }
+    function sphere(r, px,py,pz, ei=0.96) {
+      addMesh(new THREE.SphereGeometry(r,10,7), px,py,pz, ei);
+    }
+    function glowCap(w,d, px,py,pz) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w,0.032,d),
+        new THREE.MeshLambertMaterial({color,emissive:color,emissiveIntensity:1.6,transparent:true,opacity:0.9}));
+      m.position.set(px,py,pz); group.add(m);
+    }
+
+    // ── Pass 1: seamless base podium on EVERY tile ────────────────────────
+    for(const t of tileGrid) {
+      box(S, PH, S, t.wx-cx, PH/2, t.wz-cz, 0.12);
+    }
+
+    // ── Pass 2: adjacency bridges between all neighboring tiles ──────────
+    // Thin connecting slab at low height so buildings read as one campus
+    const bridgeH = PH * 0.9, bridgeY = PH + bridgeH/2;
+    for(const t of tileGrid) {
+      const rx = t.wx-cx, rz = t.wz-cz;
+      if(hasNeighbor(t.col, t.row, 1, 0))
+        box(ST*0.5, bridgeH, S*0.52, rx+ST*0.5, bridgeY, rz, 0.16);
+      if(hasNeighbor(t.col, t.row, 0, 1))
+        box(S*0.52, bridgeH, ST*0.5, rx, bridgeY, rz+ST*0.5, 0.16);
+    }
+
+    // ── Pass 3: one hero building per rect, tallest first ────────────────
+    const primaryArea = rects.length > 0 ? rects[0].area : 1;
+
+    for(const rect of rects) {
+      // Center of rect in world space = midpoint between center of first and last tile
+      // tileToWorld(col,row) = (col - (COLS-1)/2) * ST
+      const cCenterCol = rect.c0 + (rect.cols - 1) / 2;
+      const cCenterRow = rect.r0 + (rect.rows - 1) / 2;
+      const rectWx = (cCenterCol - (COLS-1)/2) * ST;
+      const rectWz = (cCenterRow - (ROWS_N-1)/2) * ST;
+      const bx = rectWx - cx;  // relative to group origin
+      const bz = rectWz - cz;
+      // Visual footprint size: span from left edge of c0 to right edge of last col
+      const rW = rect.cols * ST - GAP;
+      const rD = rect.rows * ST - GAP;
+
+      // Height falls off with rank: primary = full height, each subsequent 72% of previous
+      const rankScale = Math.pow(0.72, rect.rank);
+      const bH  = height * (0.42 + rect.area * 0.07) * rankScale;
+      const base = PH;   // all buildings sit on the shared podium
+
+      if(hotel === 'luxor') {
+        const tiers = Math.min(6, 1 + rect.area);
+        for(let i=0; i<tiers; i++) {
+          const frac = 1 - i/tiers * 0.88;
+          const th = bH/tiers;
+          box(rW*frac, th, rD*frac, bx, base+i*th+th/2, bz, 0.13+i*0.07, i===tiers-1);
+        }
+        cone(Math.min(rW,rD)*0.14, bH*0.26, bx, base+bH+bH*0.13, bz, 4, 0.92);
+        glowCap(Math.min(rW,rD)*0.24, Math.min(rW,rD)*0.24, bx, base+bH, bz);
+
+      } else if(hotel === 'tower') {
+        const cW = Math.min(rW*0.42, S*0.58), cD = Math.min(rD*0.42, S*0.58);
+        box(rW*0.92, PH*0.6, rD*0.92, bx, base+PH*0.3, bz, 0.15);
+        box(cW, bH, cD, bx, base+bH/2, bz, 0.28, true);
+        box(cW*0.64, bH*0.18, cD*0.64, bx, base+bH+bH*0.09, bz, 0.36);
+        glowCap(cW*0.72, cD*0.72, bx, base+bH, bz);
+        if(rect.rank === 0) { // antenna only on primary
+          cyl(0.02,0.02, bH*0.3, bx, base+bH+bH*0.15, bz, 4, 0.95);
+          sphere(0.055, bx, base+bH+bH*0.31+0.022, bz, 1.0);
+        }
+
+      } else if(hotel === 'american') {
+        box(rW, bH*0.44, rD, bx, base+bH*0.22, bz, 0.15);
+        box(rW*0.62, bH*0.36, rD*0.62, bx, base+bH*0.44+bH*0.18, bz, 0.24);
+        box(rW*0.36, bH*0.14, rD*0.36, bx, base+bH*0.8+bH*0.07, bz, 0.36);
+        glowCap(rW*0.4, rD*0.4, bx, base+bH*0.97, bz);
+        // Corner turrets — only on outer corners of this rect
+        for(const [sx,sz] of [[-1,-1],[-1,1],[1,-1],[1,1]]) {
+          const tc = rect.rank === 0 ? S*0.12 : S*0.09;
+          box(tc, bH*0.52, tc, bx+sx*(rW*0.46), base+bH*0.26, bz+sz*(rD*0.46), 0.3);
+          cone(tc*0.75, bH*0.1, bx+sx*(rW*0.46), base+bH*0.52+bH*0.05, bz+sz*(rD*0.46), 4, 0.87);
+        }
+
+      } else if(hotel === 'festival') {
+        box(rW, bH*0.3, rD, bx, base+bH*0.15, bz, 0.14);
+        const rotR = Math.min(rW,rD)*0.24;
+        cyl(rotR, rotR, bH*0.5, bx, base+bH*0.3+bH*0.25, bz, 20, 0.25);
+        cone(rotR*1.18, bH*0.2, bx, base+bH*0.3+bH*0.5+bH*0.1, bz, 20, 0.84);
+        glowCap(rotR*2.2, rotR*2.2, bx, base+bH*0.3+bH*0.5, bz);
+        if(rW > S*1.4) {
+          box(rW*0.2, bH*0.2, rD*0.32, bx-rW*0.36, base+bH*0.1, bz, 0.18);
+          box(rW*0.2, bH*0.2, rD*0.32, bx+rW*0.36, base+bH*0.1, bz, 0.18);
+        }
+
+      } else if(hotel === 'worldwide') {
+        const tiers = Math.min(7, 1 + rect.area);
+        for(let i=0; i<tiers; i++) {
+          const frac = 1 - i/tiers*0.78;
+          const r = Math.min(rW,rD)*0.5*frac;
+          const th = bH/tiers;
+          const m = addMesh(new THREE.CylinderGeometry(r*0.84, r, th, 6),
+            bx, base+i*th+th/2, bz, 0.13+i*0.07);
+          m.rotation.y = i*Math.PI/6;
+        }
+        if(rect.rank === 0) {
+          cyl(0.032,0.078, bH*0.26, bx, base+bH+bH*0.13, bz, 6, 0.92);
+          sphere(0.078, bx, base+bH+bH*0.27, bz, 1.0);
+        } else {
+          sphere(Math.min(rW,rD)*0.08, bx, base+bH+0.04, bz, 0.88);
+        }
+
+      } else if(hotel === 'continental') {
+        const cW = Math.min(rW*0.5, S*0.62), cD = Math.min(rD*0.5, S*0.62);
+        box(rW*0.86, PH*0.5, rD*0.86, bx, base+PH*0.25, bz, 0.15);
+        box(cW, bH, cD, bx, base+bH/2, bz, 0.22, true);
+        // Fins span full rect width
+        box(rW*0.8, bH*0.62, cD*0.07, bx, base+bH*0.38, bz, 0.44);
+        box(cW*0.07, bH*0.62, rD*0.8, bx, base+bH*0.38, bz, 0.44);
+        box(rW*0.76, bH*0.038, rD*0.76, bx, base+bH*0.93, bz, 0.66);
+        glowCap(rW*0.8, rD*0.8, bx, base+bH*0.96, bz);
+        if(rect.rank === 0) {
+          cyl(0.016,0.032, bH*0.3, bx, base+bH+bH*0.15, bz, 5, 0.96);
+          sphere(0.04, bx, base+bH+bH*0.31+0.018, bz, 1.0);
+        }
+
+      } else if(hotel === 'imperial') {
+        const tW = Math.min(rW*0.26, S*0.44);
+        const tD = Math.min(rD*0.88, rD);
+        const to  = rW*0.27;
+        box(rW, bH*0.18, rD, bx, base+bH*0.09, bz, 0.13);
+        box(rW*0.74, bH*0.13, rD*0.74, bx, base+bH*0.18+bH*0.065, bz, 0.17);
+        box(tW, bH*0.72, tD, bx-to, base+bH*0.31+bH*0.36, bz, 0.28, true);
+        glowCap(tW*1.1, tD*1.06, bx-to, base+bH*0.31+bH*0.72, bz);
+        box(tW, bH*0.72, tD, bx+to, base+bH*0.31+bH*0.36, bz, 0.28, true);
+        glowCap(tW*1.1, tD*1.06, bx+to, base+bH*0.31+bH*0.72, bz);
+        box(to*2, bH*0.038, tD*0.42, bx, base+bH*0.31+bH*0.72*0.73, bz, 0.9);
+        if(rect.rank === 0) {
+          cyl(0.018,0.018, bH*0.19, bx-to, base+bH*0.31+bH*0.72+bH*0.095, bz, 4, 0.92);
+          cyl(0.018,0.018, bH*0.19, bx+to, base+bH*0.31+bH*0.72+bH*0.095, bz, 4, 0.92);
+        }
+      }
+    }
+
+    return group;
+  }
+
+  function makeGroundTile(tid, col, row) {
+    const {x, z} = tileToWorld(col, row);
+    const geo = new THREE.BoxGeometry(TILE_SIZE, 0.06, TILE_SIZE);
+    const mat = new THREE.MeshLambertMaterial({
+      color: 0x1a2030,
+      transparent: true, opacity: 0.85
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, -0.03, z);
+    mesh.userData = { tid, col, row, isGround: true, isPlayable: false, isSel: false };
+    return mesh;
+  }
+
+  function rowColFromTid(tid) {
+    const rowLetter = tid[0];
+    const col = parseInt(tid.slice(1)) - 1;
+    const row = 'ABCDEFGHI'.indexOf(rowLetter);
+    return { col, row };
+  }
+
+  function init(canvasEl, onTileClick) {
+    canvas = canvasEl;
+    clickCallback = onTileClick;
+    initialized = true;
+
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    renderer.shadowMap.enabled = true;
+
+    // Scene
+    scene = new THREE.Scene();
+
+    // Camera — orthographic gives that clean isometric look
+    const aspect = canvas.clientWidth / canvas.clientHeight;
+    const frustH = 10;
+    camera = new THREE.OrthographicCamera(
+      -frustH*aspect, frustH*aspect, frustH, -frustH, 0.1, 100
+    );
+    positionCamera();
+
+    // Lighting
+    const ambient = new THREE.AmbientLight(0x334466, 1.2);
+    scene.add(ambient);
+    const sun = new THREE.DirectionalLight(0x88aaff, 1.0);
+    sun.position.set(8, 12, 6);
+    sun.castShadow = true;
+    scene.add(sun);
+    const fill = new THREE.DirectionalLight(0x221133, 0.4);
+    fill.position.set(-6, 4, -8);
+    scene.add(fill);
+    // Neon ground bounce
+    const bounce = new THREE.PointLight(0x001144, 0.8, 30);
+    bounce.position.set(0, -1, 0);
+    scene.add(bounce);
+
+    // Ground plane (dark, slightly reflective)
+    const groundGeo = new THREE.PlaneGeometry(BOARD_W + 1.5, BOARD_D + 1.5);
+    const groundMat = new THREE.MeshLambertMaterial({ color: cssColor('--surface-base') });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.06;
+    scene.add(ground);
+
+    // Grid lines
+    const gridMat = new THREE.LineBasicMaterial({ color: cssColor('--edge-subtle'), transparent:true, opacity:0.3 });
+    for(let c=0;c<=COLS;c++) {
+      const x = (-BOARD_W/2) + c*STEP - GAP/2;
+      const pts = [new THREE.Vector3(x,-0.05,-BOARD_D/2), new THREE.Vector3(x,-0.05,BOARD_D/2)];
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gridMat));
+    }
+    for(let r=0;r<=ROWS_N;r++) {
+      const z = (-BOARD_D/2) + r*STEP - GAP/2;
+      const pts = [new THREE.Vector3(-BOARD_W/2,-0.05,z), new THREE.Vector3(BOARD_W/2,-0.05,z)];
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gridMat));
+    }
+
+    // Ground tile objects (clickable pads)
+    groundMeshes = [];
+    for(const r of 'ABCDEFGHI') for(let c=1;c<=12;c++) {
+      const tid = r+c;
+      const {col,row} = rowColFromTid(tid);
+      const mesh = makeGroundTile(tid, col, row);
+      scene.add(mesh);
+      groundMeshes.push(mesh);
+      tileObjs[tid] = { ground: mesh, label: null };
+    }
+
+    // Raycaster
+    raycaster = new THREE.Raycaster();
+    mouse = new THREE.Vector2();
+
+    // Events
+    setupControls();
+    resize();
+    window.addEventListener('resize', resize);
+
+    animate();
+  }
+
+  function positionCamera() {
+    const { theta, phi, radius } = orbitState;
+    camera.position.set(
+      radius * Math.sin(phi) * Math.sin(theta),
+      radius * Math.cos(phi),
+      radius * Math.sin(phi) * Math.cos(theta)
+    );
+    camera.lookAt(0, 0, 0);
+    camera.up.set(0, 1, 0);
+  }
+
+  function resize() {
+    if(!canvas) return;
+    const w = canvas.parentElement.clientWidth;
+    const h = Math.round(w * 0.62);
+    canvas.width = w * Math.min(window.devicePixelRatio, 2);
+    canvas.height = h * Math.min(window.devicePixelRatio, 2);
+    canvas.style.height = h + 'px';
+    renderer.setSize(canvas.width, canvas.height, false);
+    const aspect = w / h;
+    const frustH = 10 / (orbitState.radius / 14);
+    camera.left   = -frustH * aspect;
+    camera.right  =  frustH * aspect;
+    camera.top    =  frustH;
+    camera.bottom = -frustH;
+    camera.updateProjectionMatrix();
+  }
+
+  function setupControls() {
+    // Orbit drag
+    canvas.addEventListener('pointerdown', e => {
+      orbitState.active = true;
+      orbitState.lastX = e.clientX;
+      orbitState.lastY = e.clientY;
+      orbitState.moved = false;
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', e => {
+      if(!orbitState.active) return;
+      const dx = e.clientX - orbitState.lastX;
+      const dy = e.clientY - orbitState.lastY;
+      if(Math.abs(dx)+Math.abs(dy) > 2) orbitState.moved = true;
+      orbitState.theta -= dx * 0.008;
+      orbitState.phi = Math.max(0.15, Math.min(1.4, orbitState.phi + dy * 0.006));
+      orbitState.lastX = e.clientX;
+      orbitState.lastY = e.clientY;
+      positionCamera();
+      resize();
+    });
+    canvas.addEventListener('pointerup', e => {
+      if(!orbitState.moved && clickCallback) handleClick(e);
+      orbitState.active = false;
+    });
+
+    // Pinch/scroll zoom
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      orbitState.radius = Math.max(5, Math.min(28, orbitState.radius + e.deltaY * 0.02));
+      positionCamera(); resize();
+    }, {passive:false});
+
+    let lastPinchDist = null;
+    canvas.addEventListener('touchstart', e => {
+      if(e.touches.length === 2) lastPinchDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+    });
+    canvas.addEventListener('touchmove', e => {
+      if(e.touches.length === 2) {
+        e.preventDefault();
+        const d = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        if(lastPinchDist) {
+          orbitState.radius = Math.max(5, Math.min(28, orbitState.radius - (d - lastPinchDist) * 0.04));
+          positionCamera(); resize();
+        }
+        lastPinchDist = d;
+      }
+    }, {passive:false});
+  }
+
+  function handleClick(e) {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+    mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(groundMeshes);
+    if(hits.length && hits[0].object.userData.tid) {
+      const tid = hits[0].object.userData.tid;
+      // Only allow clicks on tiles that are in hand and not illegal
+      if(hits[0].object.userData.isPlayable) {
+        clickCallback(tid);
+      }
+    }
+  }
+
+  function animate() {
+    animId = requestAnimationFrame(animate);
+    growBuildings();
+    // Pulse playable/selected ground tiles
+    const t = performance.now() * 0.002;
+    for(const tid in tileObjs) {
+      const obj = tileObjs[tid];
+      if(!obj.ground.userData.isPlayable && !obj.ground.userData.isSel) continue;
+      const hash = tileHash(tid);
+      const pulse = 0.5 + 0.5 * Math.sin(t + hash * Math.PI * 2);
+      const isSel = obj.ground.userData.isSel;
+      obj.ground.material.emissive.setHex(isSel ? 0xffffff : 0xb08010);
+      obj.ground.material.emissiveIntensity = pulse * (isSel ? 0.8 : 0.4);
+    }
+    renderer.render(scene, camera);
+  }
+
+  // Main update — called from renderBoard() with current game state
+  function update(boardState, chainsState, currentHand, currentPhase, selectedTile, illegalTiles) {
+    if(!initialized) return;
+
+    // ── Ground tiles (always per-tile) ──────────────────────────────
+    for(const r of 'ABCDEFGHI') for(let c=1;c<=12;c++) {
+      const tid = r+c;
+      const st = boardState[tid];
+      const obj = tileObjs[tid];
+      if(!obj) continue;
+
+      const isHotel   = st && st !== 'neutral' && !st.startsWith('__');
+      const isPlayable = currentPhase === 'place' && currentHand.includes(tid) && !illegalTiles.has(tid);
+      const isIllegal  = currentPhase === 'place' && illegalTiles.has(tid);
+      const isSel      = tid === selectedTile;
+      const isPending  = st && st.startsWith('__');
+
+      let groundColor;
+      if(isIllegal)            groundColor = 0x3d0808;
+      else if(isSel)           groundColor = 0xffffff;
+      else if(isPlayable)      groundColor = 0x3d3010;
+      else if(!st)             groundColor = cssColor('--surface-raised');
+      else if(st==='neutral' || isPending) groundColor = cssColor('--surface-float');
+      else                     groundColor = 0x080b10; // hotel tile — dark so building pops
+
+      obj.ground.material.color.setHex(groundColor);
+      obj.ground.material.opacity = st ? 0.98 : 0.72;
+      obj.ground.userData.isPlayable = isPlayable;
+      obj.ground.userData.isSel      = isSel;
+
+      if(!isPlayable && !isSel) {
+        obj.ground.material.emissive.setHex(0x000000);
+        obj.ground.material.emissiveIntensity = 0;
+      }
+
+      // Per-tile labels (only for non-hotel tiles — hotel tiles get chain label)
+      if(obj.label) { scene.remove(obj.label); obj.label.material.map.dispose(); obj.label = null; }
+      if(!isHotel) {
+        let labelColor = 0x445566;
+        if(isPlayable)      labelColor = 0xf0c040;
+        else if(isIllegal)  labelColor = 0xff3030;
+        else if(st==='neutral' || isPending) labelColor = 0x556677;
+        const sprite = makeLabelSprite(tid, labelColor);
+        const {x,z} = tileToWorld(rowColFromTid(tid).col, rowColFromTid(tid).row);
+        sprite.position.set(x, 0.25, z);
+        scene.add(sprite);
+        obj.label = sprite;
+      }
+    }
+
+    // ── Chain buildings (one unified mesh per hotel chain) ───────────
+    const activeHotels = new Set();
+    for(const h in chainsState) {
+      if(!chainsState[h].active) continue;
+      const tiles = Object.keys(boardState).filter(tid => boardState[tid] === h);
+      if(!tiles.length) continue;
+      activeHotels.add(h);
+
+      // Has the chain tile-set changed since last build?
+      const prev = chainObjs[h];
+      const tileKey = tiles.sort().join(',');
+      if(prev && prev.tileKey === tileKey) continue; // nothing changed
+
+      // Remove old chain building + label
+      if(prev) {
+        scene.remove(prev.group);
+        if(prev.label) { scene.remove(prev.label); }
+      }
+
+      // Compute footprint centroid and bounding box in world space
+      const positions = tiles.map(tid => {
+        const {col,row} = rowColFromTid(tid);
+        return tileToWorld(col, row);
+      });
+      const cx = positions.reduce((s,p)=>s+p.x,0)/positions.length;
+      const cz = positions.reduce((s,p)=>s+p.z,0)/positions.length;
+      const minX = Math.min(...positions.map(p=>p.x)) - TILE_SIZE*0.5;
+      const maxX = Math.max(...positions.map(p=>p.x)) + TILE_SIZE*0.5;
+      const minZ = Math.min(...positions.map(p=>p.z)) - TILE_SIZE*0.5;
+      const maxZ = Math.max(...positions.map(p=>p.z)) + TILE_SIZE*0.5;
+      const footW = maxX - minX;  // world-space width of chain footprint
+      const footD = maxZ - minZ;  // world-space depth of chain footprint
+
+      const size = tiles.length;
+      const group = makeChainBuilding(h, size, footW, footD, positions, cx, cz);
+      group.userData.hotel    = h;
+      group.userData.tileKey  = tileKey;
+      group.userData.targetH  = 1.0; // scale target (always 1, height baked into geometry)
+      group.userData.currentH = 0.01;
+      group.scale.y = 0.01;
+      scene.add(group);
+
+      // Floating hotel name label above the centroid
+      const labelH = chainBuildingHeight(h, size) + 0.6;
+      const label = makeChainLabel(h, size);
+      label.position.set(cx, labelH, cz);
+      label.scale.set(1.4, 0.5, 1);
+      scene.add(label);
+
+      chainObjs[h] = { group, label, tileKey };
+    }
+
+    // Remove chain buildings for hotels that are no longer active
+    for(const h in chainObjs) {
+      if(!activeHotels.has(h)) {
+        scene.remove(chainObjs[h].group);
+        if(chainObjs[h].label) scene.remove(chainObjs[h].label);
+        delete chainObjs[h];
+      }
+    }
+  }
+
+  function growBuildings() {
+    for(const h in chainObjs) {
+      const co = chainObjs[h];
+      const g = co.group;
+      if(!g) continue;
+      if(g.userData.currentH < g.userData.targetH - 0.005) {
+        g.userData.currentH = Math.min(
+          g.userData.targetH,
+          g.userData.currentH + (g.userData.targetH - g.userData.currentH)*0.1 + 0.003
+        );
+        g.scale.y = g.userData.currentH / g.userData.targetH;
+      }
+      // Float the chain label above the growing building
+      if(co.label) {
+        const bH = chainBuildingHeight(h, co.group.userData.size || 1);
+        co.label.position.y = (g.userData.currentH || 0) * bH + 0.7;
+      }
+    }
+  }
+
+  function destroy() {
+    if(animId) cancelAnimationFrame(animId);
+    if(renderer) renderer.dispose();
+    initialized = false;
+    tileObjs = {};
+    chainObjs = {};
+    groundMeshes = [];
+  }
+
+  return { init, update, destroy, resize, initialized: () => initialized };
+})();
+
+// Kick off 3D board — called once when game screen first shows
+let board3dReady = false;
+function initBoard3D() {
+  const canvas = document.getElementById('board-3d');
+  if(!canvas || board3dReady) return;
+  Board3D.init(canvas, (tid) => {
+    // Tile clicked in 3D — same logic as 2D selectTile
+    if(phase === 'place') selectTile(tid);
+  });
+  board3dReady = true;
+}
+
+initHome();
+</script>
+</body>
+</html>
