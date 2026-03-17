@@ -1,37 +1,110 @@
 // Mirror of SkylineModels.cs — keep in sync with C# records
 
-export type SkylinePhase = 'PlacingTile' | 'GameOver';
+export type Hotel =
+  | 'luxor'
+  | 'tower'
+  | 'american'
+  | 'festival'
+  | 'worldwide'
+  | 'continental'
+  | 'imperial';
+
+export const HOTELS: Hotel[] = [
+  'luxor',
+  'tower',
+  'american',
+  'festival',
+  'worldwide',
+  'continental',
+  'imperial',
+];
+
+export const HOTEL_LABELS: Record<Hotel, string> = {
+  luxor: 'Luxor',
+  tower: 'Tower',
+  american: 'American',
+  festival: 'Festival',
+  worldwide: 'Worldwide',
+  continental: 'Continental',
+  imperial: 'Imperial',
+};
+
+export interface ChainState {
+  active: boolean;
+  size: number;
+  tiles: string[];
+}
+
+export interface DisposeQueueItem {
+  defunct: string;
+  playerIdx: number;
+}
+
+export interface DisposeDecision {
+  sell: number;
+  trade: number;
+}
+
+export interface PendingState {
+  type: 'found' | 'merge';
+  // found
+  tiles?: string[];
+  chosen?: string;
+  // merge
+  tid?: string;
+  hotels?: string[];
+  survivors?: string[];
+  survivor?: string;
+  defunct?: string[];
+  survivorChosen?: boolean;
+  defunctSizes?: Record<string, number>;
+  // dispose
+  disposeQueue?: DisposeQueueItem[];
+  disposeIdx?: number;
+  disposeDecisions?: Record<string, DisposeDecision>;
+}
 
 export interface PlayerState {
   id: string;
-  displayName: string;
-  avatarUrl: string | null;
-  seatIndex: number;
-  score: number;
-  /** Tile values in this player's hand.
+  name: string;
+  color: string;
+  cash: number;
+  stocks: Record<string, number>;
+  /** Tile IDs in this player's hand (e.g. "A1", "B7").
    *  In multiplayer, the backend projects state per viewer:
    *  only the viewing player's own hand is populated.
    *  All opponents' hands are projected as [] (empty). */
-  hand: number[];
+  hand: string[];
 }
 
 export interface SkylineState {
   players: PlayerState[];
-  /** 2-D board — board[row][col], null = empty cell */
-  board: (number | null)[][];
-  currentPlayerId: string;
-  phase: SkylinePhase;
-  turn: number;
-  winnerId: string | null;
-}
-
-export interface PlaceTilePayload {
-  row: number;
-  col: number;
-  tileValue: number;
+  currentPlayer: number;           // index into players
+  board: Record<string, string>;   // tileId -> hotel | "neutral"
+  chains: Record<string, ChainState>;
+  stockBank: Record<string, number>;
+  bag: string[];
+  log: string[];
+  gameOver: boolean;
+  winner?: string;
+  rankedOrder?: number[];
+  phase: 'place' | 'found' | 'merge' | 'dispose' | 'buy' | 'draw';
+  pending?: PendingState;
 }
 
 export interface SkylineAction {
-  type: 'PlaceTile' | 'Undo';
-  placeTile?: PlaceTilePayload;
+  type:
+    | 'PlaceTile'
+    | 'FoundHotel'
+    | 'ChooseSurvivor'
+    | 'ConfirmSurvivor'
+    | 'Dispose'
+    | 'BuyStocks'
+    | 'EndTurn'
+    | 'EndGame';
+  tileId?: string;
+  hotel?: string;
+  sell?: number;
+  trade?: number;
+  purchases?: Record<string, number>;
 }
