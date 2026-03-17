@@ -17,6 +17,7 @@ public class SkylineModule : ReducerGameModule<SkylineState, SkylineAction, obje
     public override int    MinPlayers  => 2;
     public override int    MaxPlayers  => 4;
     public override bool   SupportsUndo => true;
+    public override bool   HasStateProjection => true;
 
     private static readonly Random Rng = new();
     private const int BoardSize  = 5;
@@ -129,6 +130,18 @@ public class SkylineModule : ReducerGameModule<SkylineState, SkylineAction, obje
 
         // Undo — not implemented in initial scaffold; return state unchanged
         return state;
+    }
+
+    // ── State projection (hide opponents' tile hands) ─────────────────────────
+
+    protected override SkylineState ProjectForPlayer(SkylineState state, string playerId)
+    {
+        var players = state.Players
+            .Select(p => p.Id == playerId
+                ? p                      // full state for this player
+                : p with { Hand = [] })  // hide hand from other players
+            .ToList();
+        return state with { Players = players };
     }
 
     // ── Scoring helpers ──────────────────────────────────────────────────────
