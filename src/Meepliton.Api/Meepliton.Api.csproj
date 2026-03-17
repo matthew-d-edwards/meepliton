@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.0" />
@@ -24,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Meepliton.Contracts\Meepliton.Contracts.csproj" />
+    <ProjectReference Include="..\Meepliton.ServiceDefaults\Meepliton.ServiceDefaults.csproj" />
     <!-- Game modules — add one line per game -->
     <ProjectReference Include="..\games\Meepliton.Games.Skyline\Meepliton.Games.Skyline.csproj" />
   </ItemGroup>

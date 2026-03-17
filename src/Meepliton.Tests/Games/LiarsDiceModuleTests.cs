@@ -7,6 +7,7 @@ using FluentAssertions;
 using Meepliton.Contracts;
 using Meepliton.Games.LiarsDice;
 using Meepliton.Games.LiarsDice.Models;
+using Xunit;
 
 namespace Meepliton.Tests.Games;
 

@@ -11,6 +11,7 @@
 // When those prerequisites are added, replace each TODO section with real code.
 
 using FluentAssertions;
+using Xunit;
 
 // TODO: add using Microsoft.AspNetCore.Mvc.Testing;
 // TODO: add using Microsoft.AspNetCore.SignalR.Client;

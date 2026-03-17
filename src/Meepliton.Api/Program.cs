@@ -4,17 +4,20 @@ using Meepliton.Api.Hubs;
 using Meepliton.Api.Identity;
 using Meepliton.Api.Services;
 using Meepliton.Contracts;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Meepliton.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
+
 // Database
-builder.Services.AddDbContext<PlatformDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("meepliton")));
+builder.AddNpgsqlDbContext<PlatformDbContext>("meepliton");
 
 // Identity
 builder.Services
@@ -89,7 +92,8 @@ builder.Services.AddSignalR();
 
 // Game modules via Scrutor auto-discovery
 builder.Services.Scan(scan => scan
-    .FromApplicationDependencies()
+    .FromAssemblies(AppDomain.CurrentDomain.GetAssemblies()
+        .Where(a => a.FullName?.StartsWith("Meepliton.Games.") == true))
     .AddClasses(c => c.AssignableTo<IGameModule>())
     .AsImplementedInterfaces()
     .WithSingletonLifetime()
@@ -132,6 +136,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // Endpoints
+app.MapDefaultEndpoints();
 app.MapAuthEndpoints();
 app.MapRoomEndpoints();
 app.MapHub<GameHub>("/hubs/game");

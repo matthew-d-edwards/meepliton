@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './platform/App'
-import '../../packages/ui/src/styles/tokens.css'
+import '@meepliton/ui/styles/tokens.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
