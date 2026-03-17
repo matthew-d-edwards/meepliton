@@ -9,6 +9,7 @@ import ResetPasswordPage from './auth/ResetPasswordPage'
 import ConfirmEmailPage from './auth/ConfirmEmailPage'
 import LobbyPage from './lobby/LobbyPage'
 import RoomPage from './room/RoomPage'
+import RoomNotFoundPage from './room/RoomNotFoundPage'
 
 function logoLink({ children, className }: { children: ReactNode; className: string }) {
   return (
@@ -57,6 +58,7 @@ function AppRoutes() {
       <Route path="/lobby" element={shell(<LobbyPage />)} />
       <Route path="/room/:roomId" element={shell(<RoomPage />)} />
       <Route path="/join/:code" element={shell(<RoomPage join />)} />
+      <Route path="/room-not-found" element={shell(<RoomNotFoundPage />)} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to={user ? '/lobby' : '/sign-in'} replace />} />

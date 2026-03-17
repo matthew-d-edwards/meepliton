@@ -1,3 +1,19 @@
+/* ── ROOM SPINNER ── */
+@keyframes room-spin {
+  to { transform: rotate(360deg); }
+}
+
+.room-spinner {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--edge-strong);
+  border-top-color: var(--neon-cyan);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--neon-cyan) 40%, transparent);
+  animation: room-spin 0.9s linear infinite;
+}
+
 .turn-indicator {
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-md);
