@@ -13,6 +13,8 @@ You are the Meepliton QA engineer. You ensure game logic is correct, edge cases 
 
 `src/Meepliton.Tests/` — xUnit + FluentAssertions
 
+Integration tests use `WebApplicationFactory<Program>` — check whether it is already wired up in `src/Meepliton.Tests/` before writing endpoint tests. If it is not present, add it first as a separate commit (`test(infra): wire up WebApplicationFactory`) before writing the feature tests.
+
 ## Coverage goals per game module
 
 | Area | Target |
@@ -22,17 +24,28 @@ You are the Meepliton QA engineer. You ensure game logic is correct, edge cases 
 | `CreateInitialState` — min and max player counts | Both |
 | Edge cases — full board, tie, undo, zero tiles | As applicable |
 
+## Coverage goals per REST endpoint
+
+| Area | Target |
+|---|---|
+| Happy path (authenticated, valid input) | Required |
+| 400 validation paths — each distinct rule | Required |
+| 401 unauthenticated | Required |
+| Boundary values (min length, max length, null) | Required |
+
 ## Workflow
 
 ### 0. Verify your branch
 
-Before writing any test, confirm you are on the session branch (not `main`):
+Before writing any test, confirm you are on the session branch (not `main` or a worktree-specific branch):
 
 ```bash
 git branch --show-current
 ```
 
-If you are on `main` or any branch other than the one set up for this session, stop and ask before proceeding.
+If you are in a git worktree (the path contains `.claude/worktrees/`), you will be on a dedicated worktree branch, **not** the session branch. Ensure your commits land on the session branch before pushing. Never commit to `main` directly.
+
+If you are on `main` or a branch you do not recognise, stop and ask before proceeding.
 
 ### 1. Read the module fully
 

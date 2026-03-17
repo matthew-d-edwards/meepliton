@@ -41,13 +41,13 @@ If you find an issue in those areas, report it to the relevant agent — do not 
 
 ```bash
 git log --oneline -30
-git diff main...HEAD --stat
+git diff origin/main...HEAD --stat
 ```
 
 Scope story reads to the current diff first:
 
 ```bash
-git diff main...HEAD --name-only | grep docs/stories/
+git diff origin/main...HEAD --name-only | grep docs/stories/
 ```
 
 Read those files. If asked for a full periodic sweep (not scoped to a specific PR or branch), then read all `docs/stories/story-*.md` whose status is `done` or `in-progress`. Note:

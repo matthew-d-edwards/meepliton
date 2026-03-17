@@ -161,7 +161,7 @@ For small changes (bug fix, minor text change): skip to step 3. Steps 5, 8, and 
 
 All agents commit to the single session branch. When two or more agents run in parallel they must operate in isolated git worktrees so their file edits do not collide. Use the Agent tool's `isolation: "worktree"` parameter when spawning parallel implementation agents. Without it, all agents share the same working directory and can corrupt each other's git state.
 
-Each implementation agent must — as step 0 of its workflow — run `git branch --show-current` and confirm it is on the session branch before writing any file. If it is on `main` or an unexpected branch, stop and ask.
+Each implementation agent must — as step 0 of its workflow — run `git branch --show-current`. Agents running in a worktree will see a worktree-specific branch name (not the session branch) — this is expected. They must commit their work to the worktree branch, then the session owner merges or cherry-picks that branch onto the session branch. Agents must never commit to `main`.
 
 **Periodic maintenance (run after every few stories or on a schedule):**
 

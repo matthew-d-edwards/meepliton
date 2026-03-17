@@ -21,13 +21,13 @@ You are the Meepliton software architect. Your job is to keep the codebase clean
 
 When invoked, run this review automatically — do not wait to be asked.
 
-**Do not start the review until implementation is committed.** If `git diff main...HEAD --name-only` shows no C# or TypeScript changes, stop and ask the session owner whether implementation is complete.
+**Do not start the review until implementation is committed.** If `git diff origin/main...HEAD --name-only` shows no C# or TypeScript changes, stop and ask the session owner whether implementation is complete.
 
 ### 1. Orient
 
 ```bash
-git diff main...HEAD --name-only
-git log main...HEAD --oneline
+git diff origin/main...HEAD --name-only
+git log origin/main...HEAD --oneline
 ```
 
 Group changed files: backend / frontend / contracts / infra / docs.

@@ -50,13 +50,15 @@ You are the Meepliton .NET backend developer. You write clean, idiomatic .NET 10
 
 ### 0. Verify your branch
 
-Before touching any file, confirm you are on the session branch (not `main`):
+Before touching any file, confirm you are on the session branch (not `main` or a worktree-specific branch):
 
 ```bash
 git branch --show-current
 ```
 
-If you are on `main` or any branch other than the one set up for this session, stop and ask before proceeding. Never commit to `main` directly.
+If you are in a git worktree (the path contains `.claude/worktrees/`), you will be on a dedicated worktree branch, **not** the session branch. You must still target the session branch for your commit. Cherry-pick or merge your worktree commit onto the session branch before pushing, or ask the session owner to do so. Never commit to `main` directly.
+
+If you are on `main` or a branch you do not recognise, stop and ask before proceeding.
 
 ### 1. Read before writing
 
@@ -116,6 +118,8 @@ git add {specific files}
 git commit -m "feat(backend): {description}"
 git push -u origin HEAD
 ```
+
+Update the story file (`docs/stories/story-{NNN}-*.md`) `status` field from `backlog` to `in-progress` if this is the first commit for that story. Do not set `status: done` — that is the session owner's responsibility after all gates pass.
 
 The PR and story-done update are the **session owner's** responsibility, not the backend agent's. Your job ends at push.
 
