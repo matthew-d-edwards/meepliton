@@ -30,7 +30,7 @@ builder.Services
         options.Password.RequireNonAlphanumeric       = false;
         options.Lockout.MaxFailedAccessAttempts       = 5;
         options.Lockout.DefaultLockoutTimeSpan        = TimeSpan.FromMinutes(15);
-        options.SignIn.RequireConfirmedEmail           = true;
+        options.SignIn.RequireConfirmedEmail           = !builder.Environment.IsDevelopment();
     })
     .AddEntityFrameworkStores<PlatformDbContext>()
     .AddDefaultTokenProviders();
@@ -114,6 +114,7 @@ else
 builder.Services.AddScoped<MigrationRunner>();
 builder.Services.AddScoped<GameDispatcher>();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<DevSeeder>();
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
         policy.WithOrigins("http://localhost:5173", "https://meepliton.com")
@@ -128,6 +129,12 @@ using (var scope = app.Services.CreateScope())
 {
     var runner = scope.ServiceProvider.GetRequiredService<MigrationRunner>();
     await runner.RunAllAsync();
+
+    if (app.Environment.IsDevelopment())
+    {
+        var seeder = scope.ServiceProvider.GetRequiredService<DevSeeder>();
+        await seeder.SeedAsync();
+    }
 }
 
 // Middleware

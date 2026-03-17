@@ -92,11 +92,38 @@ export default function SignInPage() {
     setResendSent(true)
   }
 
+  async function handleDevLogin() {
+    setSubmitting(true)
+    setError(null)
+    setErrorType(null)
+    try {
+      await login('dev@meepliton.local', 'DevPass1')
+      navigate(next, { replace: true })
+    } catch {
+      setError('Dev login failed — make sure the API is running.')
+      setErrorType('generic')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <main className="auth-page">
       <div className="auth-card">
         <Link to="/" className="auth-logo">MEEPLITON</Link>
         <h1 className="auth-title">Sign In</h1>
+
+        {import.meta.env.DEV && (
+          <button
+            type="button"
+            onClick={handleDevLogin}
+            disabled={submitting}
+            className="auth-submit"
+            style={{ marginBottom: '1rem', background: 'var(--color-surface-alt, #2a2a2a)', border: '1px dashed var(--accent)' }}
+          >
+            {submitting ? 'Signing in…' : 'Dev login (dev@meepliton.local)'}
+          </button>
+        )}
 
         <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <label>
