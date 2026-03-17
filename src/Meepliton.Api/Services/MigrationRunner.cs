@@ -9,7 +9,7 @@ public class MigrationRunner(
     IEnumerable<IGameDbContext> gameContexts,
     ILogger<MigrationRunner> logger)
 {
-    public async Task RunAllAsync(CancellationToken ct = default)
+    public virtual async Task RunAllAsync(CancellationToken ct = default)
     {
         logger.LogInformation("Applying platform migrations...");
         await platformContext.Database.MigrateAsync(ct);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import * as signalR from '@microsoft/signalr'
 import { useAuth } from '../auth/AuthContext'
 import { gameRegistry } from '../../games/registry'
@@ -28,7 +28,6 @@ export default function RoomPage({ join }: { join?: boolean }) {
   const [players, setPlayers] = useState<PlayerInfo[]>([])
   const [gameState, setGameState] = useState<unknown>(null)
   const [rejectedReason, setRejectedReason] = useState<string | null>(null)
-  const [roomNotFound, setRoomNotFound] = useState(false)
   const [minPlayers, setMinPlayers] = useState(2)
   const hubRef = useRef<signalR.HubConnection | null>(null)
 
@@ -41,14 +40,14 @@ export default function RoomPage({ join }: { join?: boolean }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }),
       }).then(async r => {
-        if (r.status === 404) {
-          setRoomNotFound(true)
+        if (!r.ok) {
+          navigate(`/room-not-found?code=${encodeURIComponent(code)}`, { replace: true })
           return
         }
-        if (r.ok) {
-          const data = await r.json() as { id: string }
-          navigate(`/room/${data.id}`, { replace: true })
-        }
+        const data = await r.json() as { id: string }
+        navigate(`/room/${data.id}`, { replace: true })
+      }).catch(() => {
+        navigate(`/room-not-found?code=${encodeURIComponent(code)}`, { replace: true })
       })
     }
   }, [join, code, navigate])
@@ -57,7 +56,10 @@ export default function RoomPage({ join }: { join?: boolean }) {
   useEffect(() => {
     if (!roomId) return
     fetch(`/api/rooms/${roomId}`, { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) { navigate('/lobby', { replace: true }); return Promise.reject() }
+        return r.json()
+      })
       .then((loadedRoom: RoomData) => {
         setRoom(loadedRoom)
 
@@ -67,6 +69,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
           .then((data: Array<Omit<PlayerInfo, 'connected'>>) =>
             setPlayers(data.map(p => ({ ...p, connected: true })))
           )
+          .catch(() => { /* player list is non-fatal — game can still load */ })
 
         // Load game info to get minPlayers
         fetch('/api/lobby', { credentials: 'include' })
@@ -75,7 +78,9 @@ export default function RoomPage({ join }: { join?: boolean }) {
             const game = data.games?.find(g => g.gameId === loadedRoom.gameId)
             if (game) setMinPlayers(game.minPlayers)
           })
+          .catch(() => { /* minPlayers is non-fatal — defaults to 2 */ })
       })
+      .catch(() => { /* navigation already handled above for non-ok responses */ })
   }, [roomId])
 
   // Connect SignalR
@@ -121,17 +126,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
     })
   }
           
-  if (roomNotFound) {
-    return (
-      <main className="room-not-found">
-        <h2>Room not found</h2>
-        <p>This join link is invalid or the room no longer exists.</p>
-        <a href="/lobby">Back to lobby</a>
-      </main>
-    )
-  }
-
-  if (!room || !user) return <p>Loading…</p>
+  if (!room || !user) return <RoomLoadingScreen />
 
   if (room.status === 'Waiting') {
     return (
@@ -148,7 +143,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
 
   // Lazy-load the game component
   const loadGame = gameRegistry[room.gameId]
-  if (!loadGame) return <p>Unknown game: {room.gameId}</p>
+  if (!loadGame) return <UnknownGameScreen gameId={room.gameId} />
 
   const ctx: GameContext<unknown> = {
     state:      gameState ?? room.gameState,
@@ -181,12 +176,130 @@ function GameLoader({
   load,
   ctx,
 }: {
-  load: () => Promise<{ default: import('@meepliton/contracts').GameModule }>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  load: () => Promise<{ default: import('@meepliton/contracts').GameModule<any> }>
   ctx: GameContext<unknown>
 }) {
-  const [mod, setMod] = useState<import('@meepliton/contracts').GameModule | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [mod, setMod] = useState<import('@meepliton/contracts').GameModule<any> | null>(null)
   useEffect(() => { load().then(m => setMod(m.default)) }, [load])
-  if (!mod) return <p>Loading game…</p>
+  if (!mod) return <RoomLoadingScreen label="Loading game…" />
   const { Component } = mod
-  return <Component {...(ctx as never)} />
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return <Component {...(ctx as any)} />
+}
+
+/**
+ * Styled full-page loading screen shown while room data or a game module loads.
+ * Uses design token CSS variables — no raw values.
+ */
+function RoomLoadingScreen({ label = 'Loading room…' }: { label?: string }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '60vh',
+        gap: 'var(--space-5)',
+      }}
+      role="status"
+      aria-live="polite"
+      aria-label={label}
+    >
+      {/* Spinner ring */}
+      <span
+        aria-hidden="true"
+        className="room-spinner"
+      />
+      <span
+        aria-hidden="true"
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '.75rem',
+          fontWeight: 700,
+          letterSpacing: '3px',
+          textTransform: 'uppercase',
+          color: 'var(--text-primary)',
+        }}
+      >
+        {label}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * Error screen shown when a room's gameId has no registered frontend module.
+ */
+function UnknownGameScreen({ gameId }: { gameId: string }) {
+  return (
+    <main
+      className="container"
+      style={{
+        paddingTop: 'var(--space-12)',
+        paddingBottom: 'var(--space-12)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 'var(--space-6)',
+        textAlign: 'center',
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '2.5rem',
+          fontWeight: 900,
+          color: 'var(--neon-orange)',
+          textShadow:
+            'var(--glow-sm) var(--neon-orange), var(--glow-md) color-mix(in srgb, var(--neon-orange) 30%, transparent)',
+          letterSpacing: '3px',
+        }}
+      >
+        !
+      </div>
+
+      <h1
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontWeight: 700,
+          fontSize: 'clamp(1.1rem, 3vw, 1.5rem)',
+          color: 'var(--text-bright)',
+          letterSpacing: '2px',
+          textTransform: 'uppercase',
+        }}
+      >
+        Game not available
+      </h1>
+
+      <p
+        style={{
+          fontFamily: 'var(--font-body)',
+          color: 'var(--text-primary)',
+          fontSize: '1rem',
+          maxWidth: '380px',
+          lineHeight: 1.6,
+        }}
+      >
+        The game{' '}
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            color: 'var(--accent)',
+            textShadow: 'var(--glow-sm) var(--accent-glow)',
+          }}
+        >
+          {gameId}
+        </span>{' '}
+        is not installed in this version of the platform.
+      </p>
+
+      <Link to="/lobby" className="btn btn-secondary">
+        Back to lobby
+      </Link>
+    </main>
+  )
 }

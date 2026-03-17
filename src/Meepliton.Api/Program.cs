@@ -149,3 +149,6 @@ app.MapRoomEndpoints();
 app.MapHub<GameHub>("/hubs/game");
 
 app.Run();
+
+// Required for WebApplicationFactory<Program> in integration tests.
+public partial class Program { }

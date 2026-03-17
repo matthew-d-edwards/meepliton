@@ -1,0 +1,278 @@
+/* Account / Profile page — platform-level CSS (global class names, token values only) */
+
+.account-page {
+  min-height: 100vh;
+  background: var(--surface-base);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── HEADER ── */
+.account-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  height: var(--header-h);
+  background: var(--surface-overlay);
+  border-bottom: 1px solid var(--edge-subtle);
+  box-shadow: 0 1px 0 var(--edge-strong), 0 4px 30px rgba(0, 0, 0, 0.4);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(16px);
+}
+
+@media (max-width: 600px) {
+  .account-header {
+    padding: 0 var(--space-4);
+  }
+}
+
+.account-logo {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.25rem;
+  letter-spacing: 6px;
+  color: var(--accent);
+  text-shadow: var(--glow-sm) var(--accent-glow), var(--glow-lg) var(--accent-dim);
+  text-decoration: none;
+}
+
+/* ── CONTENT ── */
+.account-content {
+  flex: 1;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+@media (max-width: 600px) {
+  .account-content {
+    padding: var(--space-6) var(--space-4);
+    gap: var(--space-6);
+  }
+}
+
+/* ── SECTION TITLE ── */
+.account-section-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--edge-subtle);
+}
+
+/* ── PROFILE FORM CARD ── */
+.account-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--edge-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ── AVATAR PREVIEW ── */
+.account-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.account-avatar-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-float);
+  border: 2px solid var(--edge-strong);
+  flex-shrink: 0;
+}
+
+.account-avatar-placeholder {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--surface-float);
+  border: 2px solid var(--edge-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: var(--accent);
+  text-shadow: var(--glow-sm) var(--accent-glow);
+  flex-shrink: 0;
+}
+
+.account-avatar-hint {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* ── FORM FIELDS ── */
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.account-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.account-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+
+.account-input {
+  background: var(--surface-overlay);
+  border: 1px solid var(--edge-strong);
+  color: var(--text-bright);
+  padding: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  width: 100%;
+  min-height: 44px;
+  /* outline: 2px solid transparent preserves High Contrast Mode visibility
+     while the :focus rule below provides the visible custom focus ring */
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: border-color var(--dur-base), box-shadow var(--dur-base);
+}
+
+.account-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.account-input::placeholder {
+  color: var(--text-muted);
+}
+
+.account-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.account-char-count {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.account-char-count.account-char-count-warn {
+  color: var(--neon-orange);
+}
+
+/* ── FORM ACTIONS ── */
+.account-form-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+@media (max-width: 480px) {
+  .account-form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .account-form-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ── ERROR / SUCCESS ── */
+.account-error {
+  color: var(--neon-magenta);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in srgb, var(--neon-magenta) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--neon-magenta) 30%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.account-success {
+  color: var(--status-success);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in srgb, var(--status-success) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-success) 30%, transparent);
+  border-radius: var(--radius-md);
+}
+
+/* ── LOADING STATE ── */
+.account-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-primary);
+}
+
+.account-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--edge-subtle);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: account-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes account-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-spinner {
+    animation: none;
+    border-top-color: var(--accent);
+    opacity: 0.7;
+  }
+}
+
+/* ── BACK LINK ── */
+.account-back {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent);
+  text-decoration: none;
+  transition: color var(--dur-fast), text-shadow var(--dur-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.account-back:hover {
+  color: var(--text-bright);
+  text-shadow: var(--glow-sm) var(--accent-glow);
+}

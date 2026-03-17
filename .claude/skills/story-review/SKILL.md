@@ -90,7 +90,7 @@ Update the spec document in-place with:
 **Challenges raised:** {N}
 **Resolved:** {N}
 **Criteria added:** {N}
-**Verdict:** Ready for implementation ✅  /  Needs redesign ❌
+**Verdict:** Ready for implementation  /  Needs redesign
 
 ### Key edge cases to implement
 - {edge case that must be handled}

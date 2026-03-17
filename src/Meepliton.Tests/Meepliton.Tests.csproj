@@ -15,12 +15,15 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="FluentAssertions" Version="6.12.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Meepliton.Contracts\Meepliton.Contracts.csproj" />
     <ProjectReference Include="..\games\Meepliton.Games.Skyline\Meepliton.Games.Skyline.csproj" />
     <ProjectReference Include="..\games\Meepliton.Games.LiarsDice\Meepliton.Games.LiarsDice.csproj" />
+    <ProjectReference Include="..\Meepliton.Api\Meepliton.Api.csproj" />
   </ItemGroup>
 
 </Project>
