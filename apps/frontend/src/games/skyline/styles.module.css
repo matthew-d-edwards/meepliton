@@ -1,3 +1,24 @@
+/* ═══════ SKYLINE HOTEL CHAIN COLOURS ═══════
+   Defined here so the Skyline game module is self-contained
+   and the platform tokens stay game-agnostic.
+*/
+:global(:root) {
+  --hotel-luxor:            #f0d428;
+  --hotel-luxor-glow:       #f0d42855;
+  --hotel-tower:            #ff4060;
+  --hotel-tower-glow:       #ff406055;
+  --hotel-american:         #3888ff;
+  --hotel-american-glow:    #3888ff55;
+  --hotel-festival:         #28d860;
+  --hotel-festival-glow:    #28d86055;
+  --hotel-worldwide:        #b040ff;
+  --hotel-worldwide-glow:   #b040ff55;
+  --hotel-continental:      #00c8f0;
+  --hotel-continental-glow: #00c8f055;
+  --hotel-imperial:         #ff8800;
+  --hotel-imperial-glow:    #ff880055;
+}
+
 /* ═══════ LAYOUT ═══════ */
 .gameLayout {
   display: grid;

@@ -15,6 +15,17 @@ public class SkylineModule : ReducerGameModule<SkylineState, SkylineAction, obje
     public override int    MinPlayers  => 2;
     public override int    MaxPlayers  => 6;
     public override bool   SupportsUndo => false;
+    public override bool   HasStateProjection => true;
+
+    // ── State projection (hide opponents' tile hands) ─────────────────────────
+
+    protected override SkylineState? ProjectForPlayer(SkylineState fullState, string playerId)
+    {
+        var projected = fullState.Players
+            .Select(p => p.Id == playerId ? p : p with { Hand = [] })
+            .ToList();
+        return fullState with { Players = projected };
+    }
 
     // ── Constants ─────────────────────────────────────────────────────────────
 

@@ -11,19 +11,34 @@ import styles from '../styles.module.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Stock price table: tiers are [2,3,4,5,6,11,21,31,41] tiles → price steps */
-const PRICE_TABLE: [number, number][] = [
-  [2, 200], [3, 300], [4, 400], [5, 500], [6, 600],
-  [11, 700], [21, 800], [31, 900], [41, 1000],
-]
+/** Stock price lookup by tier index. Tiers: 0=none,1=2tiles,2=3,3=4,4=5,5=6,6=7-10,7=11-20,8=21-30,9=31-40,10=41+ */
+const LUXOR_TOWER_PRICES =        [0, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100]
+const AMERICAN_FESTIVAL_WORLDWIDE = [0, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]
+const CONTINENTAL_IMPERIAL =        [0, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300]
+
+function sizeTier(size: number): number {
+  if (size <= 0)  return 0
+  if (size <= 2)  return 1
+  if (size <= 3)  return 2
+  if (size <= 4)  return 3
+  if (size <= 5)  return 4
+  if (size <= 6)  return 5
+  if (size <= 10) return 6
+  if (size <= 20) return 7
+  if (size <= 30) return 8
+  if (size <= 40) return 9
+  return 10
+}
+
 function stockPrice(hotel: string, chains: SkylineState['chains']): number {
   const chain = chains[hotel]
   if (!chain?.active) return 0
-  const size = chain.size
-  for (let i = PRICE_TABLE.length - 1; i >= 0; i--) {
-    if (size >= PRICE_TABLE[i][0]) return PRICE_TABLE[i][1]
-  }
-  return 0
+  const tier = sizeTier(chain.size)
+  if (hotel === 'luxor' || hotel === 'tower')
+    return LUXOR_TOWER_PRICES[tier]
+  if (hotel === 'continental' || hotel === 'imperial')
+    return CONTINENTAL_IMPERIAL[tier]
+  return AMERICAN_FESTIVAL_WORLDWIDE[tier]
 }
 
 function netWorth(p: PlayerState, state: SkylineState): number {
