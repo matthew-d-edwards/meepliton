@@ -85,7 +85,7 @@ export default function ProfilePage() {
           return
         }
         if (!r.ok) {
-          setLoadError(`Failed to load profile (${r.status}). Try refreshing.`)
+          setLoadError(`Couldn't load your profile — try refreshing the page.`)
           setLoadState('error')
           return
         }
@@ -159,7 +159,7 @@ export default function ProfilePage() {
         setAvatarUrl(newSaved.avatarUrl)
         setSaveSuccess(true)
       } else {
-        let message = `Save failed (${res.status}) — try again.`
+        let message = `Couldn't save your profile — try again.`
         try {
           const err = (await res.json()) as { message?: string; errors?: Record<string, string[]> }
           if (err.message) {
@@ -209,7 +209,7 @@ export default function ProfilePage() {
         setConfirmPassword('')
         setLoginMethods(prev => [...prev, 'password'])
       } else {
-        let message = `Failed to add password (${res.status}) — try again.`
+        let message = `Couldn't add password — try again.`
         try {
           const err = (await res.json()) as { message?: string; errors?: Record<string, string[]> }
           if (err.message) {
@@ -458,7 +458,7 @@ export default function ProfilePage() {
               {!hasGoogle && (
                 <div className="account-signin-action">
                   <p className="account-signin-action-desc">
-                    Link your Google account to sign in with Google.
+                    Link your Google account so you can sign in with either method.
                   </p>
                   <a
                     href="/api/auth/link-google"

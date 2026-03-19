@@ -1,5 +1,5 @@
 # Meepliton — Platform Requirements & Architecture
-**Version 0.6 | Living Document | 2026-03-13**
+**Version 0.6 | Living Document | 2026-03-19**
 **Site:** meepliton.com | **Repo:** github.com/[username]/meepliton
 
 ---
@@ -1742,5 +1742,5 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 
 *Maintained in `docs/requirements.md` in the meepliton GitHub repository.*
 *Architecture decisions recorded in §3 (Architecture Decision Records).*
-*Claude skill files for game development are in `docs/skills/`.*
+*Claude skill files for game development are in `.claude/skills/`.*
 *Last updated: 2026-03-19*

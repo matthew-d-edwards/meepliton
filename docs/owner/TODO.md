@@ -75,4 +75,20 @@ _Nothing urgent yet._
   1. `--neon-orange` (`#ff6010`) used as `.account-char-count-warn` text on `--surface-raised` (`#070d19`). Text is 0.65rem (very small). Requires 4.5:1 for WCAG AA. If it fails, raise with `ux` to use `--status-warning` (`#f0c040`) instead or increase font size.
   2. `.account-signin-method-none` uses `--text-muted` (`#3d5a78`) on `--surface-base` (`#03060b`). Text is 0.8rem. Requires 4.5:1. This text conveys important state ("No sign-in methods found") — if it fails, switch to `--text-primary` (`#c0d8f0`). Use WebAIM Contrast Checker or Chrome DevTools for both. (ally)
 
+- [ ] **2026-03-19** Docs agent finished all copy and docs edits for stories 003, 004, 005, 007, 025 on branch `claude/review-next-docs-story-QFXwP`. Git commands are not available to this agent — please run the following to commit and push:
+  ```bash
+  cd /home/user/meepliton
+  git add apps/frontend/src/platform/account/ProfilePage.tsx \
+          apps/frontend/src/platform/auth/ForgotPasswordPage.tsx \
+          apps/frontend/src/platform/room/RoomPage.tsx \
+          docs/requirements.md \
+          docs/stories/story-003-password-reset.md \
+          docs/stories/story-004-google-oauth-sign-in.md \
+          docs/stories/story-025-room-loading-error-states.md \
+          docs/owner/TODO.md
+  git commit -m "docs: verify copy and update requirements for stories 003-005, 007, 025"
+  git push origin claude/review-next-docs-story-QFXwP
+  ```
+  (docs)
+
 *Agents: add items with a short description, the date, which story is blocked, and which agent surfaced it.*
