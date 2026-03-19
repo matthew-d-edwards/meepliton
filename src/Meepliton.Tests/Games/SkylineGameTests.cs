@@ -11,6 +11,9 @@ public class SkylineGameTests
 {
     private readonly SkylineModule _module = new();
 
+    private static readonly string[] AllHotels =
+        ["luxor", "tower", "american", "festival", "worldwide", "continental", "imperial"];
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static IReadOnlyList<PlayerInfo> TwoPlayers() =>
@@ -27,9 +30,46 @@ public class SkylineGameTests
         new("p4", "Diana",   null, 3),
     ];
 
-    /// <summary>
-    /// Builds an action JSON document and a GameContext for use with Handle().
-    /// </summary>
+    private static PlayerState P(string id, string name = "Player", int cash = 6000,
+        Dictionary<string, int>? stocks = null, List<string>? hand = null)
+    {
+        return new PlayerState(id, name, "#fff", cash,
+            Stocks: stocks ?? AllHotels.ToDictionary(h => h, _ => 0),
+            Hand: hand ?? []);
+    }
+
+    private static SkylineState MakeState(
+        List<PlayerState> players,
+        Dictionary<string, string>? board = null,
+        Dictionary<string, ChainState>? chains = null,
+        Dictionary<string, int>? stockBank = null,
+        List<string>? bag = null,
+        string phase = "place",
+        int currentPlayer = 0,
+        PendingState? pending = null,
+        bool gameOver = false)
+    {
+        return new SkylineState(
+            Players:       players,
+            CurrentPlayer: currentPlayer,
+            Board:         board       ?? [],
+            Chains:        chains      ?? AllHotels.ToDictionary(h => h, _ => new ChainState(false, 0, [])),
+            StockBank:     stockBank   ?? AllHotels.ToDictionary(h => h, _ => 25),
+            Bag:           bag         ?? [],
+            Log:           [],
+            GameOver:      gameOver,
+            Winner:        null,
+            RankedOrder:   null,
+            Phase:         phase,
+            Pending:       pending);
+    }
+
+    private static SkylineAction Action(string type,
+        string? tileId = null, string? hotel = null,
+        int sell = 0, int trade = 0,
+        Dictionary<string, int>? purchases = null)
+        => new(type, tileId, hotel, sell, trade, purchases);
+
     private static GameContext MakeContext(SkylineState state, SkylineAction action, string playerId)
     {
         var stateDoc  = JsonDocument.Parse(JsonSerializer.Serialize(state));
@@ -37,409 +77,417 @@ public class SkylineGameTests
         return new GameContext(stateDoc, actionDoc, playerId, "room-1", 1);
     }
 
-    /// <summary>
-    /// Returns a near-full board state: 24 cells filled, one cell at (4,4) empty.
-    /// Player p1 holds tileValue=5 in hand so the last placement is valid.
-    /// </summary>
-    private static SkylineState NearFullBoardState(string currentPlayerId, int tileValue)
+    private SkylineState ProjectViaInterface(SkylineState state, string playerId)
     {
-        // 5x5 board, all cells filled with 1 except (4,4) which stays null
-        var board = Enumerable.Range(0, 5)
-            .Select(r => Enumerable.Range(0, 5)
-                .Select(c => (r == 4 && c == 4) ? (int?)null : (int?)1)
-                .ToList())
-            .ToList();
-
-        var players = new List<PlayerState>
-        {
-            new("p1", "Alice", null, 0, Score: 0, Hand: [tileValue, 2, 3]),
-            new("p2", "Bob",   null, 1, Score: 0, Hand: [4, 5, 6]),
-        };
-
-        return new SkylineState(
-            Players:         players,
-            Board:           board,
-            CurrentPlayerId: currentPlayerId,
-            Phase:           SkylinePhase.PlacingTile,
-            Turn:            25,
-            WinnerId:        null
-        );
+        var doc = JsonDocument.Parse(JsonSerializer.Serialize(state));
+        var projected = ((IGameModule)_module).ProjectStateForPlayer(doc, playerId);
+        projected.Should().NotBeNull("ProjectStateForPlayer must return non-null when HasStateProjection is true");
+        return JsonSerializer.Deserialize<SkylineState>(projected!.RootElement.GetRawText())!;
     }
+
+    private static PendingState FoundPending(string triggerTile, List<string> connectedNeutrals) =>
+        new(Type: "found", Tiles: connectedNeutrals, Chosen: null,
+            Tid: triggerTile, Hotels: null, Survivors: null, Survivor: null,
+            Defunct: null, SurvivorChosen: null, DefunctSizes: null,
+            DisposeQueue: null, DisposeIdx: null, DisposeDecisions: null);
+
+    // ── Module metadata ────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Module_GameId_IsSkyline() =>
+        _module.GameId.Should().Be("skyline");
+
+    [Fact]
+    public void Module_PlayerLimits_Are2To6()
+    {
+        _module.MinPlayers.Should().Be(2);
+        _module.MaxPlayers.Should().Be(6);
+    }
+
+    [Fact]
+    public void Module_SupportsUndo_IsFalse() =>
+        _module.SupportsUndo.Should().BeFalse();
+
+    [Fact]
+    public void Module_HasStateProjection_IsTrue() =>
+        ((IGameModule)_module).HasStateProjection.Should().BeTrue();
 
     // ── CreateInitialState ────────────────────────────────────────────────────
 
     [Fact]
-    public void CreateInitialState_TwoPlayers_ReturnsValidState()
+    public void CreateInitialState_TwoPlayers_ValidBaseState()
     {
-        var state = _module.CreateInitialState(TwoPlayers(), options: null);
+        var state = _module.CreateInitialState(TwoPlayers(), null);
 
         state.Should().NotBeNull();
-        state.CurrentPlayerId.Should().Be("p1");
-        state.Phase.Should().Be(SkylinePhase.PlacingTile);
-        state.Turn.Should().Be(1);
-        state.WinnerId.Should().BeNull();
+        state.CurrentPlayer.Should().Be(0);
+        state.Phase.Should().Be("place");
+        state.GameOver.Should().BeFalse();
+        state.Winner.Should().BeNull();
     }
 
     [Fact]
-    public void CreateInitialState_TwoPlayers_BoardIs5x5AllEmpty()
+    public void CreateInitialState_EachPlayerGets6TilesAnd6000Cash()
     {
-        var state = _module.CreateInitialState(TwoPlayers(), options: null);
+        var state = _module.CreateInitialState(TwoPlayers(), null);
 
-        state.Board.Should().HaveCount(5);
-        foreach (var row in state.Board)
+        foreach (var p in state.Players)
         {
-            row.Should().HaveCount(5);
-            row.Should().AllSatisfy(cell => cell.Should().BeNull());
+            p.Hand.Should().HaveCount(6);
+            p.Cash.Should().Be(6000);
         }
     }
 
     [Fact]
-    public void CreateInitialState_TwoPlayers_EachPlayerHas3TilesInHand()
+    public void CreateInitialState_AllChainsInactiveAndSizeZero()
     {
-        var state = _module.CreateInitialState(TwoPlayers(), options: null);
+        var state = _module.CreateInitialState(TwoPlayers(), null);
 
-        state.Players.Should().HaveCount(2);
-        foreach (var player in state.Players)
+        state.Chains.Should().HaveCount(7);
+        state.Chains.Values.Should().AllSatisfy(c =>
         {
-            player.Hand.Should().HaveCount(3);
-            player.Score.Should().Be(0);
-        }
+            c.Active.Should().BeFalse();
+            c.Size.Should().Be(0);
+        });
     }
 
     [Fact]
-    public void CreateInitialState_MaxFourPlayers_CreatesAllPlayerStates()
+    public void CreateInitialState_StockBankHas25PerHotel()
     {
-        var state = _module.CreateInitialState(FourPlayers(), options: null);
+        var state = _module.CreateInitialState(TwoPlayers(), null);
+
+        state.StockBank.Should().HaveCount(7);
+        state.StockBank.Values.Should().AllSatisfy(v => v.Should().Be(25));
+    }
+
+    [Fact]
+    public void CreateInitialState_HandsAreDistinct()
+    {
+        var state = _module.CreateInitialState(TwoPlayers(), null);
+
+        var p1 = state.Players[0].Hand;
+        var p2 = state.Players[1].Hand;
+        p1.Intersect(p2).Should().BeEmpty(because: "no tile can be in two hands at once");
+    }
+
+    [Fact]
+    public void CreateInitialState_FourPlayers_AllGetHands()
+    {
+        var state = _module.CreateInitialState(FourPlayers(), null);
 
         state.Players.Should().HaveCount(4);
-        state.CurrentPlayerId.Should().Be("p1");
-        foreach (var player in state.Players)
-            player.Hand.Should().HaveCount(3);
+        state.Players.Should().AllSatisfy(p => p.Hand.Should().HaveCount(6));
     }
 
     // ── Validate ──────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Validate_RejectsActionWhenNotYourTurn()
+    public void Validate_RejectsWhenNotYourTurn()
     {
-        var state  = _module.CreateInitialState(TwoPlayers(), options: null);
-        var tileValue = state.Players.First(p => p.Id == "p2").Hand[0];
-        var action = new SkylineAction("PlaceTile", new PlaceTilePayload(0, 0, tileValue));
-
-        var error = _module.Validate(state, action, "p2");
+        var state  = _module.CreateInitialState(TwoPlayers(), null);
+        var p2Tile = state.Players[1].Hand[0];
+        var error  = _module.Validate(state, Action("PlaceTile", tileId: p2Tile), "p2");
 
         error.Should().NotBeNull();
-        error.Should().Contain("turn", Exactly.Once(),
-            because: "the rejection message should mention turn");
+        error.Should().Contain("turn");
     }
 
     [Fact]
-    public void Validate_AcceptsValidPlacementForCurrentPlayer()
+    public void Validate_AcceptsCurrentPlayerPlacingOwnTile()
     {
-        var state     = _module.CreateInitialState(TwoPlayers(), options: null);
-        var tileValue = state.Players.First(p => p.Id == "p1").Hand[0];
-        var action    = new SkylineAction("PlaceTile", new PlaceTilePayload(0, 0, tileValue));
+        var state  = _module.CreateInitialState(TwoPlayers(), null);
+        var p1Tile = state.Players[0].Hand[0];
 
-        var error = _module.Validate(state, action, "p1");
-
-        error.Should().BeNull();
+        _module.Validate(state, Action("PlaceTile", tileId: p1Tile), "p1").Should().BeNull();
     }
 
     [Fact]
-    public void Validate_RejectsPlacementOnOccupiedCell()
+    public void Validate_RejectsTileNotInHand()
     {
-        var state     = _module.CreateInitialState(TwoPlayers(), options: null);
-        var tileValue = state.Players.First(p => p.Id == "p1").Hand[0];
-        var action    = new SkylineAction("PlaceTile", new PlaceTilePayload(0, 0, tileValue));
-
-        // Apply a valid first move to occupy (0,0)
-        var stateAfterFirst = _module.Apply(state, action);
-
-        // Now p2's turn — p2 tries to place on the same cell
-        var p2Tile   = stateAfterFirst.Players.First(p => p.Id == "p2").Hand[0];
-        var blocked  = new SkylineAction("PlaceTile", new PlaceTilePayload(0, 0, p2Tile));
-        var error    = _module.Validate(stateAfterFirst, blocked, "p2");
+        var state = _module.CreateInitialState(TwoPlayers(), null);
+        var error = _module.Validate(state, Action("PlaceTile", tileId: "Z99"), "p1");
 
         error.Should().NotBeNull();
-        error.Should().Contain("occupied", Exactly.Once(),
-            because: "the rejection message should say the cell is already occupied");
     }
 
     [Fact]
-    public void Validate_RejectsPlacementOutOfBounds()
+    public void Validate_RejectsAnyActionWhenGameOver()
     {
-        var state     = _module.CreateInitialState(TwoPlayers(), options: null);
-        var tileValue = state.Players.First(p => p.Id == "p1").Hand[0];
-        var action    = new SkylineAction("PlaceTile", new PlaceTilePayload(5, 5, tileValue));
-
-        var error = _module.Validate(state, action, "p1");
+        var state = MakeState([P("p1"), P("p2")], gameOver: true);
+        var error = _module.Validate(state, Action("PlaceTile", tileId: "A1"), "p1");
 
         error.Should().NotBeNull();
-        error.Should().Contain("bounds", Exactly.Once(),
-            because: "row/col 5 is out of a 5x5 grid");
-    }
-
-    [Fact]
-    public void Validate_RejectsPlacementOfTileNotInHand()
-    {
-        var state = _module.CreateInitialState(TwoPlayers(), options: null);
-        // Use tile value 0, which is never drawn (DrawTiles uses 1..9)
-        var action = new SkylineAction("PlaceTile", new PlaceTilePayload(0, 0, 0));
-
-        var error = _module.Validate(state, action, "p1");
-
-        error.Should().NotBeNull();
-        error.Should().Contain("hand", Exactly.Once(),
-            because: "tile 0 is not in the player's hand");
-    }
-
-    [Fact]
-    public void Validate_RejectsAnyActionWhenGameIsOver()
-    {
-        var finishedState = NearFullBoardState("p1", tileValue: 5);
-        var lastMove      = new SkylineAction("PlaceTile", new PlaceTilePayload(4, 4, 5));
-        var gameOverState = _module.Apply(finishedState, lastMove);
-
-        // Attempt a further action on the game-over state
-        var tileValue = gameOverState.Players.First(p => p.Id == "p1").Hand[0];
-        var extraAction = new SkylineAction("PlaceTile", new PlaceTilePayload(0, 0, tileValue));
-        var error = _module.Validate(gameOverState, extraAction, "p1");
-
-        error.Should().NotBeNull();
-        error.Should().Contain("over", Exactly.Once(),
-            because: "no actions are allowed after game over");
+        error.Should().Contain("over");
     }
 
     [Fact]
     public void Validate_RejectsUnknownActionType()
     {
-        var state  = _module.CreateInitialState(TwoPlayers(), options: null);
-        var action = new SkylineAction("Teleport");
-
-        var error = _module.Validate(state, action, "p1");
+        var state = _module.CreateInitialState(TwoPlayers(), null);
+        var error = _module.Validate(state, Action("Teleport"), "p1");
 
         error.Should().NotBeNull();
-        error.Should().Contain("Unknown action type", Exactly.Once());
+        error.Should().Contain("Unknown action type");
     }
 
     [Fact]
-    public void Validate_AcceptsUndoAction()
+    public void Validate_PlaceTile_WrongPhase_Rejected()
     {
-        var state  = _module.CreateInitialState(TwoPlayers(), options: null);
-        var action = new SkylineAction("Undo");
-
-        var error = _module.Validate(state, action, "p1");
-
-        // Undo is accepted by Validate (Apply handles actual undo logic)
-        error.Should().BeNull();
-    }
-
-    [Fact]
-    public void Validate_RejectsMissingPlaceTilePayload()
-    {
-        var state  = _module.CreateInitialState(TwoPlayers(), options: null);
-        var action = new SkylineAction("PlaceTile", PlaceTile: null);
-
-        var error = _module.Validate(state, action, "p1");
+        var state = MakeState([P("p1", hand: ["A1"]), P("p2")], phase: "buy");
+        var error = _module.Validate(state, Action("PlaceTile", tileId: "A1"), "p1");
 
         error.Should().NotBeNull();
-        error.Should().Contain("payload", Exactly.Once(),
-            because: "PlaceTile action requires a non-null PlaceTile payload");
-    }
-
-    // ── Apply ─────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Apply_ValidPlacement_TilePlacedOnBoard()
-    {
-        var state     = _module.CreateInitialState(TwoPlayers(), options: null);
-        var tileValue = state.Players.First(p => p.Id == "p1").Hand[0];
-        var action    = new SkylineAction("PlaceTile", new PlaceTilePayload(2, 3, tileValue));
-
-        var next = _module.Apply(state, action);
-
-        next.Board[2][3].Should().Be(tileValue);
+        error.Should().Contain("phase");
     }
 
     [Fact]
-    public void Apply_ValidPlacement_AdvancesToNextPlayer()
+    public void Validate_BuyStocks_RejectsMoreThan3()
     {
-        var state     = _module.CreateInitialState(TwoPlayers(), options: null);
-        var tileValue = state.Players.First(p => p.Id == "p1").Hand[0];
-        var action    = new SkylineAction("PlaceTile", new PlaceTilePayload(0, 0, tileValue));
+        var chains = AllHotels.ToDictionary(h => h,
+            h => h is "luxor" or "tower" ? new ChainState(true, 5, []) : new ChainState(false, 0, []));
+        var state = MakeState([P("p1"), P("p2")], chains: chains, phase: "buy");
+        var purchases = new Dictionary<string, int> { ["luxor"] = 2, ["tower"] = 2 };
+        var error = _module.Validate(state, Action("BuyStocks", purchases: purchases), "p1");
 
-        var next = _module.Apply(state, action);
-
-        next.CurrentPlayerId.Should().Be("p2");
+        error.Should().NotBeNull();
+        error.Should().Contain("3");
     }
 
     [Fact]
-    public void Apply_ValidPlacement_TurnIncrements()
+    public void Validate_BuyStocks_RejectsInactiveChain()
     {
-        var state     = _module.CreateInitialState(TwoPlayers(), options: null);
-        var tileValue = state.Players.First(p => p.Id == "p1").Hand[0];
-        var action    = new SkylineAction("PlaceTile", new PlaceTilePayload(0, 0, tileValue));
+        var state = MakeState([P("p1"), P("p2")], phase: "buy");
+        var error = _module.Validate(state,
+            Action("BuyStocks", purchases: new Dictionary<string, int> { ["luxor"] = 1 }), "p1");
 
-        var next = _module.Apply(state, action);
-
-        next.Turn.Should().Be(2);
+        error.Should().NotBeNull();
     }
 
     [Fact]
-    public void Apply_ValidPlacement_PlacedTileRemovedFromHandAndReplaced()
+    public void Validate_BuyStocks_RejectsInsufficientCash()
     {
-        var state     = _module.CreateInitialState(TwoPlayers(), options: null);
-        var tileValue = state.Players.First(p => p.Id == "p1").Hand[0];
-        var action    = new SkylineAction("PlaceTile", new PlaceTilePayload(0, 0, tileValue));
+        var chains = AllHotels.ToDictionary(h => h,
+            h => h == "luxor" ? new ChainState(true, 5, []) : new ChainState(false, 0, []));
+        var state = MakeState([P("p1", cash: 0), P("p2")], chains: chains, phase: "buy");
+        var error = _module.Validate(state,
+            Action("BuyStocks", purchases: new Dictionary<string, int> { ["luxor"] = 1 }), "p1");
 
-        var next = _module.Apply(state, action);
+        error.Should().NotBeNull();
+        error.Should().Contain("cash", Exactly.Once());
+    }
 
-        var p1After = next.Players.First(p => p.Id == "p1");
-        // Hand should still have exactly 3 tiles (1 removed, 1 drawn)
-        p1After.Hand.Should().HaveCount(3);
+    // ── Apply — PlaceTile ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void Apply_PlaceTile_IsolatedTile_PlacedAsNeutral()
+    {
+        var players = new List<PlayerState> { P("p1", hand: ["A1"]), P("p2") };
+        var state   = MakeState(players);
+        var next    = _module.Apply(state, Action("PlaceTile", tileId: "A1"));
+
+        next.Board.Should().ContainKey("A1");
+        next.Board["A1"].Should().Be("neutral");
     }
 
     [Fact]
-    public void Apply_CompletedRow_ScoresSum()
+    public void Apply_PlaceTile_IsolatedTile_PhaseIsBuy()
     {
-        // Build a state where row 0 has 4 cells filled with value 1, and p1's hand contains 1.
-        // Place at (0,4) to complete the row. Expected row score = 5.
-        var board = Enumerable.Range(0, 5)
-            .Select(r => Enumerable.Range(0, 5)
-                .Select(c => (r == 0 && c < 4) ? (int?)1 : (int?)null)
-                .ToList())
-            .ToList();
+        var state = MakeState([P("p1", hand: ["A1"]), P("p2")]);
+        var next  = _module.Apply(state, Action("PlaceTile", tileId: "A1"));
 
-        var players = new List<PlayerState>
-        {
-            new("p1", "Alice", null, 0, Score: 0, Hand: [1, 2, 3]),
-            new("p2", "Bob",   null, 1, Score: 0, Hand: [4, 5, 6]),
-        };
-
-        var state = new SkylineState(players, board, "p1", SkylinePhase.PlacingTile, 5, null);
-        var action = new SkylineAction("PlaceTile", new PlaceTilePayload(0, 4, 1));
-
-        var next = _module.Apply(state, action);
-
-        var p1After = next.Players.First(p => p.Id == "p1");
-        p1After.Score.Should().Be(5, because: "row 0 = 1+1+1+1+1 = 5");
+        next.Phase.Should().Be("buy");
     }
 
     [Fact]
-    public void Apply_CompletedColumn_ScoresSum()
+    public void Apply_PlaceTile_TileRemovedFromHand()
     {
-        // Build a state where col 0 has 4 cells filled with value 2, and p1's hand contains 2.
-        // Place at (4,0) to complete the column. Expected col score = 10.
-        var board = Enumerable.Range(0, 5)
-            .Select(r => Enumerable.Range(0, 5)
-                .Select(c => (c == 0 && r < 4) ? (int?)2 : (int?)null)
-                .ToList())
-            .ToList();
+        var state = MakeState([P("p1", hand: ["A1", "B2"]), P("p2")]);
+        var next  = _module.Apply(state, Action("PlaceTile", tileId: "A1"));
 
-        var players = new List<PlayerState>
-        {
-            new("p1", "Alice", null, 0, Score: 0, Hand: [2, 3, 4]),
-            new("p2", "Bob",   null, 1, Score: 0, Hand: [5, 6, 7]),
-        };
-
-        var state  = new SkylineState(players, board, "p1", SkylinePhase.PlacingTile, 5, null);
-        var action = new SkylineAction("PlaceTile", new PlaceTilePayload(4, 0, 2));
-
-        var next = _module.Apply(state, action);
-
-        var p1After = next.Players.First(p => p.Id == "p1");
-        p1After.Score.Should().Be(10, because: "col 0 = 2+2+2+2+2 = 10");
+        next.Players[0].Hand.Should().NotContain("A1");
+        next.Players[0].Hand.Should().Contain("B2");
     }
 
     [Fact]
-    public void Apply_TurnWrapsAroundAfterLastPlayer()
+    public void Apply_PlaceTile_AdjacentToNeutral_PhaseIsFound()
     {
-        // With 2 players, after p2 places a tile the turn should return to p1.
-        var state = _module.CreateInitialState(TwoPlayers(), options: null);
+        // A1 neutral already on board; player places A2 (adjacent) → must found a chain
+        var board   = new Dictionary<string, string> { ["A1"] = "neutral" };
+        var players = new List<PlayerState> { P("p1", hand: ["A2"]), P("p2") };
+        var state   = MakeState(players, board: board);
+        var next    = _module.Apply(state, Action("PlaceTile", tileId: "A2"));
 
-        var tile1 = state.Players.First(p => p.Id == "p1").Hand[0];
-        var after1 = _module.Apply(state, new SkylineAction("PlaceTile", new PlaceTilePayload(0, 0, tile1)));
-
-        var tile2 = after1.Players.First(p => p.Id == "p2").Hand[0];
-        var after2 = _module.Apply(after1, new SkylineAction("PlaceTile", new PlaceTilePayload(0, 1, tile2)));
-
-        after2.CurrentPlayerId.Should().Be("p1");
-    }
-
-    // ── Game-over via Apply and Handle ───────────────────────────────────────
-
-    [Fact]
-    public void Apply_FullBoard_SetsPhaseToGameOver()
-    {
-        const int lastTile = 7;
-        var state  = NearFullBoardState("p1", tileValue: lastTile);
-        var action = new SkylineAction("PlaceTile", new PlaceTilePayload(4, 4, lastTile));
-
-        var next = _module.Apply(state, action);
-
-        next.Phase.Should().Be(SkylinePhase.GameOver);
+        next.Phase.Should().Be("found");
+        next.Pending.Should().NotBeNull();
+        next.Pending!.Type.Should().Be("found");
     }
 
     [Fact]
-    public void Apply_FullBoard_WinnerIdIsSet()
+    public void Apply_PlaceTile_AdjacentToHotel_ExtendsChain()
     {
-        const int lastTile = 7;
-        var state  = NearFullBoardState("p1", tileValue: lastTile);
-        var action = new SkylineAction("PlaceTile", new PlaceTilePayload(4, 4, lastTile));
+        var board  = new Dictionary<string, string> { ["A1"] = "luxor" };
+        var chains = AllHotels.ToDictionary(h => h,
+            h => h == "luxor" ? new ChainState(true, 1, ["A1"]) : new ChainState(false, 0, []));
+        var state  = MakeState([P("p1", hand: ["A2"]), P("p2")], board: board, chains: chains);
+        var next   = _module.Apply(state, Action("PlaceTile", tileId: "A2"));
 
-        var next = _module.Apply(state, action);
-
-        next.WinnerId.Should().NotBeNull();
+        next.Phase.Should().Be("buy");
+        next.Chains["luxor"].Size.Should().Be(2);
+        next.Board["A2"].Should().Be("luxor");
     }
 
-    // NOTE: ReducerGameModule.Handle does not emit GameOverEffect — it returns
-    // new GameResult(Serialize(newState)) with no effects. The platform therefore
-    // cannot act on game-over automatically via the Handle pathway. This is a
-    // known gap; the test below documents the current (incomplete) behaviour.
+    // ── Apply — FoundHotel ────────────────────────────────────────────────────
+
     [Fact]
-    public void Handle_FullBoard_DoesNotYetEmitGameOverEffect_KnownGap()
+    public void Apply_FoundHotel_ActivatesChainWithCorrectSize()
     {
-        const int lastTile = 7;
-        var state  = NearFullBoardState("p1", tileValue: lastTile);
-        var action = new SkylineAction("PlaceTile", new PlaceTilePayload(4, 4, lastTile));
-        var ctx    = MakeContext(state, action, "p1");
+        var board   = new Dictionary<string, string> { ["A1"] = "neutral", ["A2"] = "neutral" };
+        var pending = FoundPending("A2", ["A1", "A2"]);
+        var state   = MakeState([P("p1"), P("p2")], board: board, phase: "found", pending: pending);
+        var next    = _module.Apply(state, Action("FoundHotel", hotel: "luxor"));
 
-        var result = _module.Handle(ctx);
-
-        result.RejectionReason.Should().BeNull();
-        // ReducerGameModule.Handle never sets effects — game over is only visible
-        // in the serialised state blob (Phase == GameOver), not via a GameOverEffect.
-        result.Effects.Should().BeEmpty(
-            because: "ReducerGameModule.Handle does not currently inspect state " +
-                     "and emit GameOverEffect; that requires a platform-level fix");
+        next.Chains["luxor"].Active.Should().BeTrue();
+        next.Chains["luxor"].Size.Should().Be(2);
     }
 
     [Fact]
-    public void Handle_FullBoard_NewStateReflectsGameOver()
+    public void Apply_FoundHotel_GivesFreeShareToFounder()
     {
-        const int lastTile = 7;
-        var state  = NearFullBoardState("p1", tileValue: lastTile);
-        var action = new SkylineAction("PlaceTile", new PlaceTilePayload(4, 4, lastTile));
-        var ctx    = MakeContext(state, action, "p1");
+        var board   = new Dictionary<string, string> { ["A1"] = "neutral", ["A2"] = "neutral" };
+        var pending = FoundPending("A2", ["A1", "A2"]);
+        var state   = MakeState([P("p1"), P("p2")], board: board, phase: "found", pending: pending);
+        var next    = _module.Apply(state, Action("FoundHotel", hotel: "luxor"));
 
-        var result = _module.Handle(ctx);
-
-        result.RejectionReason.Should().BeNull();
-        var newState = JsonSerializer.Deserialize<SkylineState>(
-            result.NewState.RootElement.GetRawText());
-        newState!.Phase.Should().Be(SkylinePhase.GameOver);
-        newState.WinnerId.Should().NotBeNull();
+        next.Players[0].Stocks["luxor"].Should().Be(1);
+        next.StockBank["luxor"].Should().Be(24);
     }
+
+    [Fact]
+    public void Apply_FoundHotel_PhaseMovesToBuyAndPendingCleared()
+    {
+        var board   = new Dictionary<string, string> { ["A1"] = "neutral", ["A2"] = "neutral" };
+        var pending = FoundPending("A2", ["A1", "A2"]);
+        var state   = MakeState([P("p1"), P("p2")], board: board, phase: "found", pending: pending);
+        var next    = _module.Apply(state, Action("FoundHotel", hotel: "luxor"));
+
+        next.Phase.Should().Be("buy");
+        next.Pending.Should().BeNull();
+    }
+
+    // ── Apply — BuyStocks ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void Apply_BuyStocks_DeductsCashAndAddsStock()
+    {
+        // Luxor size=5 → tier 4 → $500
+        var chains = AllHotels.ToDictionary(h => h,
+            h => h == "luxor" ? new ChainState(true, 5, []) : new ChainState(false, 0, []));
+        var state  = MakeState([P("p1", cash: 6000), P("p2")], chains: chains, phase: "buy");
+        var next   = _module.Apply(state,
+            Action("BuyStocks", purchases: new Dictionary<string, int> { ["luxor"] = 1 }));
+
+        next.Players[0].Cash.Should().Be(5500);
+        next.Players[0].Stocks["luxor"].Should().Be(1);
+        next.StockBank["luxor"].Should().Be(24);
+    }
+
+    [Fact]
+    public void Apply_BuyStocks_EmptyPurchases_PhaseMovesToDraw()
+    {
+        var state = MakeState([P("p1"), P("p2")], phase: "buy");
+        var next  = _module.Apply(state, Action("BuyStocks", purchases: []));
+
+        next.Phase.Should().Be("draw");
+    }
+
+    // ── Apply — EndTurn ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void Apply_EndTurn_AdvancesToNextPlayer()
+    {
+        var bag   = new List<string> { "I12" };
+        var state = MakeState([P("p1"), P("p2")], bag: bag, phase: "draw");
+        var next  = _module.Apply(state, Action("EndTurn"));
+
+        next.CurrentPlayer.Should().Be(1);
+        next.Phase.Should().Be("place");
+    }
+
+    [Fact]
+    public void Apply_EndTurn_DrawsTileFromBagToRefillHand()
+    {
+        var hand  = new List<string> { "A1", "A2", "A3", "A4", "A5" };
+        var bag   = new List<string> { "I12" };
+        var state = MakeState([P("p1", hand: hand), P("p2")], bag: bag, phase: "draw");
+        var next  = _module.Apply(state, Action("EndTurn"));
+
+        next.Players[0].Hand.Should().HaveCount(6);
+        next.Players[0].Hand.Should().Contain("I12");
+        next.Bag.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_EndTurn_WrapsAroundAfterLastPlayer()
+    {
+        var bag   = Enumerable.Range(1, 12).Select(i => $"I{i}").ToList();
+        var state = MakeState([P("p1"), P("p2")], bag: bag, phase: "draw", currentPlayer: 1);
+        var next  = _module.Apply(state, Action("EndTurn"));
+
+        next.CurrentPlayer.Should().Be(0, because: "turn must wrap to player 0 after the last player");
+    }
+
+    [Fact]
+    public void Apply_EndTurn_SkipsBuyPhase()
+    {
+        // EndTurn is also valid from "buy" phase (skip buying)
+        var bag   = new List<string> { "I12" };
+        var state = MakeState([P("p1"), P("p2")], bag: bag, phase: "buy");
+        var next  = _module.Apply(state, Action("EndTurn"));
+
+        next.CurrentPlayer.Should().Be(1);
+        next.Phase.Should().Be("place");
+    }
+
+    // ── Apply — EndGame ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void Apply_EndGame_SetsGameOverAndWinner()
+    {
+        // One active chain, size >= 11 → end-game valid
+        var chains = AllHotels.ToDictionary(h => h,
+            h => h == "luxor"
+                ? new ChainState(true, 11, Enumerable.Range(1, 11).Select(i => $"A{i}").ToList())
+                : new ChainState(false, 0, []));
+        var state = MakeState([P("p1", cash: 5000), P("p2", cash: 3000)], chains: chains, phase: "buy");
+        var next  = _module.Apply(state, Action("EndGame"));
+
+        next.GameOver.Should().BeTrue();
+        next.Winner.Should().NotBeNull();
+        next.RankedOrder.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Apply_EndGame_RicherPlayerWins()
+    {
+        var chains = AllHotels.ToDictionary(h => h,
+            h => h == "luxor"
+                ? new ChainState(true, 11, Enumerable.Range(1, 11).Select(i => $"A{i}").ToList())
+                : new ChainState(false, 0, []));
+        // p1 cash=5000, p2 cash=3000 → p1 should win
+        var state = MakeState([P("p1", cash: 5000), P("p2", cash: 3000)], chains: chains, phase: "buy");
+        var next  = _module.Apply(state, Action("EndGame"));
+
+        next.RankedOrder![0].Should().Be(0, because: "p1 has more cash and should be ranked first");
+    }
+
+    // ── Handle ────────────────────────────────────────────────────────────────
 
     [Fact]
     public void Handle_OutOfTurnAction_ReturnsRejection()
     {
-        var state  = _module.CreateInitialState(TwoPlayers(), options: null);
-        // p2 tries to act on p1's turn
-        var p2Tile = state.Players.First(p => p.Id == "p2").Hand[0];
-        var action = new SkylineAction("PlaceTile", new PlaceTilePayload(0, 0, p2Tile));
-        var ctx    = MakeContext(state, action, "p2");
-
+        var state  = _module.CreateInitialState(TwoPlayers(), null);
+        var p2Tile = state.Players[1].Hand[0];
+        var ctx    = MakeContext(state, Action("PlaceTile", tileId: p2Tile), "p2");
         var result = _module.Handle(ctx);
 
         result.RejectionReason.Should().NotBeNull();
@@ -447,43 +495,70 @@ public class SkylineGameTests
     }
 
     [Fact]
-    public void Handle_ValidAction_StateIsUpdatedInReturnedJson()
+    public void Handle_ValidPlaceTile_StateBoardUpdated()
     {
-        var state     = _module.CreateInitialState(TwoPlayers(), options: null);
-        var tileValue = state.Players.First(p => p.Id == "p1").Hand[0];
-        var action    = new SkylineAction("PlaceTile", new PlaceTilePayload(1, 1, tileValue));
-        var ctx       = MakeContext(state, action, "p1");
-
+        var state  = _module.CreateInitialState(TwoPlayers(), null);
+        var p1Tile = state.Players[0].Hand[0];
+        var ctx    = MakeContext(state, Action("PlaceTile", tileId: p1Tile), "p1");
         var result = _module.Handle(ctx);
 
         result.RejectionReason.Should().BeNull();
-
-        // Deserialize new state from the returned JsonDocument
-        var newState = JsonSerializer.Deserialize<SkylineState>(
-            result.NewState.RootElement.GetRawText());
-        newState.Should().NotBeNull();
-        newState!.CurrentPlayerId.Should().Be("p2");
-        newState.Board[1][1].Should().Be(tileValue);
+        var newState = JsonSerializer.Deserialize<SkylineState>(result.NewState.RootElement.GetRawText())!;
+        newState.Board.Should().ContainKey(p1Tile);
     }
 
-    // ── Game metadata ─────────────────────────────────────────────────────────
+    // ── State projection ──────────────────────────────────────────────────────
 
     [Fact]
-    public void Module_GameId_IsSkyline()
+    public void ProjectForPlayer_RequestingPlayerSeesOwnHand()
     {
-        _module.GameId.Should().Be("skyline");
-    }
+        var state     = _module.CreateInitialState(TwoPlayers(), null);
+        var p1Hand    = state.Players[0].Hand;
+        var projected = ProjectViaInterface(state, "p1");
 
-    [Fact]
-    public void Module_PlayerLimits_AreCorrect()
-    {
-        _module.MinPlayers.Should().Be(2);
-        _module.MaxPlayers.Should().Be(4);
+        projected.Players[0].Hand.Should().BeEquivalentTo(p1Hand);
     }
 
     [Fact]
-    public void Module_SupportsUndo_IsTrue()
+    public void ProjectForPlayer_OpponentHandIsHidden()
     {
-        _module.SupportsUndo.Should().BeTrue();
+        var state     = _module.CreateInitialState(TwoPlayers(), null);
+        var projected = ProjectViaInterface(state, "p1");
+
+        projected.Players[1].Hand.Should().BeEmpty(because: "opponents' hands must not be revealed");
+    }
+
+    [Fact]
+    public void ProjectForPlayer_UnknownPlayerSeesNoHands()
+    {
+        var state     = _module.CreateInitialState(TwoPlayers(), null);
+        var projected = ProjectViaInterface(state, "spectator-xyz");
+
+        projected.Players.Should().AllSatisfy(p => p.Hand.Should().BeEmpty());
+    }
+
+    [Fact]
+    public void ProjectForPlayer_BoardStocksAndCashAreFullyVisible()
+    {
+        var state     = _module.CreateInitialState(TwoPlayers(), null);
+        var projected = ProjectViaInterface(state, "p1");
+
+        projected.Board.Should().BeEquivalentTo(state.Board);
+        projected.StockBank.Should().BeEquivalentTo(state.StockBank);
+        projected.Players.Select(p => p.Cash)
+            .Should().BeEquivalentTo(state.Players.Select(p => p.Cash));
+    }
+
+    [Fact]
+    public void ProjectForPlayer_DoesNotMutateInputDocument()
+    {
+        var state    = _module.CreateInitialState(TwoPlayers(), null);
+        var doc      = JsonDocument.Parse(JsonSerializer.Serialize(state));
+        var original = doc.RootElement.GetRawText();
+
+        ((IGameModule)_module).ProjectStateForPlayer(doc, "p1");
+
+        doc.RootElement.GetRawText().Should().Be(original,
+            because: "ProjectStateForPlayer must be pure and must not mutate the input document");
     }
 }
