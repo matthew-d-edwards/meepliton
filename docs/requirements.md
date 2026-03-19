@@ -295,7 +295,7 @@ The platform is built around two constraints that every architectural decision m
 
 | ID | Requirement |
 |---|---|
-| FR-AUTH-18 | A signed-in user can link a Google account to their existing profile via `POST /api/auth/link/google` |
+| FR-AUTH-18 | A signed-in user can link a Google account to their existing profile via `GET /api/auth/link-google` |
 | FR-AUTH-19 | A signed-in user can add an email/password to a Google-only account via `POST /api/auth/add-password` |
 | FR-AUTH-20 | A user cannot unlink their last login method (must always have at least one way to sign in) |
 
@@ -1176,12 +1176,12 @@ POST /api/auth/add-password                → { newPassword } [auth required] �
 ─── Google OAuth ──────────────────────────────────────────────────────────────
 GET  /api/auth/google                      → redirects to Google consent screen
 GET  /api/auth/google/callback             → handles OAuth return, sets cookie → redirect /lobby
-POST /api/auth/link/google                 → [auth required] links Google to existing account
+GET  /api/auth/link-google                 → [auth required] initiates Google OAuth link flow for signed-in user
 
 ─── Account ───────────────────────────────────────────────────────────────────
 GET  /api/auth/me                          → UserDto (id, displayName, avatarUrl, email, theme)
 PUT  /api/auth/me                          → { displayName?, avatarUrl?, theme? } → 204
-GET  /api/auth/me/login-methods            → LoginMethodDto[] (which providers are linked) [deferred]
+GET  /api/auth/me/login-methods            → { loginMethods: string[] } e.g. ["google", "password"]
 
 ─── Lobby & Rooms ─────────────────────────────────────────────────────────────
 GET  /api/lobby                            → LobbyDto  (my rooms + game catalogue)
@@ -1191,6 +1191,8 @@ GET  /api/rooms/{roomId}                   → RoomDto
 POST /api/rooms/join                       → { code: string } → RoomDto
 POST /api/rooms/{roomId}/start             → host only → 204
 DELETE /api/rooms/{roomId}                 → host only → 204
+GET  /api/rooms/{roomId}/players           → PlayerInfo[] (current room members)
+DELETE /api/rooms/{roomId}/players/{playerId} → host only → 204 (remove player before game starts)
 POST /api/rooms/{roomId}/transfer-host     → { newHostId: string } → 204
 ```
 
@@ -1741,4 +1743,4 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 *Maintained in `docs/requirements.md` in the meepliton GitHub repository.*
 *Architecture decisions recorded in §3 (Architecture Decision Records).*
 *Claude skill files for game development are in `docs/skills/`.*
-*Last updated: 2026-03-13*
+*Last updated: 2026-03-19*

@@ -96,7 +96,7 @@ export default function SignInPage() {
     <main className="auth-page">
       <div className="auth-card">
         <Link to="/" className="auth-logo">MEEPLITON</Link>
-        <h1 className="auth-title">Sign In</h1>
+        <h1 className="auth-title">Sign in</h1>
 
         <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <label>

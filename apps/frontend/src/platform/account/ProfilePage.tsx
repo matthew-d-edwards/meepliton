@@ -49,6 +49,9 @@ export default function ProfilePage() {
   // addPasswordSuccess is kept outside the !hasPassword conditional so the
   // screen reader live-region announcement survives when the form collapses.
   const [addPasswordSuccess, setAddPasswordSuccess] = useState(false)
+  // Ref to the add-password success message so focus can be moved there after
+  // the form collapses — otherwise keyboard focus is lost into the void.
+  const addPasswordSuccessRef = useRef<HTMLParagraphElement>(null)
 
   // URL-driven banners
   const linkedParam = searchParams.get('linked')
@@ -62,6 +65,15 @@ export default function ProfilePage() {
       urlBannerRef.current.focus()
     }
   }, [linkedParam, errorParam])
+
+  // When the add-password form succeeds it collapses (hasPassword becomes true).
+  // Move focus to the success message so keyboard and screen-reader users are
+  // not left with focus lost in the void. WCAG 2.4.3 / 3.2.2.
+  useEffect(() => {
+    if (addPasswordSuccess && addPasswordSuccessRef.current) {
+      addPasswordSuccessRef.current.focus()
+    }
+  }, [addPasswordSuccess])
 
   function load() {
     setLoadState('loading')
@@ -304,7 +316,11 @@ export default function ProfilePage() {
                     maxLength={32}
                     disabled={saving || isLoading}
                     autoComplete="nickname"
-                    aria-describedby="account-display-name-count"
+                    aria-describedby={
+                      saveError
+                        ? 'account-display-name-count profile-save-error'
+                        : 'account-display-name-count'
+                    }
                   />
                   <span
                     id="account-display-name-count"
@@ -335,7 +351,7 @@ export default function ProfilePage() {
                 </div>
 
                 {saveError && (
-                  <p className="account-error" role="alert">{saveError}</p>
+                  <p id="profile-save-error" className="account-error" role="alert">{saveError}</p>
                 )}
 
                 {saveSuccess && (
@@ -388,7 +404,7 @@ export default function ProfilePage() {
               role="alert"
               tabIndex={-1}
             >
-              Something went wrong. Please try again.
+              Something went wrong — try again.
             </p>
           )}
 
@@ -420,7 +436,7 @@ export default function ProfilePage() {
                 <ul className="account-signin-method-list" aria-label="Currently linked sign-in methods">
                   {loginMethods.length === 0 && (
                     <li className="account-signin-method-item account-signin-method-none">
-                      No sign-in methods found.
+                      No sign-in methods found — try refreshing.
                     </li>
                   )}
                   {hasPassword && (
@@ -456,10 +472,18 @@ export default function ProfilePage() {
 
               {/* Add-password success — rendered outside the !hasPassword gate so the
                   screen reader live-region announcement is not cut off when the form
-                  collapses after a successful submission. WCAG 4.1.3. */}
+                  collapses after a successful submission. WCAG 4.1.3.
+                  tabIndex={-1} + ref allows programmatic focus after the form collapses
+                  so keyboard users are not left with lost focus. WCAG 2.4.3. */}
               {addPasswordSuccess && (
-                <p className="account-success account-signin-banner" role="status">
-                  Password added successfully. You can now sign in with your email and password.
+                <p
+                  id="add-password-success"
+                  ref={addPasswordSuccessRef}
+                  className="account-success account-signin-banner"
+                  role="status"
+                  tabIndex={-1}
+                >
+                  Password added. You can now sign in with your email and password.
                 </p>
               )}
 
@@ -491,6 +515,7 @@ export default function ProfilePage() {
                         }}
                         disabled={addPasswordSaving}
                         autoComplete="new-password"
+                        aria-describedby={addPasswordError ? 'add-password-error' : undefined}
                         required
                       />
                     </div>
@@ -510,12 +535,13 @@ export default function ProfilePage() {
                         }}
                         disabled={addPasswordSaving}
                         autoComplete="new-password"
+                        aria-describedby={addPasswordError ? 'add-password-error' : undefined}
                         required
                       />
                     </div>
 
                     {addPasswordError && (
-                      <p className="account-error" role="alert">{addPasswordError}</p>
+                      <p id="add-password-error" className="account-error" role="alert">{addPasswordError}</p>
                     )}
 
                     <div className="account-form-actions">

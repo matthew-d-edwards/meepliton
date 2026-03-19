@@ -294,7 +294,7 @@ function UnknownGameScreen({ gameId }: { gameId: string }) {
         >
           {gameId}
         </span>{' '}
-        is not installed in this version of the platform.
+        isn't installed. Ask the host to check the game ID, or go back to the lobby.
       </p>
 
       <Link to="/lobby" className="btn btn-secondary">

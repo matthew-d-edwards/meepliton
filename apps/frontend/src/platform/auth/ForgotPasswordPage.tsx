@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
     <main className="auth-page">
       <div className="auth-card">
         <Link to="/" className="auth-logo">MEEPLITON</Link>
-        <h1 className="auth-title">Reset Password</h1>
+        <h1 className="auth-title">Reset password</h1>
 
         {submitted ? (
           <>
