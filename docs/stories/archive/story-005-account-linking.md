@@ -1,7 +1,7 @@
 ---
 id: story-005
 title: User can link Google and email/password to one account
-status: in-progress
+status: done
 created: 2026-03-14
 ---
 

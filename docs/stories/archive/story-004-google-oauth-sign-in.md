@@ -1,7 +1,7 @@
 ---
 id: story-004
 title: User can sign in with Google
-status: in-progress
+status: done
 created: 2026-03-14
 ---
 

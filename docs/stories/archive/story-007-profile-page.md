@@ -1,7 +1,7 @@
 ---
 id: story-007
 title: User can update their display name and avatar
-status: in-progress
+status: done
 created: 2026-03-14
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: story-003
 title: User can reset a forgotten password
-status: in-progress
+status: done
 created: 2026-03-14
 ---
 

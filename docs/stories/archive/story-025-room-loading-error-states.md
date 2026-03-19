@@ -1,7 +1,7 @@
 ---
 id: story-025
 title: Room page shows loading spinner, error messages, and "Room not found" screen
-status: in-progress
+status: done
 created: 2026-03-14
 ---
 
