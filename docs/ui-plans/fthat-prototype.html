@@ -31,8 +31,8 @@
     --fthat-card-border:  #ff4400;
     --fthat-card-glow:    #ff440055;
     --fthat-card-number:  #ff6622;
-    --fthat-chip:         #c8840a;
-    --fthat-chip-glow:    #c8840a44;
+    --fthat-chip:         #e09030;   /* lightened for WCAG AA ≥4.5:1 on --surface-raised */
+    --fthat-chip-glow:    #e0903044;
     --fthat-chain-border: #00c8a0;
     --fthat-chain-bg:     #00c8a018;
     --fthat-active-seat:  #ff440022;
@@ -91,6 +91,8 @@
   .deck-count { color: var(--neon-cyan); font-size: 20px; font-weight: bold; }
   .deck-label { color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
   .deck-count.danger { color: var(--neon-orange); text-shadow: var(--glow-sm) var(--neon-orange); }
+  .deck-badge { font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--neon-orange); color: #000; font-weight: bold; display: none; }
+  .deck-badge.visible { display: inline; }
 
   /* ── Player sidebar ────────────────────────────────────────── */
   .players-sidebar {
@@ -527,6 +529,7 @@
     <span class="deck-icon">▪</span>
     <span class="deck-count" id="deck-count">18</span>
     <span class="deck-label">cards remaining</span>
+    <span class="deck-badge" id="deck-badge"></span>
   </div>
 
   <!-- Players sidebar -->
@@ -546,7 +549,7 @@
           <div class="chip-pip"></div>
           <div class="chip-pip"></div>
         </span>
-        <span class="chips-unknown">???</span>
+        <span class="chips-unknown" aria-label="Chip count hidden — game rule">Hidden</span>
       </div>
       <div class="collected-cards">
         <span class="card-token chained chain-start">5</span>
@@ -584,7 +587,7 @@
           <div class="chip-pip"></div>
           <div class="chip-pip"></div>
         </span>
-        <span class="chips-unknown">???</span>
+        <span class="chips-unknown" aria-label="Chip count hidden — game rule">Hidden</span>
       </div>
       <div class="collected-cards">
         <span class="card-token">20</span>
@@ -605,7 +608,7 @@
           <div class="chip-pip"></div>
           <div class="chip-pip"></div>
         </span>
-        <span class="chips-unknown">???</span>
+        <span class="chips-unknown" aria-label="Chip count hidden — game rule">Hidden</span>
       </div>
       <div class="collected-cards">
         <span class="no-cards">no cards yet</span>
@@ -769,6 +772,7 @@
       chipsDisplay.classList.remove('low');
       deckCount.textContent = '18';
       deckCount.classList.remove('danger');
+      document.getElementById('deck-badge').classList.remove('visible');
     }
     else if (state === 'waiting') {
       banner.className = 'turn-banner waiting';
@@ -777,6 +781,7 @@
       waitingMsg.style.display = 'block';
       deckCount.textContent = '18';
       deckCount.classList.remove('danger');
+      document.getElementById('deck-badge').classList.remove('visible');
     }
     else if (state === 'no-chips') {
       banner.className = 'turn-banner your-turn';
@@ -791,6 +796,8 @@
       chipsDisplay.classList.add('low');
       deckCount.textContent = '4';
       deckCount.classList.add('danger');
+      document.getElementById('deck-badge').textContent = 'LOW';
+      document.getElementById('deck-badge').classList.add('visible');
     }
     else if (state === 'game-over') {
       banner.className = 'turn-banner waiting';
@@ -800,6 +807,8 @@
       scoreReveal.classList.add('open');
       deckCount.textContent = '0';
       deckCount.classList.add('danger');
+      document.getElementById('deck-badge').textContent = 'LAST';
+      document.getElementById('deck-badge').classList.add('visible');
     }
   }
 </script>
