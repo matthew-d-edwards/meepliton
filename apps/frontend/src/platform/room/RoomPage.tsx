@@ -19,6 +19,14 @@ interface RoomData {
   stateVersion: number
 }
 
+interface ActionLogEntry {
+  id: number
+  userId: string
+  displayName: string
+  actionJson: unknown
+  createdAt: string
+}
+
 export default function RoomPage({ join }: { join?: boolean }) {
   const { roomId, code } = useParams()
   const { user } = useAuth()
@@ -29,6 +37,8 @@ export default function RoomPage({ join }: { join?: boolean }) {
   const [gameState, setGameState] = useState<unknown>(null)
   const [rejectedReason, setRejectedReason] = useState<string | null>(null)
   const [minPlayers, setMinPlayers] = useState(2)
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [actionLog, setActionLog] = useState<ActionLogEntry[]>([])
   const hubRef = useRef<signalR.HubConnection | null>(null)
 
   // Join by code if needed
@@ -181,6 +191,49 @@ export default function RoomPage({ join }: { join?: boolean }) {
         />
       )}
       <TurnIndicator currentPlayerId={currentPlayerId} players={players} myPlayerId={user.id} />
+      {room.hostId === user.id && (
+        <div className="action-log-debug">
+          <button
+            className="action-log-debug__toggle"
+            onClick={() => {
+              const next = !debugOpen
+              setDebugOpen(next)
+              if (next) {
+                fetch(`/api/rooms/${roomId}/action-log`, { credentials: 'include' })
+                  .then(r => r.json())
+                  .then(setActionLog)
+                  .catch(() => {})
+              }
+            }}
+            aria-expanded={debugOpen}
+            aria-controls="action-log-panel"
+          >
+            Debug {debugOpen ? '▴' : '▾'}
+          </button>
+          {debugOpen && (
+            <ul
+              id="action-log-panel"
+              className="action-log-debug__list"
+              aria-label="Action log"
+            >
+              {actionLog.length === 0 && (
+                <li className="action-log-debug__empty">No actions recorded yet.</li>
+              )}
+              {actionLog.map(entry => (
+                <li key={entry.id} className="action-log-debug__entry">
+                  <span className="action-log-debug__time">
+                    {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                  <span className="action-log-debug__player">{entry.displayName}</span>
+                  <span className="action-log-debug__action">
+                    {JSON.stringify(entry.actionJson)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       <GameLoader load={loadGame} ctx={ctx} />
     </div>
   )
