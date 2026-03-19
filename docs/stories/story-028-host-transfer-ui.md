@@ -1,7 +1,7 @@
 ---
 id: story-028
 title: Host can transfer host status to another player
-status: backlog
+status: in-progress
 created: 2026-03-14
 ---
 
