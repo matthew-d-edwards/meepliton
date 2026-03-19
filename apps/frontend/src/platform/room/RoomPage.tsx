@@ -39,6 +39,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
   const [minPlayers, setMinPlayers] = useState(2)
   const [debugOpen, setDebugOpen] = useState(false)
   const [actionLog, setActionLog] = useState<ActionLogEntry[]>([])
+  const [actionLogError, setActionLogError] = useState(false)
   const hubRef = useRef<signalR.HubConnection | null>(null)
 
   // Join by code if needed
@@ -199,10 +200,11 @@ export default function RoomPage({ join }: { join?: boolean }) {
               const next = !debugOpen
               setDebugOpen(next)
               if (next) {
+                setActionLogError(false)
                 fetch(`/api/rooms/${roomId}/action-log`, { credentials: 'include' })
-                  .then(r => r.json())
-                  .then(setActionLog)
-                  .catch(() => {})
+                  .then(r => { if (!r.ok) throw new Error(); return r.json() })
+                  .then((data: ActionLogEntry[]) => setActionLog(data))
+                  .catch(() => setActionLogError(true))
               }
             }}
             aria-expanded={debugOpen}
@@ -216,7 +218,10 @@ export default function RoomPage({ join }: { join?: boolean }) {
               className="action-log-debug__list"
               aria-label="Action log"
             >
-              {actionLog.length === 0 && (
+              {actionLogError && (
+                <li className="action-log-debug__empty">Failed to load action log.</li>
+              )}
+              {!actionLogError && actionLog.length === 0 && (
                 <li className="action-log-debug__empty">No actions recorded yet.</li>
               )}
               {actionLog.map(entry => (
