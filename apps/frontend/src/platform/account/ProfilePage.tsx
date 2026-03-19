@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import './account.css'
 
@@ -46,11 +46,22 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [addPasswordSaving, setAddPasswordSaving] = useState(false)
   const [addPasswordError, setAddPasswordError] = useState<string | null>(null)
+  // addPasswordSuccess is kept outside the !hasPassword conditional so the
+  // screen reader live-region announcement survives when the form collapses.
   const [addPasswordSuccess, setAddPasswordSuccess] = useState(false)
 
   // URL-driven banners
   const linkedParam = searchParams.get('linked')
   const errorParam = searchParams.get('error')
+  const urlBannerRef = useRef<HTMLParagraphElement>(null)
+
+  // Move focus to the URL-driven banner on mount so screen readers announce it.
+  // Live-region announcements for content present at initial paint are unreliable.
+  useEffect(() => {
+    if ((linkedParam !== null || errorParam !== null) && urlBannerRef.current) {
+      urlBannerRef.current.focus()
+    }
+  }, [linkedParam, errorParam])
 
   function load() {
     setLoadState('loading')
@@ -221,9 +232,12 @@ export default function ProfilePage() {
   return (
     <div className="account-page">
       <main className="account-content">
-        <nav>
+        {/* Visually-hidden h1 gives the page a top-level heading for screen readers.
+            WCAG 1.3.1 / 2.4.6 — heading hierarchy must not skip from no h1 to h2. */}
+        <h1 className="account-page-title-sr">Account settings</h1>
+        <nav aria-label="Page navigation">
           <Link to="/lobby" className="account-back">
-            &#8592; Back to lobby
+            <span aria-hidden="true">&#8592;</span> Back to lobby
           </Link>
         </nav>
 
@@ -345,19 +359,35 @@ export default function ProfilePage() {
         <section aria-label="Sign-in methods">
           <h2 className="account-section-title">Sign-in methods</h2>
 
-          {/* URL-driven banners */}
+          {/* URL-driven banners — focus is moved here on mount (see useEffect above)
+              because live regions on content present at initial paint are unreliable. */}
           {linkedParam === 'google' && (
-            <p className="account-success account-signin-banner" role="status">
+            <p
+              ref={urlBannerRef}
+              className="account-success account-signin-banner"
+              role="status"
+              tabIndex={-1}
+            >
               Google account linked.
             </p>
           )}
           {errorParam === 'google_already_linked' && (
-            <p className="account-error account-signin-banner" role="alert">
+            <p
+              ref={urlBannerRef}
+              className="account-error account-signin-banner"
+              role="alert"
+              tabIndex={-1}
+            >
               That Google account is already linked to another user.
             </p>
           )}
           {errorParam !== null && errorParam !== 'google_already_linked' && (
-            <p className="account-error account-signin-banner" role="alert">
+            <p
+              ref={urlBannerRef}
+              className="account-error account-signin-banner"
+              role="alert"
+              tabIndex={-1}
+            >
               Something went wrong. Please try again.
             </p>
           )}
@@ -424,6 +454,15 @@ export default function ProfilePage() {
                 </div>
               )}
 
+              {/* Add-password success — rendered outside the !hasPassword gate so the
+                  screen reader live-region announcement is not cut off when the form
+                  collapses after a successful submission. WCAG 4.1.3. */}
+              {addPasswordSuccess && (
+                <p className="account-success account-signin-banner" role="status">
+                  Password added successfully. You can now sign in with your email and password.
+                </p>
+              )}
+
               {/* Add password — only when not already set */}
               {!hasPassword && (
                 <div className="account-signin-action">
@@ -477,10 +516,6 @@ export default function ProfilePage() {
 
                     {addPasswordError && (
                       <p className="account-error" role="alert">{addPasswordError}</p>
-                    )}
-
-                    {addPasswordSuccess && (
-                      <p className="account-success" role="status">Password added successfully.</p>
                     )}
 
                     <div className="account-form-actions">

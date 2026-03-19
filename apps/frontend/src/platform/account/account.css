@@ -1,5 +1,27 @@
 /* Account / Profile page — platform-level CSS (global class names, token values only) */
 
+/* ── VISUALLY HIDDEN UTILITIES ── */
+/* Used for the page-level h1 which is present for screen readers
+   but not rendered visually alongside the h2 section headings. */
+.account-page-title-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Programmatically focused banners should not show a visible outline —
+   they are status messages, not interactive elements. */
+.account-success:focus,
+.account-error:focus {
+  outline: none;
+}
+
 .account-page {
   min-height: 100vh;
   background: var(--surface-base);
