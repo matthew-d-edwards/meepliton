@@ -195,6 +195,29 @@ public static class RoomEndpoints
             return Results.NoContent();
         });
 
+        group.MapGet("/rooms/{roomId}/action-log", async (string roomId, HttpContext ctx, PlatformDbContext db, CancellationToken ct) =>
+        {
+            var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var room   = await db.Rooms.FindAsync(new object[] { roomId }, ct);
+            if (room is null || room.HostId != userId) return Results.Forbid();
+
+            var entries = await db.ActionLog
+                .Where(a => a.RoomId == roomId)
+                .Join(db.Users, a => a.PlayerId, u => u.Id,
+                    (a, u) => new
+                    {
+                        id          = a.Id,
+                        userId      = a.PlayerId,
+                        displayName = u.DisplayName,
+                        actionJson  = a.Action,
+                        createdAt   = a.CreatedAt,
+                    })
+                .OrderBy(e => e.createdAt)
+                .ToListAsync(ct);
+
+            return Results.Ok(entries);
+        });
+
         app.MapGet("/api/health", () => Results.Ok(new { Status = "healthy" }));
     }
 

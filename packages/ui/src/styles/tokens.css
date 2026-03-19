@@ -732,7 +732,7 @@ label {
   object-fit: cover;
 }
 
-.player-presence__player span:not(.player-presence__dot) {
+.player-presence__player span:not(.player-presence__dot):not(.sr-only) {
   flex: 1;
   font-family: var(--font-body);
   font-size: 0.9rem;

@@ -52,7 +52,7 @@ export function RoomWaitingScreen({ joinCode, players, isHost, onStart, minPlaye
       )}
       {isHost && (
         <button onClick={onStart} disabled={!canStart}>
-          {canStart ? 'Start game' : `Need ${minPlayers - players.length} more player(s)`}
+          {canStart ? 'Start game' : `Need ${minPlayers - players.length} more ${minPlayers - players.length === 1 ? 'player' : 'players'}`}
         </button>
       )}
       {!isHost && <p>Waiting for the host to start…</p>}
