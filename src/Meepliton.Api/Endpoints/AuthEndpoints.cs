@@ -308,7 +308,7 @@ public static class AuthEndpoints
             if (user is null) return Results.Unauthorized();
 
             if (!string.IsNullOrEmpty(user.PasswordHash))
-                return Results.BadRequest(new { error = "password_already_set" });
+                return Results.BadRequest(new { message = "An account password is already set." });
 
             var result = await userManager.AddPasswordAsync(user, req.NewPassword);
             if (!result.Succeeded)
@@ -338,6 +338,10 @@ public static class AuthEndpoints
         }).RequireAuthorization();
 
         // Link Google — callback — GET /api/auth/link-google/callback
+        // No .RequireAuthorization() here: this is an OAuth redirect from Google, so there
+        // is no JWT cookie on the request. The userId is carried in the encrypted external
+        // auth state cookie (AuthenticationProperties.Items["userId"]) set during the
+        // /link-google initiation — it cannot be forged without the server's data-protection keys.
         group.MapGet("/link-google/callback", async (
             HttpContext ctx,
             UserManager<ApplicationUser> userManager,

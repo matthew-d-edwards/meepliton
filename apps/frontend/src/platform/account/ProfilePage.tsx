@@ -5,6 +5,7 @@ import './account.css'
 interface ProfileData {
   id: string
   displayName: string
+  email: string
   avatarUrl: string | null
   theme: 'light' | 'dark' | 'system'
 }
@@ -353,6 +354,11 @@ export default function ProfilePage() {
           {errorParam === 'google_already_linked' && (
             <p className="account-error account-signin-banner" role="alert">
               That Google account is already linked to another user.
+            </p>
+          )}
+          {errorParam !== null && errorParam !== 'google_already_linked' && (
+            <p className="account-error account-signin-banner" role="alert">
+              Something went wrong. Please try again.
             </p>
           )}
 

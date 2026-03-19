@@ -17,7 +17,7 @@ Users may start with Google and later want a password for situations where Googl
 
 - [ ] Given a user signed in via Google only, when they visit account settings and add a password, then they can subsequently sign in with email + password as well
 - [ ] Given a user signed in via email/password only, when they visit account settings and click "Link Google account", then after completing Google consent their account is linked and they can sign in with either method
-- [ ] `GET /api/auth/me` includes a `loginMethods` array listing `"google"` and/or `"password"` so the UI knows which options to show
+- [ ] `GET /api/auth/me/login-methods` returns a `loginMethods` array listing `"google"` and/or `"password"` so the UI knows which options to show
 - [ ] `POST /api/auth/add-password` accepts `{ newPassword }` — only available when account has no password yet
 - [ ] `GET /api/auth/link-google` initiates the Google OAuth link flow for an already-signed-in user
 - [ ] Linking an already-used Google account (belonging to a different user) returns an error
