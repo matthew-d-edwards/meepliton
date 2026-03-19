@@ -670,3 +670,11 @@ label {
   .desktop-only { display: none; }
   .mobile-flex  { display: flex !important; }
 }
+
+/* ── REDUCED MOTION — WCAG 2.1 AA (vestibular disorder support) ── */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
