@@ -3,15 +3,16 @@ import { JoinCodeDisplay } from './JoinCodeDisplay'
 import { PlayerPresence } from './PlayerPresence'
 
 interface Props {
-  joinCode:         string
-  players:          PlayerInfo[]
-  isHost:           boolean
-  onStart:          () => void
-  minPlayers?:      number
-  onRemovePlayer?:  (playerId: string) => void
+  joinCode:          string
+  players:           PlayerInfo[]
+  isHost:            boolean
+  onStart:           () => void
+  minPlayers?:       number
+  onRemovePlayer?:   (playerId: string) => void
+  onTransferHost?:   (playerId: string) => void
 }
 
-export function RoomWaitingScreen({ joinCode, players, isHost, onStart, minPlayers = 2, onRemovePlayer }: Props) {
+export function RoomWaitingScreen({ joinCode, players, isHost, onStart, minPlayers = 2, onRemovePlayer, onTransferHost }: Props) {
   const canStart = isHost && players.length >= minPlayers
 
   return (
@@ -32,6 +33,15 @@ export function RoomWaitingScreen({ joinCode, players, isHost, onStart, minPlaye
               >
                 ×
               </button>
+              {onTransferHost && (
+                <button
+                  onClick={() => onTransferHost(p.id)}
+                  aria-label={`Make ${p.displayName} the host`}
+                  className="player-presence__transfer"
+                >
+                  ★
+                </button>
+              )}
             </li>
           ))}
         </ul>

@@ -167,6 +167,23 @@ public static class RoomEndpoints
             return Results.NoContent();
         });
 
+        group.MapPost("/rooms/{roomId}/transfer-host", async (string roomId, TransferHostRequest req, HttpContext ctx, PlatformDbContext db, IHubContext<GameHub> hubContext, CancellationToken ct) =>
+        {
+            var callerId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var room     = await db.Rooms.FindAsync(new object[] { roomId }, ct);
+            if (room is null || room.HostId != callerId) return Results.Forbid();
+            if (room.Status != RoomStatus.Waiting) return Results.Conflict(new { message = "Cannot transfer host while the game is in progress or finished." });
+
+            var isMember = await db.RoomPlayers.AnyAsync(rp => rp.RoomId == roomId && rp.UserId == req.TargetUserId, ct);
+            if (!isMember) return Results.NotFound(new { message = "Target user is not a member of this room." });
+
+            var oldHostId  = room.HostId;
+            room.HostId    = req.TargetUserId;
+            await db.SaveChangesAsync(ct);
+            await hubContext.Clients.Group(roomId).SendAsync("HostTransferred", new { newHostId = req.TargetUserId, oldHostId }, ct);
+            return Results.NoContent();
+        });
+
         group.MapDelete("/rooms/{roomId}", async (string roomId, HttpContext ctx, PlatformDbContext db) =>
         {
             var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
@@ -197,4 +214,5 @@ public static class RoomEndpoints
 
     record CreateRoomRequest(string GameId, object? Options = null);
     record JoinRoomRequest(string Code);
+    record TransferHostRequest(string TargetUserId);
 }

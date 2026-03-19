@@ -102,6 +102,9 @@ export default function RoomPage({ join }: { join?: boolean }) {
       setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, connected: false } : p))
     )
     hub.on('GameStarted', () => setRoom(r => r ? { ...r, status: 'InProgress' } : r))
+    hub.on('HostTransferred', ({ newHostId }: { newHostId: string; oldHostId: string }) => {
+      setRoom(r => r ? { ...r, hostId: newHostId } : r)
+    })
 
     hub.start().then(() => hub.invoke('JoinRoom', roomId))
     hubRef.current = hub
@@ -125,6 +128,15 @@ export default function RoomPage({ join }: { join?: boolean }) {
       credentials: 'include',
     })
   }
+
+  async function transferHost(playerId: string) {
+    await fetch(`/api/rooms/${roomId}/transfer-host`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetUserId: playerId }),
+    })
+  }
           
   if (!room || !user) return <RoomLoadingScreen />
 
@@ -137,6 +149,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
         onStart={startGame}
         minPlayers={minPlayers}
         onRemovePlayer={room.hostId === user.id ? removePlayer : undefined}
+        onTransferHost={room.hostId === user.id ? transferHost : undefined}
       />
     )
   }

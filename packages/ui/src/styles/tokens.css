@@ -662,6 +662,141 @@ label {
 [data-stagger] > *:nth-child(5) { animation-delay: 240ms; }
 [data-stagger] > *:nth-child(6) { animation-delay: 300ms; }
 
+/* ── ROOM WAITING SCREEN ── */
+.room-waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-10) var(--space-6);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.room-waiting h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1rem, 3vw, 1.3rem);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+}
+
+/* ── PLAYER PRESENCE LIST ── */
+.player-presence {
+  list-style: none;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.player-presence__player {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--edge-subtle);
+  border-radius: var(--radius-md);
+  transition: border-color var(--dur-fast);
+}
+
+.player-presence__player.disconnected {
+  opacity: 0.55;
+  border-color: var(--edge-subtle);
+}
+
+.player-presence__player.connected {
+  border-color: var(--edge-strong);
+}
+
+.player-presence__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.player-presence__player span:not(.player-presence__dot) {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Status dot — green for connected, grey for disconnected */
+.player-presence__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-muted);
+  transition: background var(--dur-base), box-shadow var(--dur-base);
+}
+
+.player-presence__player.connected .player-presence__dot {
+  background: var(--status-success);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--status-success) 60%, transparent);
+}
+
+.player-presence__player.disconnected .player-presence__dot {
+  background: var(--edge-strong);
+}
+
+/* Remove / action buttons inside player rows */
+.player-presence__remove {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--edge-strong);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--dur-fast);
+}
+
+.player-presence__remove:hover {
+  border-color: var(--status-error);
+  color: var(--status-error);
+  box-shadow: var(--glow-sm) color-mix(in srgb, var(--status-error) 30%, transparent);
+}
+
+.player-presence__transfer {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--edge-strong);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--dur-fast);
+}
+
+.player-presence__transfer:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: var(--glow-sm) var(--accent-glow);
+}
+
 /* ── RESPONSIVE HELPERS ── */
 .mobile-only  { display: none; }
 .desktop-only { display: block; }
