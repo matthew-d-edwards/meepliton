@@ -1,8 +1,9 @@
 ---
 id: story-021
 title: Host can view the action log during a game (debug tool)
-status: backlog
+status: done
 created: 2026-03-14
+completed: 2026-03-19
 ---
 
 ## What
@@ -15,14 +16,17 @@ Game authors need visibility into what actions have been submitted to diagnose u
 
 ## Acceptance criteria
 
-- [ ] A "Debug" toggle (host-only, hidden from other players) opens an action log panel
-- [ ] The panel shows a scrollable list of all actions in the room's `action_log` table: timestamp, player name, and the raw action JSON
-- [ ] The panel is read-only — no actions can be replayed or deleted from here
-- [ ] `GET /api/rooms/{roomId}/action-log` returns the log (host-only, 403 for non-hosts)
-- [ ] The panel is part of platform chrome (not per-game) and works for any game module
+- [x] A "Debug" toggle (host-only, hidden from other players) opens an action log panel
+- [x] The panel shows a scrollable list of all actions in the room's `action_log` table: timestamp, player name, and the raw action JSON
+- [x] The panel is read-only — no actions can be replayed or deleted from here
+- [x] `GET /api/rooms/{roomId}/action-log` returns the log (host-only, 403 for non-hosts)
+- [x] The panel is part of platform chrome (not per-game) and works for any game module
 
 ## Notes
 
-- Spec: `docs/requirements.md` Phase 2 roadmap ("Action log viewer in room (debug tool for game authors)")
-- Status `backlog` — Phase 2; depends on stories 009, 016 (rooms + real-time)
-- Backend agent: new endpoint; frontend agent: collapsible panel component
+- Backend: `GET /api/rooms/{roomId}/action-log` in `src/Meepliton.Api/Endpoints/RoomEndpoints.cs` — host-only (403), joins with users table for display names
+- `action_log` table, `ActionLog` model, and `GameDispatcher` logging were pre-existing from initial migration
+- Frontend: `debugOpen` + `actionLog` + `actionLogError` state in `RoomPage.tsx`; host-only toggle with `aria-expanded`/`aria-controls`; fetch fires on each open (close/reopen to refresh)
+- CSS: `.action-log-debug*` in `apps/frontend/src/platform/room/room.css` using design tokens
+- Architect review: PASS — no must-fix items; error handling and should-fix items addressed
+- Future: add polling/auto-refresh while panel is open; add `stateVersion` to response
