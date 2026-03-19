@@ -743,24 +743,28 @@ label {
   white-space: nowrap;
 }
 
-/* Status dot — green for connected, grey for disconnected */
+/* Status dot — filled circle (connected) vs hollow ring (disconnected)
+   Shape difference satisfies WCAG 1.4.1 — not colour-only */
 .player-presence__dot {
   display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
-  background: var(--text-muted);
-  transition: background var(--dur-base), box-shadow var(--dur-base);
+  transition: background var(--dur-base), box-shadow var(--dur-base), border var(--dur-base);
 }
 
 .player-presence__player.connected .player-presence__dot {
+  /* Filled circle — connected */
   background: var(--status-success);
+  border: 2px solid var(--status-success);
   box-shadow: 0 0 6px color-mix(in srgb, var(--status-success) 60%, transparent);
 }
 
 .player-presence__player.disconnected .player-presence__dot {
-  background: var(--edge-strong);
+  /* Hollow ring — disconnected; shape differs from filled circle */
+  background: transparent;
+  border: 2px solid var(--edge-strong);
 }
 
 /* Remove / action buttons inside player rows */
