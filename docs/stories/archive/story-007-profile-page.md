@@ -1,7 +1,7 @@
 ---
 id: story-007
 title: User can update their display name and avatar
-status: in-progress
+status: done
 created: 2026-03-14
 ---
 
@@ -33,7 +33,7 @@ Display names and avatars appear in game rooms, so users need a way to personali
 - [ ] **AC-5** The profile page (`/account`) shows the current display name and avatar with an edit form.
 - [ ] **AC-6** While `GET /api/auth/me` is in-flight, inputs are disabled (or a spinner is shown) and the form is not interactive.
 - [ ] **AC-7** If `GET /api/auth/me` fails with a network error, an error message is displayed on the page. The user can retry.
-- [ ] **AC-8** If `GET /api/auth/me` returns 401, the frontend redirects to `/login`.
+- [ ] **AC-8** If `GET /api/auth/me` returns 401, the frontend redirects to `/sign-in`.
 - [ ] **AC-9** The save action is NOT optimistic. The UI updates display name and avatar only after a successful 204 response from `PUT /api/auth/me`. No other pages in the same session are required to update.
 
 ### Gravatar default (email users)

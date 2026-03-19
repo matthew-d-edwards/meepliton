@@ -74,10 +74,10 @@ export default function RoomNotFoundPage() {
             >
               {code}
             </span>{' '}
-            is invalid or the room no longer exists.
+            is invalid or the room no longer exists. Check the code and try again, or ask the host for a new link.
           </>
         ) : (
-          'This join link is invalid or the room no longer exists.'
+          'This join link is invalid or the room no longer exists. Ask the host for a new link.'
         )}
       </p>
 

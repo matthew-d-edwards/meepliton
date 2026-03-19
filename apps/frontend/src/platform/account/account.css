@@ -1,5 +1,27 @@
 /* Account / Profile page — platform-level CSS (global class names, token values only) */
 
+/* ── VISUALLY HIDDEN UTILITIES ── */
+/* Used for the page-level h1 which is present for screen readers
+   but not rendered visually alongside the h2 section headings. */
+.account-page-title-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Programmatically focused banners should not show a visible outline —
+   they are status messages, not interactive elements. */
+.account-success:focus,
+.account-error:focus {
+  outline: none;
+}
+
 .account-page {
   min-height: 100vh;
   background: var(--surface-base);
@@ -258,6 +280,73 @@
     border-top-color: var(--accent);
     opacity: 0.7;
   }
+}
+
+/* ── SIGN-IN METHODS ── */
+.account-signin-banner {
+  margin-bottom: var(--space-4);
+}
+
+.account-signin-methods {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.account-signin-methods-label {
+  margin-bottom: var(--space-1);
+}
+
+.account-signin-method-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.account-signin-method-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-bright);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-overlay);
+  border: 1px solid var(--edge-subtle);
+  border-radius: var(--radius-md);
+}
+
+.account-signin-method-none {
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  padding-left: 0;
+}
+
+.account-signin-method-icon {
+  font-size: 0.9rem;
+  width: 1.2em;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.account-signin-action {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--edge-subtle);
+}
+
+.account-signin-action-desc {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin: 0;
 }
 
 /* ── BACK LINK ── */
