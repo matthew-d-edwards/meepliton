@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import './account.css'
 
 interface ProfileData {
@@ -14,10 +14,16 @@ interface SavedValues {
   avatarUrl: string
 }
 
+interface LoginMethodsData {
+  loginMethods: string[]
+}
+
 type LoadState = 'loading' | 'error' | 'ready'
+type LoginMethodsLoadState = 'loading' | 'error' | 'ready'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -29,6 +35,21 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
+
+  // Sign-in methods state
+  const [loginMethodsState, setLoginMethodsState] = useState<LoginMethodsLoadState>('loading')
+  const [loginMethods, setLoginMethods] = useState<string[]>([])
+
+  // Add-password form state
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [addPasswordSaving, setAddPasswordSaving] = useState(false)
+  const [addPasswordError, setAddPasswordError] = useState<string | null>(null)
+  const [addPasswordSuccess, setAddPasswordSuccess] = useState(false)
+
+  // URL-driven banners
+  const linkedParam = searchParams.get('linked')
+  const errorParam = searchParams.get('error')
 
   function load() {
     setLoadState('loading')
@@ -60,8 +81,30 @@ export default function ProfilePage() {
       })
   }
 
+  function loadLoginMethods() {
+    setLoginMethodsState('loading')
+    fetch('/api/auth/me/login-methods', { credentials: 'include' })
+      .then(async r => {
+        if (r.status === 401) {
+          navigate('/sign-in', { replace: true })
+          return
+        }
+        if (!r.ok) {
+          setLoginMethodsState('error')
+          return
+        }
+        const data = (await r.json()) as LoginMethodsData
+        setLoginMethods(data.loginMethods)
+        setLoginMethodsState('ready')
+      })
+      .catch(() => {
+        setLoginMethodsState('error')
+      })
+  }
+
   useEffect(() => {
     load()
+    loadLoginMethods()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -117,6 +160,52 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleAddPassword(e: React.FormEvent) {
+    e.preventDefault()
+    setAddPasswordError(null)
+    setAddPasswordSuccess(false)
+
+    if (newPassword !== confirmPassword) {
+      setAddPasswordError('Passwords do not match.')
+      return
+    }
+
+    setAddPasswordSaving(true)
+    try {
+      const res = await fetch('/api/auth/add-password', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword }),
+      })
+
+      if (res.status === 204) {
+        setAddPasswordSuccess(true)
+        setNewPassword('')
+        setConfirmPassword('')
+        setLoginMethods(prev => [...prev, 'password'])
+      } else {
+        let message = `Failed to add password (${res.status}) — try again.`
+        try {
+          const err = (await res.json()) as { message?: string; errors?: Record<string, string[]> }
+          if (err.message) {
+            message = err.message
+          } else if (err.errors) {
+            const msgs = Object.values(err.errors).flat()
+            if (msgs.length > 0) message = msgs.join(' ')
+          }
+        } catch {
+          // use default message
+        }
+        setAddPasswordError(message)
+      }
+    } catch {
+      setAddPasswordError('Network error — password not added.')
+    } finally {
+      setAddPasswordSaving(false)
+    }
+  }
+
   const avatarPreview = avatarUrl.trim() !== '' ? avatarUrl.trim() : null
   const initials = saved.displayName
     ? saved.displayName.trim().slice(0, 2).toUpperCase()
@@ -124,6 +213,9 @@ export default function ProfilePage() {
 
   const isLoading = loadState === 'loading'
   const hasChanges = displayName !== saved.displayName || avatarUrl.trim() !== saved.avatarUrl
+
+  const hasGoogle = loginMethods.includes('google')
+  const hasPassword = loginMethods.includes('password')
 
   return (
     <div className="account-page">
@@ -245,6 +337,158 @@ export default function ProfilePage() {
                   </button>
                 </div>
               </form>
+            </div>
+          )}
+        </section>
+
+        <section aria-label="Sign-in methods">
+          <h2 className="account-section-title">Sign-in methods</h2>
+
+          {/* URL-driven banners */}
+          {linkedParam === 'google' && (
+            <p className="account-success account-signin-banner" role="status">
+              Google account linked.
+            </p>
+          )}
+          {errorParam === 'google_already_linked' && (
+            <p className="account-error account-signin-banner" role="alert">
+              That Google account is already linked to another user.
+            </p>
+          )}
+
+          {loginMethodsState === 'loading' && (
+            <div className="account-loading" role="status" aria-live="polite">
+              <span className="account-spinner" aria-hidden="true" />
+              Loading sign-in methods…
+            </div>
+          )}
+
+          {loginMethodsState === 'error' && (
+            <div className="account-card">
+              <p className="account-error" role="alert">
+                Failed to load sign-in methods. Try refreshing.
+              </p>
+              <div className="account-form-actions">
+                <button className="btn btn-secondary" onClick={loadLoginMethods}>
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+
+          {loginMethodsState === 'ready' && (
+            <div className="account-card">
+              {/* Current linked methods */}
+              <div className="account-signin-methods">
+                <p className="account-label account-signin-methods-label">Linked methods</p>
+                <ul className="account-signin-method-list" aria-label="Currently linked sign-in methods">
+                  {loginMethods.length === 0 && (
+                    <li className="account-signin-method-item account-signin-method-none">
+                      No sign-in methods found.
+                    </li>
+                  )}
+                  {hasPassword && (
+                    <li className="account-signin-method-item">
+                      <span className="account-signin-method-icon" aria-hidden="true">&#128274;</span>
+                      Email &amp; password
+                    </li>
+                  )}
+                  {hasGoogle && (
+                    <li className="account-signin-method-item">
+                      <span className="account-signin-method-icon" aria-hidden="true">G</span>
+                      Google
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              {/* Link Google — only when not already linked */}
+              {!hasGoogle && (
+                <div className="account-signin-action">
+                  <p className="account-signin-action-desc">
+                    Link your Google account to sign in with Google.
+                  </p>
+                  <a
+                    href="/api/auth/link-google"
+                    className="btn btn-secondary"
+                    aria-label="Link Google account"
+                  >
+                    Link Google account
+                  </a>
+                </div>
+              )}
+
+              {/* Add password — only when not already set */}
+              {!hasPassword && (
+                <div className="account-signin-action">
+                  <p className="account-signin-action-desc">
+                    Add a password so you can sign in with your email address.
+                  </p>
+                  <form
+                    className="account-form"
+                    onSubmit={handleAddPassword}
+                    noValidate
+                    aria-label="Add password"
+                  >
+                    <div className="account-field">
+                      <label htmlFor="account-new-password" className="account-label">
+                        New password
+                      </label>
+                      <input
+                        id="account-new-password"
+                        className="account-input"
+                        type="password"
+                        value={newPassword}
+                        onChange={e => {
+                          setNewPassword(e.target.value)
+                          setAddPasswordError(null)
+                          setAddPasswordSuccess(false)
+                        }}
+                        disabled={addPasswordSaving}
+                        autoComplete="new-password"
+                        required
+                      />
+                    </div>
+                    <div className="account-field">
+                      <label htmlFor="account-confirm-password" className="account-label">
+                        Confirm password
+                      </label>
+                      <input
+                        id="account-confirm-password"
+                        className="account-input"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={e => {
+                          setConfirmPassword(e.target.value)
+                          setAddPasswordError(null)
+                          setAddPasswordSuccess(false)
+                        }}
+                        disabled={addPasswordSaving}
+                        autoComplete="new-password"
+                        required
+                      />
+                    </div>
+
+                    {addPasswordError && (
+                      <p className="account-error" role="alert">{addPasswordError}</p>
+                    )}
+
+                    {addPasswordSuccess && (
+                      <p className="account-success" role="status">Password added successfully.</p>
+                    )}
+
+                    <div className="account-form-actions">
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={addPasswordSaving || newPassword.length === 0 || confirmPassword.length === 0}
+                      >
+                        {addPasswordSaving ? 'Adding\u2026' : 'Add password'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
             </div>
           )}
         </section>

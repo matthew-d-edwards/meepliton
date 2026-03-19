@@ -270,6 +270,111 @@ public static class AuthEndpoints
             return Results.NoContent();
         }).RequireAuthorization();
 
+        // Login-methods — GET /api/auth/me/login-methods
+        group.MapGet("/me/login-methods", async (
+            HttpContext ctx,
+            UserManager<ApplicationUser> userManager) =>
+        {
+            var userId = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                      ?? ctx.User.FindFirstValue("sub");
+            if (userId is null) return Results.Unauthorized();
+
+            var user = await userManager.FindByIdAsync(userId);
+            if (user is null) return Results.Unauthorized();
+
+            var loginMethods = new List<string>();
+
+            if (!string.IsNullOrEmpty(user.PasswordHash))
+                loginMethods.Add("password");
+
+            var logins = await userManager.GetLoginsAsync(user);
+            if (logins.Any(l => l.LoginProvider == "Google"))
+                loginMethods.Add("google");
+
+            return Results.Ok(new { loginMethods });
+        }).RequireAuthorization();
+
+        // Add password — POST /api/auth/add-password
+        group.MapPost("/add-password", async (
+            AddPasswordRequest req,
+            HttpContext ctx,
+            UserManager<ApplicationUser> userManager) =>
+        {
+            var userId = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                      ?? ctx.User.FindFirstValue("sub");
+            if (userId is null) return Results.Unauthorized();
+
+            var user = await userManager.FindByIdAsync(userId);
+            if (user is null) return Results.Unauthorized();
+
+            if (!string.IsNullOrEmpty(user.PasswordHash))
+                return Results.BadRequest(new { error = "password_already_set" });
+
+            var result = await userManager.AddPasswordAsync(user, req.NewPassword);
+            if (!result.Succeeded)
+            {
+                var errors = result.Errors
+                    .GroupBy(e => e.Code)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray());
+                return Results.ValidationProblem(errors);
+            }
+
+            return Results.NoContent();
+        }).RequireAuthorization();
+
+        // Link Google — initiate — GET /api/auth/link-google
+        group.MapGet("/link-google", (HttpContext ctx) =>
+        {
+            var userId = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                      ?? ctx.User.FindFirstValue("sub");
+            if (userId is null) return Results.Unauthorized();
+
+            var properties = new AuthenticationProperties
+            {
+                RedirectUri = "/api/auth/link-google/callback",
+                Items       = { ["userId"] = userId },
+            };
+            return Results.Challenge(properties, ["Google"]);
+        }).RequireAuthorization();
+
+        // Link Google — callback — GET /api/auth/link-google/callback
+        group.MapGet("/link-google/callback", async (
+            HttpContext ctx,
+            UserManager<ApplicationUser> userManager,
+            IConfiguration configuration) =>
+        {
+            var frontendBase = configuration["Frontend:BaseUrl"] ?? "https://meepliton.com";
+
+            var authResult = await ctx.AuthenticateAsync(IdentityConstants.ExternalScheme);
+            if (!authResult.Succeeded || authResult.Principal is null)
+                return Results.Redirect($"{frontendBase}/account?error=google_failed");
+
+            var userId = authResult.Properties?.Items["userId"];
+            if (userId is null)
+                return Results.Redirect($"{frontendBase}/account?error=google_failed");
+
+            var user = await userManager.FindByIdAsync(userId);
+            if (user is null)
+                return Results.Redirect($"{frontendBase}/account?error=google_failed");
+
+            var loginProvider       = authResult.Principal.Identity?.AuthenticationType ?? "Google";
+            var providerKey         = authResult.Principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                                   ?? string.Empty;
+            var providerDisplayName = authResult.Principal.FindFirstValue(ClaimTypes.Name) ?? "Google";
+
+            // Check if this Google account is already linked to a different user
+            var existingUser = await userManager.FindByLoginAsync("Google", providerKey);
+            if (existingUser is not null && existingUser.Id != userId)
+                return Results.Redirect($"{frontendBase}/account?error=google_already_linked");
+
+            var info = new UserLoginInfo("Google", providerKey, providerDisplayName);
+            var result = await userManager.AddLoginAsync(user, info);
+            if (!result.Succeeded)
+                return Results.Redirect($"{frontendBase}/account?error=google_failed");
+
+            return Results.Redirect($"{frontendBase}/account?linked=google");
+        });
+
         // Google OAuth — initiate
         group.MapGet("/google", (HttpContext ctx) =>
         {
@@ -393,6 +498,7 @@ public static class AuthEndpoints
     record ResetPasswordRequest(string UserId, string Token, string NewPassword);
     record LoginRequest(string Email, string Password);
     record ResendConfirmationRequest(string Email);
+    record AddPasswordRequest(string NewPassword);
     record UserDto(string Id, string DisplayName, string? AvatarUrl, string Email, string Theme);
 
     /// <summary>
