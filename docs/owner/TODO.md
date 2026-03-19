@@ -46,4 +46,10 @@ _Nothing urgent yet._
 
 - [ ] **2026-03-19** Manual contrast verification for story-005 sign-in methods: (1) `--neon-orange` (`#ff6010`) on `--surface-raised` at 0.65rem — switch to `--status-warning` if fails; (2) `--text-muted` (`#3d5a78`) on `--surface-base` at 0.8rem — switch to `--text-primary` if fails. (ally)
 
+- [ ] **2026-03-19** Story-020/028 ally review — presence dot is colour-only: the green/grey dot conveys Online/Offline state visually without a text label visible to sighted users. Screen readers get the `.sr-only` text, but colour-blind sighted users cannot distinguish states. A visible, short text label ("Online"/"Offline") next to the dot is needed. This requires a layout change to the `PlayerPresence` and `RoomWaitingScreen` player rows — flagged to `ux` to design before implementation. (ally)
+
+- [ ] **2026-03-19** Story-020/028 ally review — Start game button in `RoomWaitingScreen` has no CSS class and relies on the browser default focus ring. Verify that the browser default focus outline meets 3:1 contrast against `--surface-base` in Chrome, Safari, and Firefox. If any browser fails, add a `btn` class (or equivalent) to the button and style a focus ring matching the gold `outline: 2px solid var(--accent)` pattern used on the remove/transfer buttons. Flagged to `ux`/`frontend` for decision. (ally)
+
+- [ ] **2026-03-19** Story-020/028 ally review — manual contrast verification needed: `--text-primary` (#c0d8f0) blended at 0.55 opacity over `--surface-raised` (#070d19) for disconnected player names. Calculated effective colour ≈ #6c7d8f, ratio ≈ 4.6:1 against `#070d19`. This is marginal AA pass at 0.9rem (≈14.4px normal weight, requires 4.5:1). Verify with WebAIM Contrast Checker using the blended hex. If it fails in practice, raise disconnected opacity to 0.65 minimum. (ally)
+
 *Agents: add items with a short description, the date, which story is blocked, and which agent surfaced it.*
