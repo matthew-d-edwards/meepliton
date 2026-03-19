@@ -150,6 +150,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
         minPlayers={minPlayers}
         onRemovePlayer={room.hostId === user.id ? removePlayer : undefined}
         onTransferHost={room.hostId === user.id ? transferHost : undefined}
+        currentUserId={user.id}
       />
     )
   }

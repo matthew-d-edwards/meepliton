@@ -172,6 +172,7 @@ public static class RoomEndpoints
             var callerId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
             var room     = await db.Rooms.FindAsync(new object[] { roomId }, ct);
             if (room is null || room.HostId != callerId) return Results.Forbid();
+            if (req.TargetUserId == callerId) return Results.BadRequest(new { message = "Cannot transfer host to yourself." });
             if (room.Status != RoomStatus.Waiting) return Results.Conflict(new { message = "Cannot transfer host while the game is in progress or finished." });
 
             var isMember = await db.RoomPlayers.AnyAsync(rp => rp.RoomId == roomId && rp.UserId == req.TargetUserId, ct);
