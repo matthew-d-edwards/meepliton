@@ -1,5 +1,7 @@
 using System.Text;
 using Meepliton.Api.Data;
+using Meepliton.Games.LiarsDice;
+using Meepliton.Games.Skyline;
 using Meepliton.Api.Hubs;
 using Meepliton.Api.Identity;
 using Meepliton.Api.Services;
@@ -16,8 +18,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-// Database
+// Database — platform context
 builder.AddNpgsqlDbContext<PlatformDbContext>("meepliton");
+
+// Game DbContexts — add one line per game, keeping the migrations history table isolated.
+// Also add a <ProjectReference> in Meepliton.Api.csproj for each new game.
+builder.AddNpgsqlDbContext<LiarsDiceDbContext>("meepliton",
+    npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory_liarsdice"));
+builder.AddNpgsqlDbContext<SkylineDbContext>("meepliton",
+    npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory_skyline"));
 
 // Identity
 builder.Services

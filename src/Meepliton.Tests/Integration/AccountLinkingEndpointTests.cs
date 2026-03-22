@@ -15,6 +15,8 @@ using FluentAssertions;
 using Meepliton.Api.Data;
 using Meepliton.Api.Identity;
 using Meepliton.Api.Services;
+using Meepliton.Games.LiarsDice;
+using Meepliton.Games.Skyline;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -92,11 +94,25 @@ public class AccountLinkingApiFactory : WebApplicationFactory<Program>
     {
         builder.ConfigureTestServices(services =>
         {
+            var dbName = "account-linking-" + Guid.NewGuid();
+
             // Replace Postgres with in-memory DB
             services.RemoveAll<DbContextOptions<PlatformDbContext>>();
             services.RemoveAll<PlatformDbContext>();
             services.AddDbContext<PlatformDbContext>(opts =>
-                opts.UseInMemoryDatabase("account-linking-" + Guid.NewGuid()));
+                opts.UseInMemoryDatabase(dbName));
+
+            // Replace game DbContext registrations with InMemory equivalents so
+            // tests don't require a live PostgreSQL connection.
+            services.RemoveAll<DbContextOptions<LiarsDiceDbContext>>();
+            services.RemoveAll<LiarsDiceDbContext>();
+            services.AddDbContext<LiarsDiceDbContext>(opts =>
+                opts.UseInMemoryDatabase(dbName));
+
+            services.RemoveAll<DbContextOptions<SkylineDbContext>>();
+            services.RemoveAll<SkylineDbContext>();
+            services.AddDbContext<SkylineDbContext>(opts =>
+                opts.UseInMemoryDatabase(dbName));
 
             // Suppress EF migrations on startup
             services.RemoveAll<MigrationRunner>();
