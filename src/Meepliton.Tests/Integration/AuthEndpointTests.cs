@@ -16,8 +16,6 @@ using Meepliton.Api.Data;
 using Meepliton.Api.Identity;
 using Meepliton.Api.Services;
 using Meepliton.Contracts;
-using Meepliton.Games.LiarsDice;
-using Meepliton.Games.Skyline;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -55,8 +53,6 @@ public class AuthApiFactory : WebApplicationFactory<Program>
     {
         builder.ConfigureTestServices(services =>
         {
-            var dbName = "auth-tests-" + Guid.NewGuid();
-
             // Remove any PlatformDbContext registrations registered by the app
             // (Aspire's AddNpgsqlDbContext or standard AddDbContext).
             services.RemoveAll<DbContextOptions<PlatformDbContext>>();
@@ -65,19 +61,7 @@ public class AuthApiFactory : WebApplicationFactory<Program>
             // Register an in-memory database — unique per factory instance so
             // parallel test classes don't share state.
             services.AddDbContext<PlatformDbContext>(opts =>
-                opts.UseInMemoryDatabase(dbName));
-
-            // Replace game DbContext registrations with InMemory equivalents so
-            // tests don't require a live PostgreSQL connection.
-            services.RemoveAll<DbContextOptions<LiarsDiceDbContext>>();
-            services.RemoveAll<LiarsDiceDbContext>();
-            services.AddDbContext<LiarsDiceDbContext>(opts =>
-                opts.UseInMemoryDatabase(dbName));
-
-            services.RemoveAll<DbContextOptions<SkylineDbContext>>();
-            services.RemoveAll<SkylineDbContext>();
-            services.AddDbContext<SkylineDbContext>(opts =>
-                opts.UseInMemoryDatabase(dbName));
+                opts.UseInMemoryDatabase("auth-tests-" + Guid.NewGuid()));
 
             // Replace MigrationRunner with a no-op so the EF InMemory provider
             // doesn't throw "Migrations are not supported by the in-memory store"
