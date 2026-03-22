@@ -5,9 +5,16 @@ using Microsoft.Extensions.Configuration;
 
 namespace Meepliton.Games.LiarsDice;
 
-public class LiarsDiceDbContext(DbContextOptions<LiarsDiceDbContext> options, IConfiguration configuration)
-    : DbContext(options), IGameDbContext
+public class LiarsDiceDbContext : DbContext, IGameDbContext
 {
+    private readonly IConfiguration? _configuration;
+
+    // Used by DI (Scrutor) — IConfiguration is always available in the container.
+    public LiarsDiceDbContext(IConfiguration configuration) => _configuration = configuration;
+
+    // Used by IDesignTimeDbContextFactory for dotnet ef CLI tooling.
+    internal LiarsDiceDbContext(DbContextOptions<LiarsDiceDbContext> options) : base(options) { }
+
     public string GameId => "liarsdice";
 
     // Read-only platform views — no migrations generated for these
@@ -23,12 +30,17 @@ public class LiarsDiceDbContext(DbContextOptions<LiarsDiceDbContext> options, IC
         modelBuilder.Entity<UserView>().ToTable("users").HasNoKey();
     }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder options)
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        if (!options.IsConfigured)
+        if (!optionsBuilder.IsConfigured)
         {
-            options.UseNpgsql(
-                configuration.GetConnectionString("meepliton"),
+            var connectionString = _configuration?.GetConnectionString("meepliton")
+                ?? throw new InvalidOperationException(
+                    "Connection string 'meepliton' not found. " +
+                    "Use IDesignTimeDbContextFactory for dotnet ef tooling.");
+
+            optionsBuilder.UseNpgsql(
+                connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_liarsdice"));
         }
     }

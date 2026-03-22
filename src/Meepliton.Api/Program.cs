@@ -16,8 +16,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-// Database
+// Database — platform context
 builder.AddNpgsqlDbContext<PlatformDbContext>("meepliton");
+
+// Game DbContexts are discovered and registered automatically via Scrutor below.
+// Each game project must be referenced in Meepliton.Api.csproj so its assembly
+// is in the build output and Scrutor can find it.
 
 // Identity
 builder.Services
