@@ -10,6 +10,8 @@ _Nothing urgent yet._
 
 ## Needs your decision
 
+- [x] **2026-03-22** Dead Man's Switch — OQ-DMS-02: when the Challenger hits an opponent's skull, does the skull owner actively choose which of the Challenger's discs to discard, or does the server pick randomly and advance immediately? **Resolved 2026-03-23: server picks randomly. `OpponentDiscardChoice` phase and `ChooseDiscardForChallenger` action removed. `OpponentDiscardOwnerId` state field removed.** (analyst)
+
 - [x] **2026-03-14** Choose avatar storage strategy for v1: **Gravatar** (derive from email hash). (analyst) — decided 2026-03-14
 
 - [x] **2026-03-14** UX gap analysis found that `POST /api/rooms/{roomId}/transfer-host` is in the requirements (§11.1) but may not be implemented in the backend yet. Confirm whether it exists before story-028 (host transfer UI) is scheduled. (ux/backend) — **confirmed 2026-03-19: endpoint does not exist; story-028 includes backend implementation.**
