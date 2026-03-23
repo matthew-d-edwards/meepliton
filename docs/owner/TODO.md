@@ -54,4 +54,10 @@ _Nothing urgent yet._
 
 - [ ] **2026-03-19** Story-020/028 ally review — manual contrast verification needed: `--text-primary` (#c0d8f0) blended at 0.55 opacity over `--surface-raised` (#070d19) for disconnected player names. Calculated effective colour ≈ #6c7d8f, ratio ≈ 4.6:1 against `#070d19`. This is marginal AA pass at 0.9rem (≈14.4px normal weight, requires 4.5:1). Verify with WebAIM Contrast Checker using the blended hex. If it fails in practice, raise disconnected opacity to 0.65 minimum. (ally)
 
+- [ ] **2026-03-19** F'That chip amber colour (#c8840a) fails WCAG AA 4.5:1 for normal text on `--surface-raised` (#070d19) — calculated ratio is ~3.0:1. Ask `ux` to lighten the chip amber token to approximately #e09030 (or verify exact value in WebAIM) before the frontend agent implements the chip HUD. This blocks ally sign-off on the F'That UI. (ally)
+
+- [ ] **2026-03-19** F'That brand name "F'That" and button label "F'THAT" — if the platform opens to a broader or younger audience in the future, the name should be reviewed for appropriateness. No change needed for the current friend-group context. Product decision only if audience scope changes. (ally)
+
+- [ ] **2026-03-19** Manual verification needed for F'That game board before ship: (1) `--text-muted` (#3d5a78) must not be used for any game-information text (opponent chip "???" label, deck count, chip count) — use `--text-primary` instead; (2) run full board through Chrome DevTools > Rendering > Emulate Vision Deficiency for Deuteranopia and Protanopia; (3) verify 200% zoom does not clip the dual action button row ("F'THAT" + "FINE, I'LL TAKE IT"). (ally)
+
 *Agents: add items with a short description, the date, which story is blocked, and which agent surfaced it.*
