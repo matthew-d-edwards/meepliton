@@ -75,9 +75,9 @@ export default function ResetPasswordPage() {
       <main className="auth-page">
         <div className="auth-card">
           <Link to="/" className="auth-logo">MEEPLITON</Link>
-          <h1 className="auth-title">Link Expired</h1>
+          <h1 className="auth-title">Link expired</h1>
           <p className="auth-error" role="alert">
-            This link has expired or is invalid.
+            This reset link has expired or is invalid — request a new one below.
           </p>
           <nav className="auth-links">
             <Link to="/forgot-password">Request a new reset link</Link>
@@ -92,7 +92,7 @@ export default function ResetPasswordPage() {
     <main className="auth-page">
       <div className="auth-card">
         <Link to="/" className="auth-logo">MEEPLITON</Link>
-        <h1 className="auth-title">New Password</h1>
+        <h1 className="auth-title">New password</h1>
 
         <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <label>

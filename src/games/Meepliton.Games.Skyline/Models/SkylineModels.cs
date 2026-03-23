@@ -1,33 +1,72 @@
 namespace Meepliton.Games.Skyline.Models;
 
-// ── State ────────────────────────────────────────────────────────────────────
+// ── State ─────────────────────────────────────────────────────────────────────
 
 public record SkylineState(
     List<PlayerState> Players,
-    List<List<int?>> Board,       // Board[row][col] — null = empty
-    string CurrentPlayerId,
-    SkylinePhase Phase,
-    int Turn,
-    string? WinnerId
+    int CurrentPlayer,              // index into Players
+    Dictionary<string, string> Board, // tileId -> "neutral" | hotelName
+    Dictionary<string, ChainState> Chains,
+    Dictionary<string, int> StockBank,
+    List<string> Bag,
+    List<string> Log,
+    bool GameOver,
+    string? Winner,
+    List<int>? RankedOrder,         // player indices sorted by net worth desc
+    string Phase,                   // "place"|"found"|"merge"|"dispose"|"buy"|"draw"
+    PendingState? Pending
 );
 
 public record PlayerState(
     string Id,
-    string DisplayName,
-    string? AvatarUrl,
-    int SeatIndex,
-    int Score,
-    List<int> Hand        // tile values in hand
+    string Name,
+    string Color,
+    int Cash,
+    Dictionary<string, int> Stocks, // hotelName -> count
+    List<string> Hand               // tileIds like "A1", "B7"
 );
 
-public enum SkylinePhase { PlacingTile, GameOver }
+public record ChainState(
+    bool Active,
+    int Size,
+    List<string> Tiles
+);
 
-// ── Actions ──────────────────────────────────────────────────────────────────
+public record PendingState(
+    string Type,                    // "found" | "merge"
+    // found
+    List<string>? Tiles,
+    string? Chosen,
+    // merge
+    string? Tid,
+    List<string>? Hotels,
+    List<string>? Survivors,
+    string? Survivor,
+    List<string>? Defunct,
+    bool? SurvivorChosen,
+    Dictionary<string, int>? DefunctSizes,
+    // dispose
+    List<DisposeQueueItem>? DisposeQueue,
+    int? DisposeIdx,
+    Dictionary<string, DisposeDecision>? DisposeDecisions
+);
 
-public record SkylineAction(string Type, PlaceTilePayload? PlaceTile = null);
-public record PlaceTilePayload(int Row, int Col, int TileValue);
+public record DisposeQueueItem(string Defunct, int PlayerIdx);
 
-// ── Supplementary DB tables ──────────────────────────────────────────────────
+public record DisposeDecision(int Sell, int Trade);
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+public record SkylineAction(
+    string Type,                    // "PlaceTile"|"FoundHotel"|"ChooseSurvivor"|"ConfirmSurvivor"|"Dispose"|"BuyStocks"|"EndTurn"|"EndGame"
+    string? TileId,
+    string? Hotel,
+    int Sell,
+    int Trade,
+    Dictionary<string, int>? Purchases
+);
+
+// ── Supplementary DB tables (unchanged) ──────────────────────────────────────
 
 public record SkylineGameResult
 {
@@ -48,7 +87,7 @@ public record SkylinePlayerStats
     public DateTimeOffset? LastPlayedAt { get; init; }
 }
 
-// ── Platform read-only views (no migrations generated) ───────────────────────
+// ── Platform read-only views (no migrations generated) ────────────────────────
 
 public record RoomView(string Id, string GameId, string HostId, string JoinCode, string Status);
 public record RoomPlayerView(string Id, string RoomId, string UserId, int SeatIndex);

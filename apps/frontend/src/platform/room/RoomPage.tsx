@@ -19,6 +19,14 @@ interface RoomData {
   stateVersion: number
 }
 
+interface ActionLogEntry {
+  id: number
+  userId: string
+  displayName: string
+  actionJson: unknown
+  createdAt: string
+}
+
 export default function RoomPage({ join }: { join?: boolean }) {
   const { roomId, code } = useParams()
   const { user } = useAuth()
@@ -29,6 +37,9 @@ export default function RoomPage({ join }: { join?: boolean }) {
   const [gameState, setGameState] = useState<unknown>(null)
   const [rejectedReason, setRejectedReason] = useState<string | null>(null)
   const [minPlayers, setMinPlayers] = useState(2)
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [actionLog, setActionLog] = useState<ActionLogEntry[]>([])
+  const [actionLogError, setActionLogError] = useState(false)
   const hubRef = useRef<signalR.HubConnection | null>(null)
 
   // Join by code if needed
@@ -102,6 +113,9 @@ export default function RoomPage({ join }: { join?: boolean }) {
       setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, connected: false } : p))
     )
     hub.on('GameStarted', () => setRoom(r => r ? { ...r, status: 'InProgress' } : r))
+    hub.on('HostTransferred', ({ newHostId }: { newHostId: string; oldHostId: string }) => {
+      setRoom(r => r ? { ...r, hostId: newHostId } : r)
+    })
 
     hub.start().then(() => hub.invoke('JoinRoom', roomId))
     hubRef.current = hub
@@ -125,6 +139,15 @@ export default function RoomPage({ join }: { join?: boolean }) {
       credentials: 'include',
     })
   }
+
+  async function transferHost(playerId: string) {
+    await fetch(`/api/rooms/${roomId}/transfer-host`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetUserId: playerId }),
+    })
+  }
           
   if (!room || !user) return <RoomLoadingScreen />
 
@@ -137,6 +160,8 @@ export default function RoomPage({ join }: { join?: boolean }) {
         onStart={startGame}
         minPlayers={minPlayers}
         onRemovePlayer={room.hostId === user.id ? removePlayer : undefined}
+        onTransferHost={room.hostId === user.id ? transferHost : undefined}
+        currentUserId={user.id}
       />
     )
   }
@@ -167,6 +192,53 @@ export default function RoomPage({ join }: { join?: boolean }) {
         />
       )}
       <TurnIndicator currentPlayerId={currentPlayerId} players={players} myPlayerId={user.id} />
+      {room.hostId === user.id && (
+        <div className="action-log-debug">
+          <button
+            className="action-log-debug__toggle"
+            onClick={() => {
+              const next = !debugOpen
+              setDebugOpen(next)
+              if (next) {
+                setActionLogError(false)
+                fetch(`/api/rooms/${roomId}/action-log`, { credentials: 'include' })
+                  .then(r => { if (!r.ok) throw new Error(); return r.json() })
+                  .then((data: ActionLogEntry[]) => setActionLog(data))
+                  .catch(() => setActionLogError(true))
+              }
+            }}
+            aria-expanded={debugOpen}
+            aria-controls="action-log-panel"
+          >
+            Debug {debugOpen ? '▴' : '▾'}
+          </button>
+          {debugOpen && (
+            <ul
+              id="action-log-panel"
+              className="action-log-debug__list"
+              aria-label="Action log"
+            >
+              {actionLogError && (
+                <li className="action-log-debug__empty">Failed to load action log.</li>
+              )}
+              {!actionLogError && actionLog.length === 0 && (
+                <li className="action-log-debug__empty">No actions recorded yet.</li>
+              )}
+              {actionLog.map(entry => (
+                <li key={entry.id} className="action-log-debug__entry">
+                  <span className="action-log-debug__time">
+                    {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                  <span className="action-log-debug__player">{entry.displayName}</span>
+                  <span className="action-log-debug__action">
+                    {JSON.stringify(entry.actionJson)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       <GameLoader load={loadGame} ctx={ctx} />
     </div>
   )
@@ -294,7 +366,7 @@ function UnknownGameScreen({ gameId }: { gameId: string }) {
         >
           {gameId}
         </span>{' '}
-        is not installed in this version of the platform.
+        is not installed. Ask the host to check the game ID, or go back to the lobby.
       </p>
 
       <Link to="/lobby" className="btn btn-secondary">

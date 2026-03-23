@@ -1,7 +1,7 @@
 ---
 id: story-003
 title: User can reset a forgotten password
-status: refined
+status: done
 created: 2026-03-14
 ---
 
@@ -17,11 +17,11 @@ Without password reset, locked-out users have no self-service recovery path — 
 
 - [ ] Given any email address, when the user submits "forgot password", then the API always returns 204 regardless of whether the email exists (prevents user enumeration)
 - [ ] Given a registered email, then a reset link is sent within 60 seconds
-- [ ] Given a valid, unexpired reset link, when the user submits a new password (≥8 chars), then their password is updated and they are signed in
+- [ ] Given a valid, unexpired reset link, when the user submits a new password (≥8 chars), then their password is updated and they are redirected to sign in
 - [ ] Given an expired reset link (>1 hour), when the user submits, then they receive an "expired link" message and are offered a new request
 - [ ] Given a reset link that has already been used, when the user visits it again, then they receive an "invalid link" message
 - [ ] `POST /api/auth/forgot-password` accepts `{ email }` — always 204
-- [ ] `POST /api/auth/reset-password` accepts `{ email, token, newPassword }` — 200 on success, 400 on invalid/expired
+- [ ] `POST /api/auth/reset-password` accepts `{ userId, token, newPassword }` — 204 on success, 400 on invalid/expired
 
 ## Notes
 

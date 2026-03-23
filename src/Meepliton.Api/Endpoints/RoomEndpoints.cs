@@ -167,6 +167,24 @@ public static class RoomEndpoints
             return Results.NoContent();
         });
 
+        group.MapPost("/rooms/{roomId}/transfer-host", async (string roomId, TransferHostRequest req, HttpContext ctx, PlatformDbContext db, IHubContext<GameHub> hubContext, CancellationToken ct) =>
+        {
+            var callerId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var room     = await db.Rooms.FindAsync(new object[] { roomId }, ct);
+            if (room is null || room.HostId != callerId) return Results.Forbid();
+            if (req.TargetUserId == callerId) return Results.BadRequest(new { message = "Cannot transfer host to yourself." });
+            if (room.Status != RoomStatus.Waiting) return Results.Conflict(new { message = "Cannot transfer host while the game is in progress or finished." });
+
+            var isMember = await db.RoomPlayers.AnyAsync(rp => rp.RoomId == roomId && rp.UserId == req.TargetUserId, ct);
+            if (!isMember) return Results.NotFound(new { message = "Target user is not a member of this room." });
+
+            var oldHostId  = room.HostId;
+            room.HostId    = req.TargetUserId;
+            await db.SaveChangesAsync(ct);
+            await hubContext.Clients.Group(roomId).SendAsync("HostTransferred", new { newHostId = req.TargetUserId, oldHostId }, ct);
+            return Results.NoContent();
+        });
+
         group.MapDelete("/rooms/{roomId}", async (string roomId, HttpContext ctx, PlatformDbContext db) =>
         {
             var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
@@ -175,6 +193,29 @@ public static class RoomEndpoints
             db.Rooms.Remove(room);
             await db.SaveChangesAsync();
             return Results.NoContent();
+        });
+
+        group.MapGet("/rooms/{roomId}/action-log", async (string roomId, HttpContext ctx, PlatformDbContext db, CancellationToken ct) =>
+        {
+            var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var room   = await db.Rooms.FindAsync(new object[] { roomId }, ct);
+            if (room is null || room.HostId != userId) return Results.Forbid();
+
+            var entries = await db.ActionLog
+                .Where(a => a.RoomId == roomId)
+                .Join(db.Users, a => a.PlayerId, u => u.Id,
+                    (a, u) => new
+                    {
+                        id          = a.Id,
+                        userId      = a.PlayerId,
+                        displayName = u.DisplayName,
+                        actionJson  = a.Action,
+                        createdAt   = a.CreatedAt,
+                    })
+                .OrderBy(e => e.createdAt)
+                .ToListAsync(ct);
+
+            return Results.Ok(entries);
         });
 
         app.MapGet("/api/health", () => Results.Ok(new { Status = "healthy" }));
@@ -197,4 +238,5 @@ public static class RoomEndpoints
 
     record CreateRoomRequest(string GameId, object? Options = null);
     record JoinRoomRequest(string Code);
+    record TransferHostRequest(string TargetUserId);
 }

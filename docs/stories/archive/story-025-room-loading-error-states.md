@@ -1,7 +1,7 @@
 ---
 id: story-025
 title: Room page shows loading spinner, error messages, and "Room not found" screen
-status: in-progress
+status: done
 created: 2026-03-14
 ---
 
@@ -27,4 +27,4 @@ Currently the room page renders bare `<p>Loading…</p>` and silently does nothi
 
 - Frontend agent owns this
 - Identified by UX gap analysis 2026-03-14 (GAP-013, GAP-014)
-- Relevant files: `apps/frontend/src/platform/room/RoomPage.tsx`, `apps/frontend/src/platform/room/GameLoader.tsx`
+- Relevant files: `apps/frontend/src/platform/room/RoomPage.tsx` (`GameLoader`, `RoomLoadingScreen`, and `UnknownGameScreen` are defined inline in this file)

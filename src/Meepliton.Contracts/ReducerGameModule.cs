@@ -18,10 +18,11 @@ public abstract class ReducerGameModule<TState, TAction, TOptions>
     public abstract int    MinPlayers  { get; }
     public abstract int    MaxPlayers  { get; }
 
-    public virtual bool    AllowLateJoin => false;
-    public virtual bool    SupportsAsync => false;
-    public virtual bool    SupportsUndo  => false;
-    public virtual string? ThumbnailUrl  => null;
+    public virtual bool    AllowLateJoin      => false;
+    public virtual bool    SupportsAsync      => false;
+    public virtual bool    SupportsUndo       => false;
+    public virtual string? ThumbnailUrl       => null;
+    public virtual bool    HasStateProjection => false;
 
     public abstract TState  CreateInitialState(IReadOnlyList<PlayerInfo> players, TOptions? options);
     public abstract string? Validate(TState state, TAction action, string playerId);

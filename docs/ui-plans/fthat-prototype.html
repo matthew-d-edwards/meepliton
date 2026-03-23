@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F'That — UI Prototype</title>
+<style>
+  /* ── Platform base tokens (subset) ─────────────────────────── */
+  :root {
+    --surface-base:    #03060b;
+    --surface-raised:  #070d19;
+    --surface-overlay: #0d1628;
+    --edge-subtle:     #1a2a44;
+    --text-primary:    #c0d8f0;
+    --text-muted:      #506070;
+    --text-bright:     #e8f4ff;
+    --neon-cyan:       #00c8e0;
+    --neon-magenta:    #d020a0;
+    --neon-orange:     #ff6010;
+    --accent:          #f0c040;
+    --glow-sm:         0 0 8px;
+    --glow-md:         0 0 16px;
+    --font-display:    'Orbitron', monospace;
+    --font-mono:       'Share Tech Mono', monospace;
+    --font-body:       'Inter', sans-serif;
+    --dur-base:        200ms;
+    --ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* ── F'That game tokens ─────────────────────────────────── */
+    --fthat-card-bg:      #120a00;
+    --fthat-card-border:  #ff4400;
+    --fthat-card-glow:    #ff440055;
+    --fthat-card-number:  #ff6622;
+    --fthat-chip:         #e09030;   /* lightened for WCAG AA ≥4.5:1 on --surface-raised */
+    --fthat-chip-glow:    #e0903044;
+    --fthat-chain-border: #00c8a0;
+    --fthat-chain-bg:     #00c8a018;
+    --fthat-active-seat:  #ff440022;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&family=Inter:wght@400;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--surface-base);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    min-height: 100vh;
+  }
+
+  /* ── Platform header ───────────────────────────────────────── */
+  .header {
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--edge-subtle);
+    padding: 0 20px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-brand { font-family: var(--font-display); font-size: 14px; color: var(--neon-cyan); letter-spacing: 2px; }
+  .header-room  { font-size: 13px; color: var(--text-muted); }
+
+  /* ── Game root ─────────────────────────────────────────────── */
+  .game-root {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: auto 1fr;
+    max-width: 1100px;
+    margin: 0 auto;
+    min-height: calc(100vh - 48px);
+  }
+
+  /* ── Deck HUD (full width) ─────────────────────────────────── */
+  .deck-hud {
+    grid-column: 1 / -1;
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--edge-subtle);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .deck-icon { color: var(--neon-cyan); font-size: 16px; }
+  .deck-count { color: var(--neon-cyan); font-size: 20px; font-weight: bold; }
+  .deck-label { color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+  .deck-count.danger { color: var(--neon-orange); text-shadow: var(--glow-sm) var(--neon-orange); }
+  .deck-badge { font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--neon-orange); color: #000; font-weight: bold; display: none; }
+  .deck-badge.visible { display: inline; }
+
+  /* ── Player sidebar ────────────────────────────────────────── */
+  .players-sidebar {
+    background: var(--surface-raised);
+    border-right: 1px solid var(--edge-subtle);
+    padding: 16px 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .sidebar-title {
+    font-family: var(--font-display);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .player-strip {
+    background: var(--surface-base);
+    border: 1px solid var(--edge-subtle);
+    border-radius: 8px;
+    padding: 10px 12px;
+    transition: border-color 200ms, background 200ms;
+  }
+  .player-strip.active {
+    border-color: var(--fthat-card-border);
+    background: var(--fthat-active-seat);
+    box-shadow: 0 0 12px var(--fthat-card-glow);
+  }
+  .player-strip.self {
+    border-color: var(--neon-cyan);
+  }
+
+  .player-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .player-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--surface-overlay);
+    border: 1px solid var(--edge-subtle);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .player-name {
+    font-size: 13px; font-weight: 600; color: var(--text-bright);
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .active-indicator {
+    color: var(--fthat-card-border);
+    font-size: 10px;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Chip display */
+  .player-chips {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .chips-exact { color: var(--fthat-chip); font-size: 14px; font-weight: bold; }
+  .chips-exact.low { color: var(--neon-orange); text-shadow: var(--glow-sm) var(--neon-orange); }
+  .chips-hidden {
+    display: flex; gap: 3px; align-items: center;
+  }
+  .chip-pip {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--fthat-chip);
+    opacity: 0.35;
+  }
+  .chips-unknown { color: var(--text-muted); font-size: 11px; letter-spacing: 1px; }
+
+  /* Collected cards */
+  .collected-cards {
+    display: flex; flex-wrap: wrap; gap: 3px;
+  }
+  .card-token {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--surface-overlay);
+    border: 1px solid var(--edge-subtle);
+    color: var(--text-primary);
+  }
+  .card-token.chained {
+    background: var(--fthat-chain-bg);
+    border-color: var(--fthat-chain-border);
+    color: var(--fthat-chain-border);
+    /* connected: remove right radius if followed by another chained card */
+  }
+  .card-token.chain-start { border-radius: 4px 2px 2px 4px; }
+  .card-token.chain-mid   { border-radius: 2px; border-left: none; }
+  .card-token.chain-end   { border-radius: 2px 4px 4px 2px; border-left: none; }
+  .no-cards { color: var(--text-muted); font-size: 11px; font-style: italic; }
+
+  /* ── Main area ─────────────────────────────────────────────── */
+  .main-area {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  /* Turn banner */
+  .turn-banner {
+    width: 100%;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border-radius: 6px;
+  }
+  .turn-banner.your-turn {
+    background: #ff440011;
+    border: 1px solid var(--fthat-card-border);
+    color: var(--fthat-card-number);
+    text-shadow: var(--glow-sm) var(--fthat-card-glow);
+  }
+  .turn-banner.waiting {
+    background: var(--surface-overlay);
+    border: 1px solid var(--edge-subtle);
+    color: var(--text-muted);
+  }
+
+  /* Face-up card */
+  .face-up-card {
+    background: var(--fthat-card-bg);
+    border: 2px solid var(--fthat-card-border);
+    border-radius: 16px;
+    padding: 32px 48px;
+    text-align: center;
+    box-shadow:
+      0 0 24px var(--fthat-card-glow),
+      0 0 48px var(--fthat-card-glow),
+      inset 0 0 16px #ff220011;
+    min-width: 220px;
+    position: relative;
+  }
+  .face-up-card::before {
+    content: '⚠';
+    position: absolute;
+    top: 10px; left: 14px;
+    font-size: 14px;
+    color: var(--fthat-card-border);
+    opacity: 0.6;
+  }
+  .face-up-card::after {
+    content: '⚠';
+    position: absolute;
+    top: 10px; right: 14px;
+    font-size: 14px;
+    color: var(--fthat-card-border);
+    opacity: 0.6;
+  }
+
+  .card-number {
+    font-family: var(--font-display);
+    font-size: 72px;
+    font-weight: 900;
+    color: var(--fthat-card-number);
+    text-shadow:
+      0 0 20px var(--fthat-card-border),
+      0 0 40px var(--fthat-card-glow);
+    line-height: 1;
+    margin-bottom: 16px;
+  }
+
+  .chips-on-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .chips-on-card-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .chips-on-card-pips {
+    display: flex; gap: 4px; align-items: center;
+  }
+  .chip-on-card-pip {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--fthat-chip);
+    box-shadow: 0 0 6px var(--fthat-chip-glow);
+  }
+  .chips-on-card-count {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--fthat-chip);
+    font-weight: bold;
+  }
+
+  /* Action controls */
+  .action-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 340px;
+  }
+
+  .own-chips-display {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .own-chips-display .count {
+    font-size: 22px;
+    color: var(--fthat-chip);
+    font-weight: bold;
+    display: block;
+  }
+  .own-chips-display .count.low {
+    color: var(--neon-orange);
+    text-shadow: var(--glow-sm) var(--neon-orange);
+  }
+
+  .btn {
+    width: 100%;
+    padding: 14px 20px;
+    border-radius: 8px;
+    border: 1px solid;
+    font-family: var(--font-display);
+    font-size: 14px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 200ms;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .btn-sub {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.7;
+    letter-spacing: 0;
+  }
+
+  .btn-pass {
+    background: #ff440011;
+    border-color: var(--neon-orange);
+    color: var(--neon-orange);
+  }
+  .btn-pass:hover:not(:disabled) {
+    background: #ff440022;
+    box-shadow: var(--glow-sm) var(--neon-orange);
+  }
+  .btn-pass.last-chip {
+    border-color: var(--fthat-card-border);
+    box-shadow: var(--glow-sm) var(--fthat-card-glow);
+  }
+  .btn-pass:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .btn-take {
+    background: #d020a011;
+    border-color: var(--neon-magenta);
+    color: var(--neon-magenta);
+  }
+  .btn-take:hover {
+    background: #d020a022;
+    box-shadow: var(--glow-sm) var(--neon-magenta);
+  }
+  .btn-take.forced {
+    animation: forced-pulse 1s ease-in-out infinite;
+  }
+  @keyframes forced-pulse {
+    0%,100% { box-shadow: 0 0 8px var(--neon-magenta); }
+    50%      { box-shadow: 0 0 20px var(--neon-magenta), 0 0 40px #d020a044; }
+  }
+
+  /* ── Score reveal overlay ──────────────────────────────────── */
+  .score-reveal {
+    display: none; /* toggle to flex to preview */
+    position: fixed;
+    inset: 0;
+    background: #000000cc;
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .score-reveal.open { display: flex; }
+
+  .score-panel {
+    background: var(--surface-raised);
+    border: 1px solid var(--edge-subtle);
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .score-title {
+    font-family: var(--font-display);
+    font-size: 24px;
+    color: var(--accent);
+    text-shadow: var(--glow-md) var(--accent);
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .score-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .score-table th {
+    font-family: var(--font-display);
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    text-align: left;
+    padding: 4px 8px 10px;
+    border-bottom: 1px solid var(--edge-subtle);
+  }
+  .score-table td {
+    padding: 10px 8px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    border-bottom: 1px solid #1a2a4422;
+  }
+  .score-table tr.winner td { color: var(--accent); }
+  .score-table tr.winner td:first-child::before { content: '★ '; }
+  .score-breakdown {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .score-total { font-size: 16px; font-weight: bold; }
+  .score-total.winner { color: var(--accent); text-shadow: var(--glow-sm) var(--accent); }
+
+  /* ── Tab switcher (prototype nav) ──────────────────────────── */
+  .proto-nav {
+    background: var(--surface-overlay);
+    border-bottom: 1px solid var(--edge-subtle);
+    padding: 8px 20px;
+    display: flex;
+    gap: 8px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+  }
+  .proto-btn {
+    padding: 4px 12px;
+    border: 1px solid var(--edge-subtle);
+    border-radius: 4px;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+  }
+  .proto-btn.active {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+    background: #00c8e011;
+  }
+  .proto-note {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 11px;
+    align-self: center;
+  }
+
+  /* ── Responsive ────────────────────────────────────────────── */
+  @media (max-width: 700px) {
+    .game-root {
+      grid-template-columns: 1fr;
+    }
+    .players-sidebar {
+      border-right: none;
+      border-bottom: 1px solid var(--edge-subtle);
+      padding: 12px;
+      flex-direction: row;
+      overflow-x: auto;
+      gap: 8px;
+    }
+    .player-strip {
+      min-width: 160px;
+    }
+    .main-area { padding: 16px; }
+    .card-number { font-size: 56px; }
+    .face-up-card { padding: 24px 36px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Prototype navigation -->
+<div class="proto-nav">
+  <button class="proto-btn active" onclick="showState('your-turn')">Your Turn</button>
+  <button class="proto-btn" onclick="showState('waiting')">Waiting</button>
+  <button class="proto-btn" onclick="showState('no-chips')">No Chips</button>
+  <button class="proto-btn" onclick="showState('game-over')">Game Over</button>
+  <span class="proto-note">F'That — UI Prototype · owner review</span>
+</div>
+
+<!-- Platform header -->
+<header class="header">
+  <span class="header-brand">MEEPLITON</span>
+  <span class="header-room">F'That · Room #4421</span>
+</header>
+
+<!-- Game root -->
+<div class="game-root">
+
+  <!-- Deck HUD -->
+  <div class="deck-hud">
+    <span class="deck-icon">▪</span>
+    <span class="deck-count" id="deck-count">18</span>
+    <span class="deck-label">cards remaining</span>
+    <span class="deck-badge" id="deck-badge"></span>
+  </div>
+
+  <!-- Players sidebar -->
+  <aside class="players-sidebar">
+    <div class="sidebar-title">Players</div>
+
+    <!-- Active player (opponent) -->
+    <div class="player-strip active" id="player-alex">
+      <div class="player-header">
+        <div class="player-avatar">A</div>
+        <span class="player-name">Alex</span>
+        <span class="active-indicator">▶</span>
+      </div>
+      <div class="player-chips">
+        <span class="chips-hidden">
+          <div class="chip-pip"></div>
+          <div class="chip-pip"></div>
+          <div class="chip-pip"></div>
+        </span>
+        <span class="chips-unknown" aria-label="Chip count hidden — game rule">Hidden</span>
+      </div>
+      <div class="collected-cards">
+        <span class="card-token chained chain-start">5</span>
+        <span class="card-token chained chain-mid">6</span>
+        <span class="card-token chained chain-end">7</span>
+        <span class="card-token">15</span>
+      </div>
+    </div>
+
+    <!-- Self -->
+    <div class="player-strip self" id="player-self">
+      <div class="player-header">
+        <div class="player-avatar">Y</div>
+        <span class="player-name">You</span>
+      </div>
+      <div class="player-chips">
+        <span>Your chips:</span>
+        <span class="chips-exact" id="self-chips">7</span>
+      </div>
+      <div class="collected-cards">
+        <span class="card-token chained chain-start">12</span>
+        <span class="card-token chained chain-end">13</span>
+        <span class="card-token">21</span>
+      </div>
+    </div>
+
+    <!-- Another opponent -->
+    <div class="player-strip" id="player-sam">
+      <div class="player-header">
+        <div class="player-avatar">S</div>
+        <span class="player-name">Sam</span>
+      </div>
+      <div class="player-chips">
+        <span class="chips-hidden">
+          <div class="chip-pip"></div>
+          <div class="chip-pip"></div>
+        </span>
+        <span class="chips-unknown" aria-label="Chip count hidden — game rule">Hidden</span>
+      </div>
+      <div class="collected-cards">
+        <span class="card-token">20</span>
+        <span class="card-token">28</span>
+      </div>
+    </div>
+
+    <!-- Another opponent, no cards yet -->
+    <div class="player-strip" id="player-jordan">
+      <div class="player-header">
+        <div class="player-avatar">J</div>
+        <span class="player-name">Jordan</span>
+      </div>
+      <div class="player-chips">
+        <span class="chips-hidden">
+          <div class="chip-pip"></div>
+          <div class="chip-pip"></div>
+          <div class="chip-pip"></div>
+          <div class="chip-pip"></div>
+        </span>
+        <span class="chips-unknown" aria-label="Chip count hidden — game rule">Hidden</span>
+      </div>
+      <div class="collected-cards">
+        <span class="no-cards">no cards yet</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main game area -->
+  <main class="main-area">
+
+    <!-- Turn banner -->
+    <div class="turn-banner your-turn" id="turn-banner">
+      ⚠ IT IS YOUR TURN ⚠
+    </div>
+
+    <!-- Face-up card -->
+    <div class="face-up-card" role="status" aria-label="Current card: 23, 4 chips on card">
+      <div class="card-number">23</div>
+      <div class="chips-on-card">
+        <span class="chips-on-card-label">Chips on card:</span>
+        <div class="chips-on-card-pips">
+          <div class="chip-on-card-pip"></div>
+          <div class="chip-on-card-pip"></div>
+          <div class="chip-on-card-pip"></div>
+          <div class="chip-on-card-pip"></div>
+        </div>
+        <span class="chips-on-card-count">4</span>
+      </div>
+    </div>
+
+    <!-- Action controls (shown on your turn) -->
+    <div class="action-controls" id="action-controls">
+      <div class="own-chips-display">
+        <span class="count" id="chips-display">7</span>
+        YOUR CHIPS
+      </div>
+
+      <button class="btn btn-pass" id="pass-btn"
+        aria-label="F'That — pass this card. Costs 1 chip.">
+        F'THAT
+        <span class="btn-sub">pass · costs 1 chip</span>
+      </button>
+
+      <button class="btn btn-take" id="take-btn"
+        aria-label="Take this card and 4 chips">
+        FINE, I'LL TAKE IT
+        <span class="btn-sub">take card + 4 chips</span>
+      </button>
+    </div>
+
+    <!-- Waiting message (shown when not your turn) -->
+    <div id="waiting-msg" style="display:none; color: var(--text-muted); font-family: var(--font-mono); font-size:13px; text-align:center;">
+      Waiting for <strong style="color:var(--text-primary)">Alex</strong> to decide…
+    </div>
+
+  </main>
+</div>
+
+<!-- Score reveal overlay -->
+<div class="score-reveal" id="score-reveal" role="dialog" aria-label="Game over — final scores">
+  <div class="score-panel">
+    <div class="score-title">GAME OVER</div>
+    <table class="score-table" role="table">
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Cards</th>
+          <th>Chips</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="winner">
+          <td>You</td>
+          <td>
+            <div class="collected-cards">
+              <span class="card-token chained chain-start">12</span>
+              <span class="card-token chained chain-end">13</span>
+              <span class="card-token">21</span>
+            </div>
+            <div class="score-breakdown">12 + 21 = 33 (chain: 12–13 counts as 12)</div>
+          </td>
+          <td>5</td>
+          <td><span class="score-total winner">28</span></td>
+        </tr>
+        <tr>
+          <td>Sam</td>
+          <td>
+            <div class="collected-cards">
+              <span class="card-token">20</span>
+              <span class="card-token">28</span>
+            </div>
+            <div class="score-breakdown">20 + 28 = 48</div>
+          </td>
+          <td>3</td>
+          <td><span class="score-total">45</span></td>
+        </tr>
+        <tr>
+          <td>Alex</td>
+          <td>
+            <div class="collected-cards">
+              <span class="card-token chained chain-start">5</span>
+              <span class="card-token chained chain-mid">6</span>
+              <span class="card-token chained chain-end">7</span>
+              <span class="card-token">15</span>
+            </div>
+            <div class="score-breakdown">5 + 15 = 20 (chain 5–6–7 counts as 5)</div>
+          </td>
+          <td>1</td>
+          <td><span class="score-total">19</span>... wait, lower wins!</td>
+        </tr>
+        <tr>
+          <td>Jordan</td>
+          <td>
+            <div class="collected-cards">
+              <span class="card-token chained chain-start">9</span>
+              <span class="card-token chained chain-mid">10</span>
+              <span class="card-token chained chain-end">11</span>
+              <span class="card-token">30</span>
+              <span class="card-token">35</span>
+            </div>
+            <div class="score-breakdown">9 + 30 + 35 = 74 (chain 9–11 counts as 9)</div>
+          </td>
+          <td>0</td>
+          <td><span class="score-total">74</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:16px; text-align:center; font-size:12px; color:var(--text-muted)">Lowest score wins · Alex wins with 19</p>
+  </div>
+</div>
+
+<script>
+  function showState(state) {
+    document.querySelectorAll('.proto-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const banner      = document.getElementById('turn-banner');
+    const controls    = document.getElementById('action-controls');
+    const waitingMsg  = document.getElementById('waiting-msg');
+    const passBtn     = document.getElementById('pass-btn');
+    const takeBtn     = document.getElementById('take-btn');
+    const scoreReveal = document.getElementById('score-reveal');
+    const selfChips   = document.getElementById('self-chips');
+    const chipsDisplay = document.getElementById('chips-display');
+    const deckCount   = document.getElementById('deck-count');
+
+    scoreReveal.classList.remove('open');
+
+    if (state === 'your-turn') {
+      banner.className = 'turn-banner your-turn';
+      banner.textContent = '⚠ IT IS YOUR TURN ⚠';
+      controls.style.display = 'flex';
+      waitingMsg.style.display = 'none';
+      passBtn.disabled = false;
+      passBtn.classList.remove('last-chip');
+      takeBtn.classList.remove('forced');
+      selfChips.textContent = '7';
+      chipsDisplay.textContent = '7';
+      selfChips.classList.remove('low');
+      chipsDisplay.classList.remove('low');
+      deckCount.textContent = '18';
+      deckCount.classList.remove('danger');
+      document.getElementById('deck-badge').classList.remove('visible');
+    }
+    else if (state === 'waiting') {
+      banner.className = 'turn-banner waiting';
+      banner.textContent = 'Waiting for Alex…';
+      controls.style.display = 'none';
+      waitingMsg.style.display = 'block';
+      deckCount.textContent = '18';
+      deckCount.classList.remove('danger');
+      document.getElementById('deck-badge').classList.remove('visible');
+    }
+    else if (state === 'no-chips') {
+      banner.className = 'turn-banner your-turn';
+      banner.textContent = '⚠ IT IS YOUR TURN — NO CHIPS LEFT ⚠';
+      controls.style.display = 'flex';
+      waitingMsg.style.display = 'none';
+      passBtn.disabled = true;
+      takeBtn.classList.add('forced');
+      selfChips.textContent = '0';
+      chipsDisplay.textContent = '0';
+      selfChips.classList.add('low');
+      chipsDisplay.classList.add('low');
+      deckCount.textContent = '4';
+      deckCount.classList.add('danger');
+      document.getElementById('deck-badge').textContent = 'LOW';
+      document.getElementById('deck-badge').classList.add('visible');
+    }
+    else if (state === 'game-over') {
+      banner.className = 'turn-banner waiting';
+      banner.textContent = 'Game over!';
+      controls.style.display = 'none';
+      waitingMsg.style.display = 'none';
+      scoreReveal.classList.add('open');
+      deckCount.textContent = '0';
+      deckCount.classList.add('danger');
+      document.getElementById('deck-badge').textContent = 'LAST';
+      document.getElementById('deck-badge').classList.add('visible');
+    }
+  }
+</script>
+
+</body>
+</html>

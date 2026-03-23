@@ -5,9 +5,16 @@ using Microsoft.Extensions.Configuration;
 
 namespace Meepliton.Games.Skyline;
 
-public class SkylineDbContext(DbContextOptions<SkylineDbContext> options, IConfiguration configuration)
-    : DbContext(options), IGameDbContext
+public class SkylineDbContext : DbContext, IGameDbContext
 {
+    private readonly IConfiguration? _configuration;
+
+    // Used by DI (Scrutor) — IConfiguration is always available in the container.
+    public SkylineDbContext(IConfiguration configuration) => _configuration = configuration;
+
+    // Used by IDesignTimeDbContextFactory for dotnet ef CLI tooling.
+    internal SkylineDbContext(DbContextOptions<SkylineDbContext> options) : base(options) { }
+
     public string GameId => "skyline";
 
     // Game-owned tables
@@ -34,12 +41,17 @@ public class SkylineDbContext(DbContextOptions<SkylineDbContext> options, IConfi
         modelBuilder.Entity<UserView>().ToTable("users").HasNoKey();
     }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder options)
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        if (!options.IsConfigured)
+        if (!optionsBuilder.IsConfigured)
         {
-            options.UseNpgsql(
-                configuration.GetConnectionString("meepliton"),
+            var connectionString = _configuration?.GetConnectionString("meepliton")
+                ?? throw new InvalidOperationException(
+                    "Connection string 'meepliton' not found. " +
+                    "Use IDesignTimeDbContextFactory for dotnet ef tooling.");
+
+            optionsBuilder.UseNpgsql(
+                connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_skyline"));
         }
     }
