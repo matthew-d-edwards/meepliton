@@ -23,6 +23,8 @@
     <ProjectReference Include="..\Meepliton.Contracts\Meepliton.Contracts.csproj" />
     <ProjectReference Include="..\games\Meepliton.Games.Skyline\Meepliton.Games.Skyline.csproj" />
     <ProjectReference Include="..\games\Meepliton.Games.LiarsDice\Meepliton.Games.LiarsDice.csproj" />
+    <ProjectReference Include="..\games\Meepliton.Games.DeadMansSwitch\Meepliton.Games.DeadMansSwitch.csproj" />
+    <ProjectReference Include="..\games\Meepliton.Games.FThat\Meepliton.Games.FThat.csproj" />
     <ProjectReference Include="..\Meepliton.Api\Meepliton.Api.csproj" />
   </ItemGroup>
 
