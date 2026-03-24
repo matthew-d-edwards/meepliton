@@ -31,6 +31,14 @@ export interface DevicePlayer {
   passed: boolean
 }
 
+export interface DeadMansSwitchAction {
+  type: string
+  targetCount?: number
+  newBid?: number
+  targetPlayerId?: string
+  discType?: DiscType
+}
+
 export interface DeadMansSwitchState {
   phase: DeadMansSwitchPhase
   players: DevicePlayer[]
