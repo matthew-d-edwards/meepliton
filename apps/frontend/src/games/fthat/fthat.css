@@ -1,0 +1,13 @@
+/* F'That — theme overrides
+   Scoped to [data-game-theme="fthat"] so the platform chrome is unaffected.
+   Comedic, light tone — platform defaults mostly intact with a fun accent. */
+
+[data-game-theme="fthat"] {
+  --color-primary:    #e67e22;
+  --color-on-primary: #fff;
+  --color-background: var(--surface-base);
+  --color-surface:    var(--surface-raised);
+  --color-border:     var(--edge-subtle);
+  --color-text:       var(--text-primary);
+  --color-text-muted: var(--text-muted);
+}

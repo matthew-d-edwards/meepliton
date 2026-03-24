@@ -1,0 +1,17 @@
+/* Dead Man's Switch — Heist/Bomb-defusal theme token overrides
+   Scoped to [data-game-theme="deadmansswitch"] so the platform chrome is unaffected.
+   Aesthetic: black-ops / industrial — near-black backgrounds, steel surfaces, amber-yellow accents. */
+
+[data-game-theme="deadmansswitch"] {
+  --color-background:     #0a0a0c;
+  --color-surface:        #121218;
+  --color-surface-raised: #1c1c26;
+  --color-surface-hover:  #22222e;
+  --color-primary:        #d4a017;
+  --color-on-primary:     #0a0a0c;
+  --color-border:         #2a2a38;
+  --color-text:           #d8d8e0;
+  --color-text-muted:     #6a6a80;
+  --radius-sm:            2px;
+  --radius-md:            3px;
+}
