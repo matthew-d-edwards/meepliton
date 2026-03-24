@@ -27,6 +27,7 @@
     <ProjectReference Include="..\Meepliton.Contracts\Meepliton.Contracts.csproj" />
     <ProjectReference Include="..\Meepliton.ServiceDefaults\Meepliton.ServiceDefaults.csproj" />
     <!-- Game modules — add one line per game -->
+    <ProjectReference Include="..\games\Meepliton.Games.LiarsDice\Meepliton.Games.LiarsDice.csproj" />
     <ProjectReference Include="..\games\Meepliton.Games.Skyline\Meepliton.Games.Skyline.csproj" />
     <ProjectReference Include="..\games\Meepliton.Games.LiarsDice\Meepliton.Games.LiarsDice.csproj" />
   </ItemGroup>

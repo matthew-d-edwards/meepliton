@@ -10,6 +10,8 @@ _Nothing urgent yet._
 
 ## Needs your decision
 
+- [x] **2026-03-22** Dead Man's Switch — OQ-DMS-02: when the Challenger hits an opponent's skull, does the skull owner actively choose which of the Challenger's discs to discard, or does the server pick randomly and advance immediately? **Resolved 2026-03-23: server picks randomly. `OpponentDiscardChoice` phase and `ChooseDiscardForChallenger` action removed. `OpponentDiscardOwnerId` state field removed.** (analyst)
+
 - [x] **2026-03-14** Choose avatar storage strategy for v1: **Gravatar** (derive from email hash). (analyst) — decided 2026-03-14
 
 - [x] **2026-03-14** UX gap analysis found that `POST /api/rooms/{roomId}/transfer-host` is in the requirements (§11.1) but may not be implemented in the backend yet. Confirm whether it exists before story-028 (host transfer UI) is scheduled. (ux/backend) — **confirmed 2026-03-19: endpoint does not exist; story-028 includes backend implementation.**
@@ -51,5 +53,11 @@ _Nothing urgent yet._
 - [ ] **2026-03-19** Story-020/028 ally review — Start game button in `RoomWaitingScreen` has no CSS class and relies on the browser default focus ring. Verify that the browser default focus outline meets 3:1 contrast against `--surface-base` in Chrome, Safari, and Firefox. If any browser fails, add a `btn` class (or equivalent) to the button and style a focus ring matching the gold `outline: 2px solid var(--accent)` pattern used on the remove/transfer buttons. Flagged to `ux`/`frontend` for decision. (ally)
 
 - [ ] **2026-03-19** Story-020/028 ally review — manual contrast verification needed: `--text-primary` (#c0d8f0) blended at 0.55 opacity over `--surface-raised` (#070d19) for disconnected player names. Calculated effective colour ≈ #6c7d8f, ratio ≈ 4.6:1 against `#070d19`. This is marginal AA pass at 0.9rem (≈14.4px normal weight, requires 4.5:1). Verify with WebAIM Contrast Checker using the blended hex. If it fails in practice, raise disconnected opacity to 0.65 minimum. (ally)
+
+- [ ] **2026-03-19** F'That chip amber colour (#c8840a) fails WCAG AA 4.5:1 for normal text on `--surface-raised` (#070d19) — calculated ratio is ~3.0:1. Ask `ux` to lighten the chip amber token to approximately #e09030 (or verify exact value in WebAIM) before the frontend agent implements the chip HUD. This blocks ally sign-off on the F'That UI. (ally)
+
+- [ ] **2026-03-19** F'That brand name "F'That" and button label "F'THAT" — if the platform opens to a broader or younger audience in the future, the name should be reviewed for appropriateness. No change needed for the current friend-group context. Product decision only if audience scope changes. (ally)
+
+- [ ] **2026-03-19** Manual verification needed for F'That game board before ship: (1) `--text-muted` (#3d5a78) must not be used for any game-information text (opponent chip "???" label, deck count, chip count) — use `--text-primary` instead; (2) run full board through Chrome DevTools > Rendering > Emulate Vision Deficiency for Deuteranopia and Protanopia; (3) verify 200% zoom does not clip the dual action button row ("F'THAT" + "FINE, I'LL TAKE IT"). (ally)
 
 *Agents: add items with a short description, the date, which story is blocked, and which agent surfaced it.*
