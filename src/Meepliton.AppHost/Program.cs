@@ -15,9 +15,13 @@ var postgres = builder.AddPostgres("postgres")
 
 var api = builder.AddProject<Projects.Meepliton_Api>("api")
     .WithReference(postgres)
-    .WaitFor(postgres);
+    .WaitFor(postgres)
+    // Disable the DCP reverse proxy so Vite connects directly to the API process.
+    // This avoids intermittent 503s from the proxy and lets the fixed port in
+    // launchSettings (http://localhost:5000) be used reliably.
+    .WithEndpoint("http", e => e.IsProxied = false);
 
-builder.AddViteApp("frontend", "../apps/frontend")
+builder.AddViteApp("frontend", "../../apps/frontend")
     .WithReference(api)
     .WaitFor(api)
     .WithHttpEndpoint(port: 5173, name: "frontend");

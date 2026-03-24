@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using Meepliton.Api.Data;
 using Meepliton.Api.Hubs;
@@ -40,11 +41,14 @@ builder.Services
     .AddDefaultTokenProviders();
 
 // Authentication
-builder.Services
+// NOTE: AddIdentity (above) registers its own DefaultAuthenticateScheme (Identity cookies).
+// We must explicitly override DefaultAuthenticateScheme here so requests are authenticated
+// via JWT Bearer, not the Identity cookie middleware.
+var authenticationBuilder = builder.Services
     .AddAuthentication(options =>
     {
-        options.DefaultScheme          = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme    = JwtBearerDefaults.AuthenticationScheme;
     })
     .AddJwtBearer(options =>
     {
@@ -81,32 +85,72 @@ builder.Services
                 return Task.CompletedTask;
             }
         };
-    })
-    .AddGoogle(options =>
-    {
-        options.ClientId     = builder.Configuration["Auth:Google:ClientId"]!;
-        options.ClientSecret = builder.Configuration["Auth:Google:ClientSecret"]!;
-        options.ClaimActions.MapJsonKey("picture", "picture");
     });
 
+// Only add Google OAuth if configuration is provided
+var googleClientId = builder.Configuration["Auth:Google:ClientId"];
+var googleClientSecret = builder.Configuration["Auth:Google:ClientSecret"];
+if (!string.IsNullOrEmpty(googleClientId) && !string.IsNullOrEmpty(googleClientSecret))
+{
+    authenticationBuilder.AddGoogle(options =>
+    {
+        options.ClientId     = googleClientId;
+        options.ClientSecret = googleClientSecret;
+        options.ClaimActions.MapJsonKey("picture", "picture");
+    });
+}
+
 builder.Services.AddAuthorization();
+
+// Configure JSON to serialize enums as strings so the frontend can compare status values by name
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(opts =>
+    opts.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 // SignalR
 builder.Services.AddSignalR();
 
-// Game modules via Scrutor auto-discovery
+// Game modules via Scrutor auto-discovery.
+// FromApplicationDependencies ensures game assemblies are loaded from the dependency
+// manifest rather than relying on them already being in the AppDomain at startup.
 builder.Services.Scan(scan => scan
-    .FromAssemblies(AppDomain.CurrentDomain.GetAssemblies()
-        .Where(a => a.FullName?.StartsWith("Meepliton.Games.") == true))
+    .FromApplicationDependencies(a => a.FullName?.StartsWith("Meepliton.Games.") == true)
     .AddClasses(c => c.AssignableTo<IGameModule>())
-    .AsImplementedInterfaces()
+    .As<IGameModule>()
     .WithSingletonLifetime()
     .AddClasses(c => c.AssignableTo<IGameHandler>())
-    .AsImplementedInterfaces()
-    .WithSingletonLifetime()
-    .AddClasses(c => c.AssignableTo<IGameDbContext>())
-    .AsImplementedInterfaces()
-    .WithScopedLifetime());
+    .As<IGameHandler>()
+    .WithSingletonLifetime());
+
+// Register game DbContexts via AddDbContext<T> so DbContextOptions<T> is available in DI.
+// Scrutor cannot set this up — only AddDbContext<T>() registers the options factory.
+// Game assemblies are already loaded by the Scrutor scan above.
+{
+    var addDbContextMethod = typeof(EntityFrameworkServiceCollectionExtensions)
+        .GetMethods(BindingFlags.Public | BindingFlags.Static)
+        .First(m => m.Name == "AddDbContext"
+                 && m.IsGenericMethodDefinition
+                 && m.GetGenericArguments().Length == 1
+                 && m.GetParameters().Length == 4
+                 && m.GetParameters()[1].ParameterType == typeof(Action<DbContextOptionsBuilder>));
+
+    var gameDbContextTypes = AppDomain.CurrentDomain.GetAssemblies()
+        .Where(a => a.FullName?.StartsWith("Meepliton.Games.") == true)
+        .SelectMany(a => a.GetTypes())
+        .Where(t => !t.IsAbstract
+                 && typeof(IGameDbContext).IsAssignableFrom(t)
+                 && typeof(DbContext).IsAssignableFrom(t))
+        .ToList();
+
+    foreach (var dbCtxType in gameDbContextTypes)
+    {
+        addDbContextMethod.MakeGenericMethod(dbCtxType)
+            .Invoke(null, new object?[] { builder.Services, null, ServiceLifetime.Scoped, ServiceLifetime.Singleton });
+        // Also register under IGameDbContext so MigrationRunner can inject IEnumerable<IGameDbContext>
+        var capturedType = dbCtxType;
+        builder.Services.AddScoped<IGameDbContext>(
+            sp => (IGameDbContext)sp.GetRequiredService(capturedType));
+    }
+}
 
 // Email sender — SendGrid when API key is present; console logging for local dev / CI
 if (!string.IsNullOrEmpty(builder.Configuration["SENDGRID_API_KEY"]))
@@ -121,24 +165,54 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<DevSeeder>();
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
-        policy.WithOrigins("http://localhost:5173", "https://meepliton.com")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials()));
+    {
+        if (builder.Environment.IsDevelopment())
+            // Allow any localhost origin so the Vite dev server works regardless of which
+            // dynamic port Aspire assigns it on each run.
+            policy.SetIsOriginAllowed(origin => new Uri(origin).Host == "localhost")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        else
+            policy.WithOrigins("https://meepliton.com")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+    }));
 
 var app = builder.Build();
 
 // Startup migrations
 using (var scope = app.Services.CreateScope())
 {
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("=== STARTUP: Beginning migration and seeding process ===");
+
     var runner = scope.ServiceProvider.GetRequiredService<MigrationRunner>();
     await runner.RunAllAsync();
 
     if (app.Environment.IsDevelopment())
     {
-        var seeder = scope.ServiceProvider.GetRequiredService<DevSeeder>();
-        await seeder.SeedAsync();
+        logger.LogInformation("=== STARTUP: Environment is Development, running DevSeeder ===");
+        try 
+        {
+            var seeder = scope.ServiceProvider.GetRequiredService<DevSeeder>();
+            logger.LogInformation("=== STARTUP: DevSeeder retrieved from DI, calling SeedAsync ===");
+            await seeder.SeedAsync();
+            logger.LogInformation("=== STARTUP: DevSeeder completed ===");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "=== STARTUP: DevSeeder failed with exception ===");
+            throw;
+        }
     }
+    else
+    {
+        logger.LogInformation("=== STARTUP: Environment is {Environment}, skipping DevSeeder ===", app.Environment.EnvironmentName);
+    }
+
+    logger.LogInformation("=== STARTUP: Migration and seeding process complete ===");
 }
 
 // Middleware

@@ -90,10 +90,10 @@ public static class RoomEndpoints
             return room is null ? Results.NotFound() : Results.Ok(room);
         });
 
-        group.MapPost("/rooms/join", async (JoinRoomRequest req, HttpContext ctx, PlatformDbContext db) =>
+        group.MapPost("/rooms/join", async (JoinRoomRequest req, HttpContext ctx, PlatformDbContext db, IHubContext<GameHub> hubContext, CancellationToken ct) =>
         {
             var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
-            var room   = await db.Rooms.FirstOrDefaultAsync(r => r.JoinCode == req.Code);
+            var room   = await db.Rooms.FirstOrDefaultAsync(r => r.JoinCode == req.Code, ct);
             if (room is null) return Results.NotFound();
 
             // 409 for rooms that are no longer joinable.
@@ -103,12 +103,26 @@ public static class RoomEndpoints
                 return Results.Conflict(new { message = "Room has ended" });
 
             // Idempotent — return 200 if the caller is already in the room.
-            var alreadyIn = await db.RoomPlayers.AnyAsync(rp => rp.RoomId == room.Id && rp.UserId == userId);
+            var alreadyIn = await db.RoomPlayers.AnyAsync(rp => rp.RoomId == room.Id && rp.UserId == userId, ct);
             if (!alreadyIn)
             {
-                var seat = await db.RoomPlayers.CountAsync(rp => rp.RoomId == room.Id);
+                var seat = await db.RoomPlayers.CountAsync(rp => rp.RoomId == room.Id, ct);
                 db.RoomPlayers.Add(new RoomPlayer { RoomId = room.Id, UserId = userId, SeatIndex = seat });
-                await db.SaveChangesAsync();
+                await db.SaveChangesAsync(ct);
+
+                // Notify all players already in the room that a new player joined.
+                var user = await db.Users.FindAsync(new object[] { userId }, ct);
+                if (user is not null)
+                {
+                    await hubContext.Clients.Group(room.Id).SendAsync("PlayerJoined", new
+                    {
+                        id          = user.Id,
+                        displayName = user.DisplayName,
+                        avatarUrl   = user.AvatarUrl,
+                        seatIndex   = seat,
+                        connected   = true,
+                    }, ct);
+                }
             }
             return Results.Ok(new { roomId = room.Id });
         });
@@ -135,7 +149,26 @@ public static class RoomEndpoints
             room.Status       = RoomStatus.InProgress;
             room.StateVersion = 1;
             await db.SaveChangesAsync(ct);
+
+            // Notify all players that the game has started.
             await hubContext.Clients.Group(roomId).SendAsync("GameStarted", new { roomId }, ct);
+
+            // Broadcast the initial game state so every client immediately renders
+            // the board without waiting for a player action.
+            if (module.HasStateProjection)
+            {
+                // Fan out per-player projected state (e.g. hidden hands in Skyline).
+                foreach (var p in players)
+                {
+                    var projected = module.ProjectStateForPlayer(room.GameState!, p.Id) ?? room.GameState!;
+                    await hubContext.Clients.User(p.Id).SendAsync("StateUpdated", projected, ct);
+                }
+            }
+            else
+            {
+                await hubContext.Clients.Group(roomId).SendAsync("StateUpdated", room.GameState, ct);
+            }
+
             return Results.NoContent();
         });
 
