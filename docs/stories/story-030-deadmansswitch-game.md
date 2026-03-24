@@ -1,7 +1,7 @@
 ---
 id: story-030
 title: Dead Man's Switch — bluffing game module (heist / bomb-defusal theme)
-status: refined
+status: in-progress
 created: 2026-03-22
 ---
 
