@@ -7,5 +7,7 @@ type AnyGameModule = GameModule<any>
 export const gameRegistry: Record<string, () => Promise<{ default: AnyGameModule }>> = {
   skyline: () => import('./skyline'),
   liarsdice: () => import('./liarsdice'),
+  deadmansswitch: () => import('./deadmansswitch'),
+  fthat: () => import('./fthat'),
   // Add new games here ↓
 }

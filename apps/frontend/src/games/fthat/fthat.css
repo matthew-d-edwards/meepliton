@@ -1,0 +1,7 @@
+/* F'That — comedic card game theme
+   Light overrides on platform defaults, with a pop of color for the cursed card. */
+
+[data-game-theme="fthat"] {
+  --color-primary:    #e85d04;
+  --color-on-primary: #ffffff;
+}

@@ -1,0 +1,359 @@
+/* Dead Man's Switch — scoped CSS Modules
+   All values via design tokens.
+   Theme overrides live in deadmansswitch.css scoped to [data-game-theme="deadmansswitch"]. */
+
+/* ── Root ── */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  min-height: 100%;
+  background: var(--color-background, var(--surface-base));
+  color: var(--color-text, var(--text-primary));
+  font-family: var(--font-body);
+}
+
+/* ── Info Bar ── */
+.infoBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  background: var(--color-surface-raised, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-5);
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.infoLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.infoValue {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-primary, var(--accent));
+  line-height: 1;
+}
+
+.infoValueMuted {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text, var(--text-primary));
+  line-height: 1;
+}
+
+.infoDivider {
+  width: 1px;
+  height: 32px;
+  background: var(--color-border, var(--edge-subtle));
+  flex-shrink: 0;
+}
+
+/* ── Last Flip Notification ── */
+.flipNotification {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: color-mix(in srgb, var(--color-primary, var(--accent)) 12%, transparent);
+  border: 1px solid var(--color-primary, var(--accent));
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--color-text, var(--text-primary));
+}
+
+.flipNotificationIcon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+/* ── Players Grid ── */
+.playersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 375px) {
+  .playersGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+}
+
+/* ── Player Area ── */
+.playerArea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-surface, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  transition: border-color 200ms;
+}
+
+.playerAreaActive {
+  border-color: var(--color-primary, var(--accent));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-primary, var(--accent)) 25%, transparent);
+}
+
+.playerAreaEliminated {
+  opacity: 0.6;
+}
+
+/* ── Player Header ── */
+.playerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.playerName {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text, var(--text-primary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playerTag {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-pill, 999px);
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.playerTagActive {
+  color: var(--color-primary, var(--accent));
+  border-color: var(--color-primary, var(--accent));
+}
+
+/* ── Points ── */
+.playerPoints {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.pointStar {
+  font-size: 1rem;
+  color: var(--color-primary, var(--accent));
+}
+
+.pointStarEmpty {
+  font-size: 1rem;
+  color: var(--color-border, var(--edge-subtle));
+}
+
+/* ── Stack (devices) ── */
+.stackSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stackLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.stackDevices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-height: 36px;
+}
+
+.deviceFaceDown {
+  width: 28px;
+  height: 36px;
+  border: 1.5px solid var(--color-border, var(--edge-strong));
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised, var(--surface-raised));
+  opacity: 0.55;
+}
+
+.deviceFlipped {
+  width: 28px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.deviceFlippedDud {
+  background: color-mix(in srgb, #22c55e 15%, transparent);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.deviceFlippedTrigger {
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* ── Action Panel ── */
+.actionPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--color-surface-raised, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.actionPanelLabel {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.actionRow {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.actionInput {
+  width: 80px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface, var(--surface-base));
+  border: 1.5px solid var(--color-border, var(--edge-strong));
+  border-radius: var(--radius-sm);
+  color: var(--color-text, var(--text-primary));
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.actionInput:focus {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
+  border-color: var(--color-primary, var(--accent));
+}
+
+/* ── Action Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 150ms;
+  min-height: 44px;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  background: var(--color-primary, var(--accent));
+  color: var(--color-on-primary, #0a0a0c);
+  border-color: var(--color-primary, var(--accent));
+}
+
+.btnPrimary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.btnSecondary {
+  background: transparent;
+  color: var(--color-text, var(--text-primary));
+  border-color: var(--color-border, var(--edge-strong));
+}
+
+.btnSecondary:hover:not(:disabled) {
+  border-color: var(--color-text, var(--text-primary));
+}
+
+.btnDanger {
+  background: transparent;
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+}
+
+/* ── Winner Banner ── */
+.winnerBanner {
+  text-align: center;
+  padding: var(--space-6);
+}
+
+.winnerTitle {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--color-primary, var(--accent));
+}
+
+.winnerName {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-text, var(--text-primary));
+  margin-top: var(--space-2);
+}
