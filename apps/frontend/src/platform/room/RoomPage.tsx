@@ -6,7 +6,6 @@ import { gameRegistry } from '../../games/registry'
 import type { GameContext, PlayerInfo } from '@meepliton/contracts'
 import { TurnIndicator } from './TurnIndicator'
 import './room.css'
-import { ThemeToggle } from '../theme/ThemeToggle'
 import { RoomWaitingScreen, ActionRejectedToast } from '@meepliton/ui'
 
 interface RoomData {
@@ -97,22 +96,24 @@ export default function RoomPage({ join }: { join?: boolean }) {
   // Connect SignalR
   useEffect(() => {
     if (!roomId) return
+    let isCurrent = true
     const hub = new signalR.HubConnectionBuilder()
       .withUrl('/hubs/game', { withCredentials: true })
       .withAutomaticReconnect()
       .build()
 
-    hub.on('StateUpdated', (state) => { setGameState(state); setRejectedReason(null) })
-    hub.on('ActionRejected', ({ reason }: { reason: string }) => setRejectedReason(reason))
-    hub.on('PlayerJoined', (p: PlayerInfo) => setPlayers(prev => [...prev.filter(x => x.id !== p.id), p]))
-    hub.on('PlayerLeft', (playerId: string) => setPlayers(prev => prev.filter(x => x.id !== playerId)))
-    hub.on('PlayerConnected', (playerId: string) =>
-      setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, connected: true } : p))
-    )
-    hub.on('PlayerDisconnected', (playerId: string) =>
-      setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, connected: false } : p))
-    )
+    hub.on('StateUpdated', (state) => { if (isCurrent) { setGameState(state); setRejectedReason(null) } })
+    hub.on('ActionRejected', ({ reason }: { reason: string }) => { if (isCurrent) setRejectedReason(reason) })
+    hub.on('PlayerJoined', (p: PlayerInfo) => { if (isCurrent) setPlayers(prev => [...prev.filter(x => x.id !== p.id), p]) })
+    hub.on('PlayerLeft', (playerId: string) => { if (isCurrent) setPlayers(prev => prev.filter(x => x.id !== playerId)) })
+    hub.on('PlayerConnected', (playerId: string) => {
+      if (isCurrent) setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, connected: true } : p))
+    })
+    hub.on('PlayerDisconnected', (playerId: string) => {
+      if (isCurrent) setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, connected: false } : p))
+    })
     hub.on('GameStarted', () => {
+      if (!isCurrent) return
       setRoom(r => r ? { ...r, status: 'InProgress' } : r)
       // Re-invoke JoinRoom so the hub pushes the initial projected state
       // back to this client immediately (GameHub.JoinRoom sends StateUpdated
@@ -120,13 +121,13 @@ export default function RoomPage({ join }: { join?: boolean }) {
       hub.invoke('JoinRoom', roomId).catch(() => { /* ignore if already joined */ })
     })
     hub.on('HostTransferred', ({ newHostId }: { newHostId: string; oldHostId: string }) => {
-      setRoom(r => r ? { ...r, hostId: newHostId } : r)
+      if (isCurrent) setRoom(r => r ? { ...r, hostId: newHostId } : r)
     })
 
-    hub.start().then(() => hub.invoke('JoinRoom', roomId))
+    hub.start().then(() => { if (isCurrent) hub.invoke('JoinRoom', roomId) })
     hubRef.current = hub
 
-    return () => { hub.stop() }
+    return () => { isCurrent = false; hub.stop() }
   }, [roomId])
 
   const dismissRejection = useCallback(() => setRejectedReason(null), [])
@@ -194,9 +195,6 @@ export default function RoomPage({ join }: { join?: boolean }) {
 
   return (
     <div className="room-page">
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 'var(--space-2) var(--space-4)' }}>
-        <ThemeToggle />
-      </div>
       {rejectedReason && (
         <ActionRejectedToast
           reason={rejectedReason}
