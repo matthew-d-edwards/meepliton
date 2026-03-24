@@ -2,6 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+// When running under Aspire, it injects the API's actual address via this env var.
+// Fall back to the conventional local port for standalone `vite dev` runs.
+const apiTarget = process.env['services__api__http__0'] ?? 'http://localhost:5000'
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -14,11 +18,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: apiTarget,
         changeOrigin: true,
       },
       '/hubs': {
-        target: 'http://localhost:5000',
+        target: apiTarget,
         changeOrigin: true,
         ws: true,
       },

@@ -191,11 +191,6 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
     return styles[key] ?? styles.tileNeutral
   }
 
-  function isHandTilePlayable(tileId: string): boolean {
-    // Only let viewer place if it's their turn and phase is 'place'
-    return isMyTurn && state.phase === 'place'
-  }
-
   const isPlacingPhase = isMyTurn && state.phase === 'place'
 
   // ── Hand section ───────────────────────────────────────────────────────────
@@ -207,7 +202,6 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
   // ── Buy stocks state ───────────────────────────────────────────────────────
 
   const totalBuyQty = Object.values(buyQty).reduce((s, v) => s + v, 0)
-  const MAX_BUY_PER_TURN = 3
   const buyCost = HOTELS.reduce((sum, h) => sum + (buyQty[h] ?? 0) * stockPrice(h, state.chains), 0)
 
   // ── Dispose state ──────────────────────────────────────────────────────────
@@ -511,7 +505,7 @@ function ActionPanel(props: ActionPanelProps) {
             <span className={styles.qval}>{disposeLocal.trade}</span>
             <button className={styles.qbtn} onClick={() => {
               const next = disposeLocal.trade + 2
-              if (disposeLocal.sell + next <= myDefunctStocks) setDisposeLocal({ ...disposeLocal, trade: next })
+              if (next <= maxTrade) setDisposeLocal({ ...disposeLocal, trade: next })
             }}>+</button>
           </div>
           <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>
@@ -631,7 +625,7 @@ function HotelChips({ state }: { state: SkylineState }) {
       {HOTELS.map(h => {
         const chain = state.chains[h]
         const active = chain?.active ?? false
-        const price = stockPrice(h, state)
+        const price = stockPrice(h, state.chains)
         return (
           <div
             key={h}

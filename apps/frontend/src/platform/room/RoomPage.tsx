@@ -112,7 +112,13 @@ export default function RoomPage({ join }: { join?: boolean }) {
     hub.on('PlayerDisconnected', (playerId: string) =>
       setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, connected: false } : p))
     )
-    hub.on('GameStarted', () => setRoom(r => r ? { ...r, status: 'InProgress' } : r))
+    hub.on('GameStarted', () => {
+      setRoom(r => r ? { ...r, status: 'InProgress' } : r)
+      // Re-invoke JoinRoom so the hub pushes the initial projected state
+      // back to this client immediately (GameHub.JoinRoom sends StateUpdated
+      // if GameState is already set).
+      hub.invoke('JoinRoom', roomId).catch(() => { /* ignore if already joined */ })
+    })
     hub.on('HostTransferred', ({ newHostId }: { newHostId: string; oldHostId: string }) => {
       setRoom(r => r ? { ...r, hostId: newHostId } : r)
     })
@@ -170,8 +176,14 @@ export default function RoomPage({ join }: { join?: boolean }) {
   const loadGame = gameRegistry[room.gameId]
   if (!loadGame) return <UnknownGameScreen gameId={room.gameId} />
 
+  // Always use the SignalR-delivered state. The HTTP room fetch includes gameState
+  // but it is raw DB JSON that may be stale or have a different casing than what
+  // the module's projection produces. The hub re-projects and re-serializes on
+  // JoinRoom, so we wait for that authoritative copy.
+  if (!gameState) return <RoomLoadingScreen label="Loading game state…" />
+
   const ctx: GameContext<unknown> = {
-    state:      gameState ?? room.gameState,
+    state:      gameState,
     players,
     myPlayerId: user.id,
     roomId:     room.id,

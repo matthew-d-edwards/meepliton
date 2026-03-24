@@ -17,22 +17,47 @@ public class DevSeeder(UserManager<ApplicationUser> userManager, ILogger<DevSeed
 
     public async Task SeedAsync()
     {
-        var existing = await userManager.FindByEmailAsync(Email);
-        if (existing is not null) return;
-
-        var user = new ApplicationUser
+        try
         {
-            UserName       = Email,
-            Email          = Email,
-            DisplayName    = DisplayName,
-            EmailConfirmed = true,
-        };
+            logger.LogInformation("[DEV] Starting DevSeeder - checking for existing user with email: {Email}", Email);
 
-        var result = await userManager.CreateAsync(user, Password);
-        if (result.Succeeded)
-            logger.LogInformation("[DEV] Seeded dev user — email: {Email}  password: {Password}", Email, Password);
-        else
-            logger.LogWarning("[DEV] Failed to seed dev user: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Description)));
+            var existing = await userManager.FindByEmailAsync(Email);
+            if (existing is not null) 
+            {
+                logger.LogInformation("[DEV] Dev user already exists, skipping seed.");
+                return;
+            }
+
+            logger.LogInformation("[DEV] Creating new dev user...");
+
+            var user = new ApplicationUser
+            {
+                UserName       = Email,
+                Email          = Email,
+                DisplayName    = DisplayName,
+                EmailConfirmed = true,
+            };
+
+            var result = await userManager.CreateAsync(user, Password);
+            if (result.Succeeded)
+            {
+                logger.LogInformation("[DEV] ✅ Successfully seeded dev user — email: {Email}  password: {Password}", Email, Password);
+            }
+            else
+            {
+                logger.LogError("[DEV] ❌ Failed to seed dev user. Errors: {Errors}",
+                    string.Join(", ", result.Errors.Select(e => $"{e.Code}: {e.Description}")));
+
+                // Log each error individually for better visibility
+                foreach (var error in result.Errors)
+                {
+                    logger.LogError("[DEV] Identity Error - Code: {Code}, Description: {Description}", error.Code, error.Description);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[DEV] Exception occurred while seeding dev user");
+        }
     }
 }

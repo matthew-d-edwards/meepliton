@@ -58,9 +58,20 @@ public abstract class ReducerGameModule<TState, TAction, TOptions>
         return Serialize(projected);
     }
 
+    /// <summary>
+    /// Serialization options shared by all game modules.
+    /// CamelCase naming keeps JSON keys consistent with the TypeScript frontend.
+    /// CaseInsensitive deserialization tolerates both casing styles in stored state.
+    /// </summary>
+    private static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        PropertyNamingPolicy        = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+    };
+
     protected static T Deserialize<T>(JsonDocument doc) =>
-        JsonSerializer.Deserialize<T>(doc.RootElement.GetRawText())!;
+        JsonSerializer.Deserialize<T>(doc.RootElement.GetRawText(), SerializerOptions)!;
 
     protected static JsonDocument Serialize<T>(T obj) =>
-        JsonDocument.Parse(JsonSerializer.Serialize(obj));
+        JsonDocument.Parse(JsonSerializer.Serialize(obj, SerializerOptions));
 }
