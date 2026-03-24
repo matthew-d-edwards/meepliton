@@ -39,5 +39,5 @@ Adds a fast, light card game (15–20 min) that plays well at 3–7 players, giv
 
 ## Notes
 
-- Branch: (link once created)
+- Branch: `claude/implement-deadman-fthat-game-SXX0e`
 - PR: (link once opened)

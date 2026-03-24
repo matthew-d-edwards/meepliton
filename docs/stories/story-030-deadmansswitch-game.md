@@ -62,5 +62,5 @@ Adds a third game module to the platform, proving the module system handles mult
 ## Notes
 
 - Spec: `docs/specs/deadmansswitch.md`
-- Branch: (link once created)
+- Branch: `claude/implement-deadman-fthat-game-SXX0e`
 - PR: (link once opened)

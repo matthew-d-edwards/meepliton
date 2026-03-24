@@ -1725,7 +1725,9 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 - [ ] Presence indicators (connected/disconnected dots) in room chrome
 - [ ] Action log viewer in room (debug tool for game authors)
 - [ ] Mobile optimisation pass across all modules
-- [x] Second game module (validates module system for a genuinely different game type — e.g. map-based or simultaneous-action, not just another tile game)
+- [x] Second game module (validates module system for a genuinely different game type — e.g. map-based or simultaneous-action, not just another tile game) — **Liar's Dice**
+- [x] Third game module — **Dead Man's Switch** (disc-bluffing, multi-phase turn structure, per-player hidden state)
+- [x] Fourth game module — **F'That** (card-passing with chips, server-side state projection for private chip counts)
 - [ ] Application Insights: errors + response times
 - [ ] Host-only action log rewind (undo to N-1 state)
 
@@ -1743,4 +1745,4 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 *Maintained in `docs/requirements.md` in the meepliton GitHub repository.*
 *Architecture decisions recorded in §3 (Architecture Decision Records).*
 *Claude skill files for game development are in `.claude/skills/`.*
-*Last updated: 2026-03-19*
+*Last updated: 2026-03-24*

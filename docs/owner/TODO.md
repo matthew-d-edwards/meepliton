@@ -74,4 +74,6 @@ _Nothing urgent yet._
 
 - [ ] **2026-03-24** Manual screen reader verification needed for both games before ship: (1) VoiceOver/NVDA should announce the turn-change live region each time `currentPlayerIndex` changes; (2) the flip notification in Dead Man's Switch should announce via `role="status"` on each new flip; (3) the score table in F'That should be navigable with table-navigation keys. Recommended tools: VoiceOver (macOS), NVDA (Windows), axe DevTools browser extension. (ally)
 
+- [ ] **2026-03-24** Docs sweep for story-030 (Dead Man's Switch + F'That): the session owner referenced three resolved ally items by the labels FTHAT-MUST-01, FTHAT-MUST-02, and DMS-MUST-01. Those labels do not appear anywhere in this file or in the specs. The six 2026-03-24 ally items in this file are all still open. Confirm which three correspond to those labels, check them off here, and confirm the remaining items are deferred (not blocking the PR). (docs)
+
 *Agents: add items with a short description, the date, which story is blocked, and which agent surfaced it.*

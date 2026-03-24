@@ -186,7 +186,7 @@ function ActionPanel({ state, me, myPlayerId, isMyTurn, isChallenger, send }: Ac
   if (state.phase === 'Placing' && isMyTurn && me !== undefined) {
     return (
       <div className={styles.actionPanel}>
-        <span className={styles.actionLabel}>Your move — Arming Phase</span>
+        <span className={styles.actionLabel}>Your move — arming phase</span>
         <div className={styles.actionRow}>
           <button
             type="button"
@@ -229,7 +229,7 @@ function ActionPanel({ state, me, myPlayerId, isMyTurn, isChallenger, send }: Ac
     const effectiveBid = Math.max(bidValue, minBid)
     return (
       <div className={styles.actionPanel}>
-        <span className={styles.actionLabel}>Your move — Bidding Phase</span>
+        <span className={styles.actionLabel}>Your move — bidding phase</span>
         <div className={styles.actionRow}>
           <input
             type="number"
@@ -266,7 +266,7 @@ function ActionPanel({ state, me, myPlayerId, isMyTurn, isChallenger, send }: Ac
 
     return (
       <div className={styles.actionPanel}>
-        <span className={styles.actionLabel}>Revealing — Flip Devices</span>
+        <span className={styles.actionLabel}>Your move — flip devices</span>
         <div className={styles.actionRow}>
           {hasOwnUnflipped && (
             <button
