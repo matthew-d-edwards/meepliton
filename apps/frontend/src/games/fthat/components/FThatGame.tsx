@@ -19,19 +19,36 @@ export default function FThatGame({ state, myPlayerId, dispatch }: GameContext<F
   return (
     <div data-game-theme="fthat" className={styles.root}>
 
+      {/* Screen-reader-only live turn announcer */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {state.phase === 'Playing' && (
+          isMyTurn
+            ? `Your turn — card ${state.faceUpCard} with ${state.chipsOnCard} chips`
+            : currentPlayer
+              ? `${currentPlayer.displayName}'s turn`
+              : null
+        )}
+      </div>
+
       {/* ── Card Info Row ── */}
       <div className={styles.cardInfoRow}>
         <div className={styles.cardDisplay}>
           <span className={styles.cardLabel}>Card</span>
-          <span className={styles.cardValue}>😱 {state.faceUpCard}</span>
+          <span className={styles.cardValue} aria-label={`Card: ${state.faceUpCard}`}>
+            <span aria-hidden="true">😱 </span>{state.faceUpCard}
+          </span>
         </div>
         <div className={styles.metaChip}>
           <span className={styles.metaLabel}>Chips on it</span>
-          <span className={styles.metaValue}>💰 {state.chipsOnCard}</span>
+          <span className={styles.metaValue} aria-label={`${state.chipsOnCard} chips on card`}>
+            <span aria-hidden="true">💰 </span>{state.chipsOnCard}
+          </span>
         </div>
         <div className={styles.metaChip}>
           <span className={styles.metaLabel}>Cards left</span>
-          <span className={styles.metaValue}>📦 {state.deckCount}</span>
+          <span className={styles.metaValue} aria-label={`${state.deckCount} cards remaining`}>
+            <span aria-hidden="true">📦 </span>{state.deckCount}
+          </span>
         </div>
       </div>
 
@@ -62,21 +79,22 @@ export default function FThatGame({ state, myPlayerId, dispatch }: GameContext<F
               type="button"
               className={`${styles.actionBtn} ${styles.actionBtnPass}`}
               disabled={me.chips === 0}
-              title={me.chips === 0 ? 'No chips — you must take it!' : undefined}
+              aria-disabled={me.chips === 0}
+              aria-describedby={me.chips === 0 ? 'no-chips-hint' : undefined}
               onClick={() => send('Pass')}
             >
-              F&apos;THAT 🤮
+              F&apos;THAT <span aria-hidden="true">🤮</span>
             </button>
             <button
               type="button"
               className={`${styles.actionBtn} ${styles.actionBtnTake}`}
               onClick={() => send('Take')}
             >
-              Fine, I&apos;ll Take It 😭
+              Fine, I&apos;ll Take It <span aria-hidden="true">😭</span>
             </button>
           </div>
           {me.chips === 0 && (
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-muted, var(--text-muted))' }}>
+            <span id="no-chips-hint" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-muted, var(--text-muted))' }}>
               No chips — you must take it!
             </span>
           )}
@@ -87,19 +105,21 @@ export default function FThatGame({ state, myPlayerId, dispatch }: GameContext<F
       {state.phase === 'GameOver' && state.scores !== null && (
         <div className={styles.scoreSection}>
           {state.winners !== null && state.winners.length > 0 && (
-            <div className={styles.winnerBanner}>
+            <div className={styles.winnerBanner} role="status" aria-live="polite" aria-atomic="true">
+              <span aria-hidden="true">🎉 </span>
               {state.winners.length === 1
-                ? `🎉 ${nameFor(state.winners[0])} wins!`
-                : `🎉 ${state.winners.map(id => nameFor(id)).join(' & ')} tie!`}
+                ? `${nameFor(state.winners[0])} wins!`
+                : `${state.winners.map(id => nameFor(id)).join(' & ')} tie!`}
             </div>
           )}
           <table className={styles.scoreTable}>
+            <caption className="sr-only">Final scores</caption>
             <thead>
               <tr>
-                <th>Player</th>
-                <th>Card Score</th>
-                <th>Chips</th>
-                <th>Total</th>
+                <th scope="col">Player</th>
+                <th scope="col">Card Score</th>
+                <th scope="col">Chips</th>
+                <th scope="col">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -115,7 +135,7 @@ export default function FThatGame({ state, myPlayerId, dispatch }: GameContext<F
                     >
                       <td>
                         {nameFor(score.playerId)}
-                        {isWinner && ' 🏆'}
+                        {isWinner && <span aria-label="winner" aria-hidden="false"> 🏆</span>}
                       </td>
                       <td>{score.cardScore}</td>
                       <td>−{score.chips}</td>

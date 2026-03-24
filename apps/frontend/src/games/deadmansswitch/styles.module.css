@@ -156,8 +156,8 @@
 }
 
 .badgeEliminated {
-  color: #ef4444;
-  border-color: #ef4444;
+  color: #f87171;
+  border-color: #f87171;
 }
 
 .badgePassed {
@@ -240,7 +240,7 @@
   width: 28px;
   height: 36px;
   border-radius: var(--radius-sm);
-  border: 1.5px solid #ef4444;
+  border: 1.5px solid #f87171;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -249,8 +249,8 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  background: color-mix(in srgb, #ef4444 15%, transparent);
-  color: #ef4444;
+  background: color-mix(in srgb, #f87171 15%, transparent);
+  color: #f87171;
 }
 
 /* ── Action Panel ── */
@@ -348,12 +348,12 @@
 
 .actionBtnDanger {
   background: transparent;
-  color: #ef4444;
-  border-color: #ef4444;
+  color: #f87171;
+  border-color: #f87171;
 }
 
 .actionBtnDanger:hover:not(:disabled) {
-  background: color-mix(in srgb, #ef4444 15%, transparent);
+  background: color-mix(in srgb, #f87171 15%, transparent);
 }
 
 /* ── Finished Banner ── */

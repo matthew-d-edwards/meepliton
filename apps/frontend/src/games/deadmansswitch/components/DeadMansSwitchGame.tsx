@@ -28,6 +28,15 @@ export default function DeadMansSwitchGame({ state, myPlayerId, dispatch }: Game
   return (
     <div data-game-theme="deadmansswitch" className={styles.root}>
 
+      {/* Screen-reader-only live turn announcer */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {isMyTurn
+          ? `Your turn — ${state.phase} phase, mission ${state.roundNumber}`
+          : currentPlayer
+            ? `${currentPlayer.displayName}'s turn — ${state.phase} phase`
+            : null}
+      </div>
+
       {/* ── Info Bar ── */}
       <div className={styles.infoBar}>
         <div className={styles.infoItem}>
@@ -52,8 +61,8 @@ export default function DeadMansSwitchGame({ state, myPlayerId, dispatch }: Game
 
       {/* ── Last Flip Notification ── */}
       {state.lastFlip !== null && (
-        <div className={styles.flipNotification}>
-          <span className={styles.flipNotificationIcon}>
+        <div className={styles.flipNotification} role="status" aria-live="polite" aria-atomic="true">
+          <span className={styles.flipNotificationIcon} aria-hidden="true">
             {state.lastFlip.result === 'Skull' ? '⚡' : '✓'}
           </span>
           <span>
@@ -99,9 +108,9 @@ export default function DeadMansSwitchGame({ state, myPlayerId, dispatch }: Game
               </div>
 
               {/* Points: ★ tokens */}
-              <div className={styles.pointsRow}>
+              <div className={styles.pointsRow} aria-label={`${player.pointsWon} of 2 points`}>
                 {[0, 1].map(i => (
-                  <span key={i} className={i < player.pointsWon ? styles.pointStar : styles.pointStarEmpty}>
+                  <span key={i} aria-hidden="true" className={i < player.pointsWon ? styles.pointStar : styles.pointStarEmpty}>
                     ★
                   </span>
                 ))}
@@ -145,7 +154,7 @@ export default function DeadMansSwitchGame({ state, myPlayerId, dispatch }: Game
 
       {/* ── Finished Banner ── */}
       {state.phase === 'Finished' && (
-        <div className={styles.finishedBanner}>
+        <div className={styles.finishedBanner} role="status" aria-live="polite" aria-atomic="true">
           <div className={styles.finishedTitle}>Mission Complete</div>
           <div className={styles.finishedSubtitle}>
             {state.winner
@@ -296,19 +305,23 @@ function ActionPanel({ state, me, myPlayerId, isMyTurn, isChallenger, send }: Ac
             className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
             disabled={me.rosesOwned === 0}
             onClick={() => send({ type: 'DiscardDisc', discType: 'Rose' })}
-            title={me.rosesOwned === 0 ? 'No duds to discard' : undefined}
+            aria-disabled={me.rosesOwned === 0}
+            aria-describedby={me.rosesOwned === 0 ? 'discard-dud-hint' : undefined}
           >
             DISCARD DUD (ROSE)
           </button>
+          {me.rosesOwned === 0 && <span id="discard-dud-hint" className="sr-only">No duds to discard</span>}
           <button
             type="button"
             className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
             disabled={!me.skullOwned}
             onClick={() => send({ type: 'DiscardDisc', discType: 'Skull' })}
-            title={!me.skullOwned ? 'No trigger to discard' : undefined}
+            aria-disabled={!me.skullOwned}
+            aria-describedby={!me.skullOwned ? 'discard-trigger-hint' : undefined}
           >
             DISCARD TRIGGER (SKULL)
           </button>
+          {!me.skullOwned && <span id="discard-trigger-hint" className="sr-only">No trigger to discard</span>}
         </div>
       </div>
     )
