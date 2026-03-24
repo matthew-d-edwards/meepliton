@@ -27,6 +27,6 @@ export interface FThatPlayerView {
 export interface FThatScore {
   playerId: string
   cardScore: number
-  chips:     number
-  total:     number
+  chips: number
+  total: number
 }

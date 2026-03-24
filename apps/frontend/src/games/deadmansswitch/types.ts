@@ -43,13 +43,3 @@ export interface DeadMansSwitchState {
   winner: string | null
   roundNumber: number
 }
-
-export type DeadMansSwitchAction =
-  | { type: 'StartGame' }
-  | { type: 'PlaceDisc' }
-  | { type: 'StartBid'; targetCount: number }
-  | { type: 'RaiseBid'; newBid: number }
-  | { type: 'Pass' }
-  | { type: 'FlipDisc'; targetPlayerId: string }
-  | { type: 'DiscardDisc'; discType: DiscType }
-  | { type: 'StartNextRound' }

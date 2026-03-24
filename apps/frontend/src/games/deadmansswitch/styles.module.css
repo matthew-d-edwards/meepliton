@@ -17,9 +17,9 @@
 /* ── Info Bar ── */
 .infoBar {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: var(--space-4);
-  align-items: center;
   background: var(--color-surface-raised, var(--surface-raised));
   border: 1px solid var(--color-border, var(--edge-subtle));
   border-radius: var(--radius-md);
@@ -45,15 +45,22 @@
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--color-primary, var(--accent));
-  letter-spacing: 1px;
+  line-height: 1;
 }
 
-.infoValuePlain {
+.infoValueMuted {
   font-family: var(--font-mono);
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--color-text, var(--text-primary));
-  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.infoDivider {
+  width: 1px;
+  height: 32px;
+  background: var(--color-border, var(--edge-subtle));
+  flex-shrink: 0;
 }
 
 /* ── Last Flip Notification ── */
@@ -68,7 +75,6 @@
   font-family: var(--font-mono);
   font-size: 0.82rem;
   color: var(--color-text, var(--text-primary));
-  letter-spacing: 0.5px;
 }
 
 .flipNotificationIcon {
@@ -79,7 +85,7 @@
 /* ── Players Grid ── */
 .playersGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--space-4);
 }
 
@@ -90,8 +96,8 @@
   }
 }
 
-/* ── Player Card ── */
-.playerCard {
+/* ── Player Area ── */
+.playerArea {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -102,15 +108,16 @@
   transition: border-color 200ms;
 }
 
-.playerCardActive {
+.playerAreaActive {
   border-color: var(--color-primary, var(--accent));
-  box-shadow: 0 0 12px color-mix(in srgb, var(--color-primary, var(--accent)) 20%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-primary, var(--accent)) 25%, transparent);
 }
 
-.playerCardEliminated {
+.playerAreaEliminated {
   opacity: 0.6;
 }
 
+/* ── Player Header ── */
 .playerHeader {
   display: flex;
   align-items: center;
@@ -124,56 +131,49 @@
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--color-text, var(--text-primary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.playerBadge {
+.playerTag {
   font-family: var(--font-mono);
   font-size: 0.6rem;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  border-radius: var(--radius-pill);
+  color: var(--color-text-muted, var(--text-muted));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-pill, 999px);
   padding: 1px 6px;
-  border: 1px solid;
   flex-shrink: 0;
 }
 
-.badgeTurn {
+.playerTagActive {
   color: var(--color-primary, var(--accent));
   border-color: var(--color-primary, var(--accent));
 }
 
-.badgeEliminated {
-  color: var(--color-text-muted, var(--text-muted));
-  border-color: var(--color-border, var(--edge-subtle));
-}
-
-.badgePassed {
-  color: var(--color-text-muted, var(--text-muted));
-  border-color: var(--color-border, var(--edge-subtle));
-}
-
-/* ── Points display ── */
-.pointsRow {
+/* ── Points ── */
+.playerPoints {
   display: flex;
-  align-items: center;
   gap: var(--space-1);
+  align-items: center;
 }
 
 .pointStar {
-  color: var(--color-primary, var(--accent));
   font-size: 1rem;
+  color: var(--color-primary, var(--accent));
 }
 
 .pointStarEmpty {
-  color: var(--color-border, var(--edge-subtle));
   font-size: 1rem;
+  color: var(--color-border, var(--edge-subtle));
 }
 
-/* ── Device Stack ── */
-.stackArea {
+/* ── Stack (devices) ── */
+.stackSection {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -187,60 +187,47 @@
   color: var(--color-text-muted, var(--text-muted));
 }
 
-.stackDiscs {
+.stackDevices {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
   min-height: 36px;
 }
 
-.discFaceDown {
-  width: 32px;
-  height: 32px;
-  border: 2px solid var(--color-border, var(--edge-strong));
+.deviceFaceDown {
+  width: 28px;
+  height: 36px;
+  border: 1.5px solid var(--color-border, var(--edge-strong));
   border-radius: var(--radius-sm);
   background: var(--color-surface-raised, var(--surface-raised));
-  opacity: 0.5;
+  opacity: 0.55;
 }
 
-.discTrigger {
-  width: 32px;
-  height: 32px;
-  border: 2px solid #c0392b;
+.deviceFlipped {
+  width: 28px;
+  height: 36px;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, #c0392b 15%, transparent);
+  border: 1.5px solid transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
   font-size: 0.5rem;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #e74c3c;
 }
 
-.discDud {
-  width: 32px;
-  height: 32px;
-  border: 2px solid var(--color-border, var(--edge-strong));
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-primary, var(--accent)) 12%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  color: var(--color-primary, var(--accent));
+.deviceFlippedDud {
+  background: color-mix(in srgb, #22c55e 15%, transparent);
+  border-color: #22c55e;
+  color: #22c55e;
 }
 
-.stackEmpty {
-  color: var(--color-text-muted, var(--text-muted));
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
+.deviceFlippedTrigger {
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+  border-color: #ef4444;
+  color: #ef4444;
 }
 
 /* ── Action Panel ── */
@@ -249,47 +236,47 @@
   flex-direction: column;
   gap: var(--space-4);
   background: var(--color-surface-raised, var(--surface-raised));
-  border: 1px solid var(--color-primary, var(--accent));
+  border: 1px solid var(--color-border, var(--edge-subtle));
   border-radius: var(--radius-md);
   padding: var(--space-5);
 }
 
-.actionLabel {
+.actionPanelLabel {
   font-family: var(--font-mono);
   font-size: 0.65rem;
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--color-text-muted, var(--text-muted));
-  margin-bottom: var(--space-1);
 }
 
 .actionRow {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-3);
+  flex-wrap: wrap;
   align-items: center;
 }
 
-.numberInput {
-  font-family: var(--font-mono);
-  font-size: 1rem;
-  font-weight: 700;
-  width: 72px;
+.actionInput {
+  width: 80px;
   padding: var(--space-2) var(--space-3);
   background: var(--color-surface, var(--surface-base));
   border: 1.5px solid var(--color-border, var(--edge-strong));
   border-radius: var(--radius-sm);
   color: var(--color-text, var(--text-primary));
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
   text-align: center;
 }
 
-.numberInput:focus {
+.actionInput:focus {
   outline: 2px solid var(--color-primary, var(--accent));
   outline-offset: 2px;
   border-color: var(--color-primary, var(--accent));
 }
 
-.actionBtn {
+/* ── Action Buttons ── */
+.btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -299,79 +286,74 @@
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   cursor: pointer;
   transition: all 150ms;
   min-height: 44px;
 }
 
-.actionBtn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.actionBtn:focus-visible {
+.btn:focus-visible {
   outline: 2px solid var(--color-primary, var(--accent));
   outline-offset: 2px;
 }
 
-.actionBtnPrimary {
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
   background: var(--color-primary, var(--accent));
   color: var(--color-on-primary, #0a0a0c);
   border-color: var(--color-primary, var(--accent));
 }
 
-.actionBtnPrimary:hover:not(:disabled) {
+.btnPrimary:hover:not(:disabled) {
   filter: brightness(1.1);
 }
 
-.actionBtnSecondary {
+.btnSecondary {
   background: transparent;
   color: var(--color-text, var(--text-primary));
   border-color: var(--color-border, var(--edge-strong));
 }
 
-.actionBtnSecondary:hover:not(:disabled) {
+.btnSecondary:hover:not(:disabled) {
   border-color: var(--color-text, var(--text-primary));
-  color: var(--color-text, var(--text-bright));
 }
 
-.actionBtnDanger {
+.btnDanger {
   background: transparent;
-  color: #e74c3c;
-  border-color: #c0392b;
+  color: #ef4444;
+  border-color: #ef4444;
 }
 
-.actionBtnDanger:hover:not(:disabled) {
-  background: color-mix(in srgb, #c0392b 12%, transparent);
+.btnDanger:hover:not(:disabled) {
+  background: color-mix(in srgb, #ef4444 15%, transparent);
 }
 
-/* ── Finished Banner ── */
-.finishedBanner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-  background: var(--color-surface-raised, var(--surface-raised));
-  border: 1px solid var(--color-primary, var(--accent));
-  border-radius: var(--radius-md);
-  padding: var(--space-6);
+/* ── Winner Banner ── */
+.winnerBanner {
   text-align: center;
+  padding: var(--space-6);
 }
 
-.finishedTitle {
+.winnerTitle {
   font-family: var(--font-display);
-  font-size: 1.4rem;
+  font-size: 1.6rem;
   font-weight: 900;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
   text-transform: uppercase;
   color: var(--color-primary, var(--accent));
 }
 
-.finishedSubtitle {
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  letter-spacing: 1px;
-  color: var(--color-text-muted, var(--text-muted));
+.winnerName {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-text, var(--text-primary));
+  margin-top: var(--space-2);
 }
