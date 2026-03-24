@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
-import { ThemeToggle } from '../theme/ThemeToggle'
 import './lobby.css'
 
 interface GameInfo {
@@ -39,7 +37,6 @@ function StatusBadge({ status }: { status: RoomInfo['status'] }) {
 
 export default function LobbyPage() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
 
   const [data, setData] = useState<LobbyData | null>(null)
   const [loadingLobby, setLoadingLobby] = useState(true)
@@ -117,19 +114,6 @@ export default function LobbyPage() {
 
   return (
     <div className="lobby-page">
-      <header className="lobby-header">
-        <span className="lobby-logo">MEEPLITON</span>
-        <ThemeToggle />
-        <div className="lobby-user">
-          {user?.displayName && (
-            <span className="lobby-username">{user.displayName}</span>
-          )}
-          <button className="btn btn-sm btn-danger" onClick={logout}>
-            Sign out
-          </button>
-        </div>
-      </header>
-
       <main className="lobby-content">
         {/* Join a room */}
         <section aria-label="Join a room">
