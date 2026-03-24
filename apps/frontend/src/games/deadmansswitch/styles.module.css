@@ -228,7 +228,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: 0.5rem;
+  font-size: 0.65rem; /* increased from 0.5rem — label legible as non-colour signal */
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -245,7 +245,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: 0.5rem;
+  font-size: 0.65rem; /* increased from 0.5rem — label legible as non-colour signal */
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
