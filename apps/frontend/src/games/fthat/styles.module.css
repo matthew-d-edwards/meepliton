@@ -1,0 +1,262 @@
+/* F'That — scoped CSS Modules
+   All values via design tokens.
+   Theme overrides live in fthat.css scoped to [data-game-theme="fthat"]. */
+
+/* ── Root ── */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  min-height: 100%;
+  background: var(--color-background, var(--surface-base));
+  color: var(--color-text, var(--text-primary));
+  font-family: var(--font-body);
+}
+
+/* ── Card Info Row ── */
+.cardInfoRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+  background: var(--color-surface, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+}
+
+.cardDisplay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.cardLabel {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.cardValue {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--color-primary, var(--accent));
+  line-height: 1;
+  letter-spacing: 1px;
+}
+
+.metaChip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.metaLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.metaValue {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text, var(--text-primary));
+  letter-spacing: 1px;
+}
+
+/* ── Players List ── */
+.playersList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.playerRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--color-surface, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  transition: border-color 150ms;
+}
+
+.playerRowCurrent {
+  border-color: var(--color-primary, var(--accent));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary, var(--accent)) 18%, transparent);
+}
+
+.playerName {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--color-text, var(--text-primary));
+  min-width: 100px;
+}
+
+.playerNameBold {
+  font-weight: 700;
+  color: var(--color-primary, var(--accent));
+}
+
+.playerChips {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--color-text-muted, var(--text-muted));
+  white-space: nowrap;
+}
+
+.playerCards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  flex: 1;
+}
+
+.cardPill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface, var(--surface-float));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  color: var(--color-text, var(--text-primary));
+}
+
+.noCards {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-text-muted, var(--text-muted));
+  font-style: italic;
+}
+
+/* ── Action Panel ── */
+.actionPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--color-surface, var(--surface-raised));
+  border: 1px solid var(--color-primary, var(--accent));
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.actionLabel {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  border: 1.5px solid transparent;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms;
+  min-height: 48px;
+}
+
+.actionBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.actionBtn:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
+}
+
+.actionBtnPass {
+  background: var(--color-primary, var(--accent));
+  color: var(--color-on-primary, #fff);
+  border-color: var(--color-primary, var(--accent));
+}
+
+.actionBtnPass:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.actionBtnTake {
+  background: transparent;
+  color: var(--color-text, var(--text-primary));
+  border-color: var(--color-border, var(--edge-strong));
+}
+
+.actionBtnTake:hover:not(:disabled) {
+  border-color: var(--color-text, var(--text-primary));
+}
+
+/* ── Score Table ── */
+.scoreSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--color-surface, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.winnerBanner {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-primary, var(--accent));
+  text-align: center;
+  padding: var(--space-3) 0;
+}
+
+.scoreTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.scoreTable th {
+  font-size: 0.62rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border, var(--edge-subtle));
+}
+
+.scoreTable td {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text, var(--text-primary));
+  border-bottom: 1px solid var(--color-border, var(--edge-subtle));
+}
+
+.scoreRowWinner td {
+  color: var(--color-primary, var(--accent));
+  font-weight: 700;
+}

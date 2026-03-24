@@ -16,6 +16,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meepliton.Games.Skyline", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meepliton.Games.LiarsDice", "games\Meepliton.Games.LiarsDice\Meepliton.Games.LiarsDice.csproj", "{F4D97CD3-D425-FBE2-6104-6433031BE818}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meepliton.Games.DeadMansSwitch", "games\Meepliton.Games.DeadMansSwitch\Meepliton.Games.DeadMansSwitch.csproj", "{A2B3C4D5-E6F7-8901-BCDE-F23456789012}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meepliton.Games.FThat", "games\Meepliton.Games.FThat\Meepliton.Games.FThat.csproj", "{B3C4D5E6-F7A8-9012-CDEF-345678901234}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meepliton.ServiceDefaults", "Meepliton.ServiceDefaults\Meepliton.ServiceDefaults.csproj", "{0FEE1A92-E72F-3987-91E0-92E92CD85DA2}"
 EndProject
 Global
@@ -48,6 +52,14 @@ Global
 		{F4D97CD3-D425-FBE2-6104-6433031BE818}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F4D97CD3-D425-FBE2-6104-6433031BE818}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F4D97CD3-D425-FBE2-6104-6433031BE818}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A2B3C4D5-E6F7-8901-BCDE-F23456789012}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2B3C4D5-E6F7-8901-BCDE-F23456789012}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2B3C4D5-E6F7-8901-BCDE-F23456789012}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2B3C4D5-E6F7-8901-BCDE-F23456789012}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B3C4D5E6-F7A8-9012-CDEF-345678901234}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3C4D5E6-F7A8-9012-CDEF-345678901234}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3C4D5E6-F7A8-9012-CDEF-345678901234}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3C4D5E6-F7A8-9012-CDEF-345678901234}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0FEE1A92-E72F-3987-91E0-92E92CD85DA2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0FEE1A92-E72F-3987-91E0-92E92CD85DA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0FEE1A92-E72F-3987-91E0-92E92CD85DA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -59,5 +71,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{F6A7B8C9-D0E1-2345-F012-456789012345} = {E5F6A7B8-C9D0-1234-EF01-345678901234}
 		{F4D97CD3-D425-FBE2-6104-6433031BE818} = {E5F6A7B8-C9D0-1234-EF01-345678901234}
+		{A2B3C4D5-E6F7-8901-BCDE-F23456789012} = {E5F6A7B8-C9D0-1234-EF01-345678901234}
+		{B3C4D5E6-F7A8-9012-CDEF-345678901234} = {E5F6A7B8-C9D0-1234-EF01-345678901234}
 	EndGlobalSection
 EndGlobal
