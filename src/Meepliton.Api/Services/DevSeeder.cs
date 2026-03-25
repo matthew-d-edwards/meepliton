@@ -4,60 +4,63 @@ using Microsoft.AspNetCore.Identity;
 namespace Meepliton.Api.Services;
 
 /// <summary>
-/// Seeds a pre-confirmed dev user on startup so developers can sign in immediately
-/// without registering or confirming an email.
+/// Seeds pre-confirmed dev accounts on startup so developers can sign in and
+/// play-test multiplayer games immediately without registering or confirming email.
 /// Only runs in the Development environment.
-/// Credentials: dev@meepliton.local / DevPass1
+///
+/// Accounts:
+///   bob@dev.local   / BobPass1   (Bob)
+///   jan@dev.local   / JanPass1   (Jan)
+///   rick@dev.local  / RickPass1  (Rick)
+///   matt@dev.local  / MattPass1  (Matt)
 /// </summary>
 public class DevSeeder(UserManager<ApplicationUser> userManager, ILogger<DevSeeder> logger)
 {
-    public const string Email       = "dev@meepliton.local";
-    public const string Password    = "DevPass1";
-    public const string DisplayName = "Dev User";
+    private static readonly (string Email, string Password, string DisplayName)[] Accounts =
+    [
+        ("bob@dev.local",  "BobPass1",  "Bob"),
+        ("jan@dev.local",  "JanPass1",  "Jan"),
+        ("rick@dev.local", "RickPass1", "Rick"),
+        ("matt@dev.local", "MattPass1", "Matt"),
+    ];
+
+    // Keep the old single-user constants so any existing code that references them still compiles.
+    public const string Email       = "bob@dev.local";
+    public const string Password    = "BobPass1";
+    public const string DisplayName = "Bob";
 
     public async Task SeedAsync()
     {
-        try
+        foreach (var (email, password, displayName) in Accounts)
         {
-            logger.LogInformation("[DEV] Starting DevSeeder - checking for existing user with email: {Email}", Email);
-
-            var existing = await userManager.FindByEmailAsync(Email);
-            if (existing is not null) 
+            try
             {
-                logger.LogInformation("[DEV] Dev user already exists, skipping seed.");
-                return;
-            }
-
-            logger.LogInformation("[DEV] Creating new dev user...");
-
-            var user = new ApplicationUser
-            {
-                UserName       = Email,
-                Email          = Email,
-                DisplayName    = DisplayName,
-                EmailConfirmed = true,
-            };
-
-            var result = await userManager.CreateAsync(user, Password);
-            if (result.Succeeded)
-            {
-                logger.LogInformation("[DEV] ✅ Successfully seeded dev user — email: {Email}  password: {Password}", Email, Password);
-            }
-            else
-            {
-                logger.LogError("[DEV] ❌ Failed to seed dev user. Errors: {Errors}",
-                    string.Join(", ", result.Errors.Select(e => $"{e.Code}: {e.Description}")));
-
-                // Log each error individually for better visibility
-                foreach (var error in result.Errors)
+                var existing = await userManager.FindByEmailAsync(email);
+                if (existing is not null)
                 {
-                    logger.LogError("[DEV] Identity Error - Code: {Code}, Description: {Description}", error.Code, error.Description);
+                    logger.LogInformation("[DEV] {DisplayName} already exists, skipping.", displayName);
+                    continue;
                 }
+
+                var user = new ApplicationUser
+                {
+                    UserName       = email,
+                    Email          = email,
+                    DisplayName    = displayName,
+                    EmailConfirmed = true,
+                };
+
+                var result = await userManager.CreateAsync(user, password);
+                if (result.Succeeded)
+                    logger.LogInformation("[DEV] ✅ Seeded {DisplayName} — {Email} / {Password}", displayName, email, password);
+                else
+                    logger.LogError("[DEV] ❌ Failed to seed {DisplayName}: {Errors}", displayName,
+                        string.Join(", ", result.Errors.Select(e => e.Description)));
             }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "[DEV] Exception occurred while seeding dev user");
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "[DEV] Exception seeding {DisplayName}", displayName);
+            }
         }
     }
 }
