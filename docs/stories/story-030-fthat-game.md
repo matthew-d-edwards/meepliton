@@ -1,7 +1,7 @@
 ---
 id: story-030
 title: Add F'That card game module
-status: in-progress
+status: done
 created: 2026-03-19
 ---
 
