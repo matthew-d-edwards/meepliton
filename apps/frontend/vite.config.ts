@@ -16,6 +16,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    strictPort: true,   // fail loudly if 5173 is taken rather than silently picking another port
     proxy: {
       '/api': {
         target: apiTarget,
