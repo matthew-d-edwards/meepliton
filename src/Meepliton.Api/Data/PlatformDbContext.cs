@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Meepliton.Api.Identity;
 using Meepliton.Api.Models;
 using Microsoft.AspNetCore.Identity;
@@ -33,14 +34,28 @@ public class PlatformDbContext(DbContextOptions<PlatformDbContext> options)
             e.Property(r => r.Status)
              .HasConversion<string>()
              .HasDefaultValue(RoomStatus.Waiting);
-            e.Property(r => r.GameState).HasColumnType("jsonb");
-            e.Property(r => r.GameOptions).HasColumnType("jsonb");
+            // Value converters let the InMemory provider (used in tests) handle JsonDocument.
+            // Npgsql still stores the value as JSONB; it just receives/returns a JSON string.
+            e.Property(r => r.GameState)
+             .HasColumnType("jsonb")
+             .HasConversion(
+                 v => v == null ? null : v.RootElement.GetRawText(),
+                 v => v == null ? null : JsonDocument.Parse(v));
+            e.Property(r => r.GameOptions)
+             .HasColumnType("jsonb")
+             .HasConversion(
+                 v => v == null ? null : v.RootElement.GetRawText(),
+                 v => v == null ? null : JsonDocument.Parse(v));
         });
         builder.Entity<RoomPlayer>().ToTable("room_players");
         builder.Entity<ActionLog>(e =>
         {
             e.ToTable("action_log");
-            e.Property(a => a.Action).HasColumnType("jsonb");
+            e.Property(a => a.Action)
+             .HasColumnType("jsonb")
+             .HasConversion(
+                 v => v.RootElement.GetRawText(),
+                 v => JsonDocument.Parse(v));
         });
         builder.Entity<Game>().ToTable("games");
     }

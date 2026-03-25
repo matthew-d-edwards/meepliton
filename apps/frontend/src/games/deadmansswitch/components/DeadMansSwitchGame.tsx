@@ -120,10 +120,17 @@ export default function DeadMansSwitchGame({ state, myPlayerId, dispatch }: Game
               <div className={styles.stackArea}>
                 <span className={styles.stackLabel}>Devices</span>
                 <div className={styles.stackDiscs}>
-                  {/* Face-down devices */}
-                  {Array.from({ length: faceDown }).map((_, i) => (
-                    <div key={`fd-${i}`} className={styles.discFaceDown} aria-label="Face-down device" />
-                  ))}
+                  {/* Face-down devices — own stack shows type (dashed), opponents are anonymous */}
+                  {player.id === myPlayerId
+                    ? player.stack.filter(d => !d.flipped).map((disc, i) => (
+                        disc.type === 'Skull'
+                          ? <div key={`fd-${i}`} className={styles.discFaceDownTrigger} aria-label="Your face-down trigger">TRG</div>
+                          : <div key={`fd-${i}`} className={styles.discFaceDownDud} aria-label="Your face-down dud">DUD</div>
+                      ))
+                    : Array.from({ length: faceDown }).map((_, i) => (
+                        <div key={`fd-${i}`} className={styles.discFaceDown} aria-label="Face-down device" />
+                      ))
+                  }
                   {/* Flipped devices */}
                   {flippedDiscs.map((disc, i) => (
                     disc.type === 'Skull' ? (
@@ -184,16 +191,31 @@ function ActionPanel({ state, me, myPlayerId, isMyTurn, isChallenger, send }: Ac
 
   // Placing phase — my turn
   if (state.phase === 'Placing' && isMyTurn && me !== undefined) {
+    const placedRoses = me.stack.filter(d => d.type === 'Rose').length
+    const placedSkull = me.stack.some(d => d.type === 'Skull')
+    const canPlaceRose = placedRoses < me.rosesOwned
+    const canPlaceSkull = me.skullOwned && !placedSkull
     return (
       <div className={styles.actionPanel}>
-        <span className={styles.actionLabel}>Your move — arming phase</span>
+        <span className={styles.actionLabel}>Your move — choose a device to arm</span>
         <div className={styles.actionRow}>
           <button
             type="button"
             className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
-            onClick={() => send({ type: 'PlaceDisc' })}
+            disabled={!canPlaceRose}
+            aria-disabled={!canPlaceRose}
+            onClick={() => send({ type: 'PlaceDisc', discType: 'Rose' })}
           >
-            ARM DEVICE
+            ARM DUD
+          </button>
+          <button
+            type="button"
+            className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
+            disabled={!canPlaceSkull}
+            aria-disabled={!canPlaceSkull}
+            onClick={() => send({ type: 'PlaceDisc', discType: 'Skull' })}
+          >
+            ARM TRIGGER
           </button>
         </div>
         {me.stackCount >= 1 && (

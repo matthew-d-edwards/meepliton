@@ -11,6 +11,10 @@ public class SkylineGameTests
 {
     private readonly SkylineModule _module = new();
 
+    // Module serialises with camelCase; tests must deserialise with case-insensitive matching.
+    private static readonly JsonSerializerOptions CamelCaseOptions =
+        new() { PropertyNameCaseInsensitive = true };
+
     private static readonly string[] AllHotels =
         ["luxor", "tower", "american", "festival", "worldwide", "continental", "imperial"];
 
@@ -82,7 +86,7 @@ public class SkylineGameTests
         var doc = JsonDocument.Parse(JsonSerializer.Serialize(state));
         var projected = ((IGameModule)_module).ProjectStateForPlayer(doc, playerId);
         projected.Should().NotBeNull("ProjectStateForPlayer must return non-null when HasStateProjection is true");
-        return JsonSerializer.Deserialize<SkylineState>(projected!.RootElement.GetRawText())!;
+        return JsonSerializer.Deserialize<SkylineState>(projected!.RootElement.GetRawText(), CamelCaseOptions)!;
     }
 
     private static PendingState FoundPending(string triggerTile, List<string> connectedNeutrals) =>
@@ -503,7 +507,7 @@ public class SkylineGameTests
         var result = _module.Handle(ctx);
 
         result.RejectionReason.Should().BeNull();
-        var newState = JsonSerializer.Deserialize<SkylineState>(result.NewState.RootElement.GetRawText())!;
+        var newState = JsonSerializer.Deserialize<SkylineState>(result.NewState.RootElement.GetRawText(), CamelCaseOptions)!;
         newState.Board.Should().ContainKey(p1Tile);
     }
 

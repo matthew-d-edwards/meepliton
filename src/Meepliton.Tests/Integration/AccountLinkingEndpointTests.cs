@@ -94,11 +94,23 @@ public class AccountLinkingApiFactory : WebApplicationFactory<Program>
     {
         builder.ConfigureTestServices(services =>
         {
-            // Replace Postgres with in-memory DB
-            services.RemoveAll<DbContextOptions<PlatformDbContext>>();
-            services.RemoveAll<PlatformDbContext>();
+            // Replace Postgres with in-memory DB.
+            // Remove ALL registrations added by Aspire's AddNpgsqlDbContext (which calls
+            // AddDbContextPool). AddDbContextPool registers several internal EF Core singletons
+            // (IDbContextPool, IScopedDbContextLease, …) that must all be removed together
+            // before re-registering with AddDbContext for the InMemory provider.
+            var efDescriptors = services
+                .Where(d => d.ServiceType == typeof(PlatformDbContext) ||
+                            d.ServiceType == typeof(DbContextOptions<PlatformDbContext>) ||
+                            (d.ServiceType.IsGenericType &&
+                             d.ServiceType.GenericTypeArguments.Any(t => t == typeof(PlatformDbContext))))
+                .ToList();
+            foreach (var d in efDescriptors) services.Remove(d);
+            // IMPORTANT: capture the name before the lambda so every DI scope (test scope
+            // and each request scope) resolves the same in-memory database.
+            var dbName = "account-linking-" + Guid.NewGuid();
             services.AddDbContext<PlatformDbContext>(opts =>
-                opts.UseInMemoryDatabase("account-linking-" + Guid.NewGuid()));
+                opts.UseInMemoryDatabase(dbName));
 
             // Suppress EF migrations on startup
             services.RemoveAll<MigrationRunner>();
@@ -111,17 +123,27 @@ public class AccountLinkingApiFactory : WebApplicationFactory<Program>
             // Register the shared fake state
             services.AddSingleton(GoogleState);
 
-            // Replace the real Google handler and external-scheme handler with the fake.
-            // We need to replace both "Google" and IdentityConstants.ExternalScheme because
-            // the callback calls ctx.AuthenticateAsync(IdentityConstants.ExternalScheme).
+            // Register the fake Google handler in DI so the scheme provider can resolve it.
+            services.AddTransient<FakeGoogleAuthHandler>();
+
+            // "Google" is not registered by Program.cs (config keys are empty in tests),
+            // so we can add it as a new scheme.
             services
                 .AddAuthentication()
-                .AddScheme<AuthenticationSchemeOptions, FakeGoogleAuthHandler>(
-                    "Google",
-                    _ => { })
-                .AddScheme<AuthenticationSchemeOptions, FakeGoogleAuthHandler>(
-                    IdentityConstants.ExternalScheme,
-                    _ => { });
+                .AddScheme<AuthenticationSchemeOptions, FakeGoogleAuthHandler>("Google", _ => { });
+
+            // IdentityConstants.ExternalScheme ("Identity.External") is already registered by
+            // AddIdentity in Program.cs. We cannot call AddScheme again (it throws), so we
+            // replace its handler type by mutating the existing AuthenticationSchemeBuilder.
+            services.Configure<AuthenticationOptions>(opts =>
+            {
+                var existing = opts.Schemes.FirstOrDefault(s => s.Name == IdentityConstants.ExternalScheme);
+                if (existing != null)
+                    existing.HandlerType = typeof(FakeGoogleAuthHandler);
+                else
+                    opts.AddScheme(IdentityConstants.ExternalScheme,
+                        s => s.HandlerType = typeof(FakeGoogleAuthHandler));
+            });
         });
     }
 }

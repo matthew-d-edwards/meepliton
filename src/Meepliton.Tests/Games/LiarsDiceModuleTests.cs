@@ -15,6 +15,10 @@ public class LiarsDiceModuleTests
 {
     private readonly LiarsDiceModule _module = new();
 
+    // Module serialises with camelCase; tests must deserialise with case-insensitive matching.
+    private static readonly JsonSerializerOptions CamelCaseOptions =
+        new() { PropertyNameCaseInsensitive = true };
+
     // ── Player helpers ────────────────────────────────────────────────────────
 
     private static IReadOnlyList<PlayerInfo> TwoPlayers() =>
@@ -963,7 +967,7 @@ public class LiarsDiceModuleTests
 
         result.RejectionReason.Should().BeNull();
         var newState = JsonSerializer.Deserialize<LiarsDiceState>(
-            result.NewState.RootElement.GetRawText());
+            result.NewState.RootElement.GetRawText(), CamelCaseOptions);
         newState.Should().NotBeNull();
         newState!.CurrentBid!.Quantity.Should().Be(2);
         newState.CurrentBid.Face.Should().Be(4);
@@ -989,7 +993,7 @@ public class LiarsDiceModuleTests
         var doc       = JsonDocument.Parse(JsonSerializer.Serialize(state));
         var projected = ((IGameModule)_module).ProjectStateForPlayer(doc, playerId);
         if (projected is null) return null;
-        return JsonSerializer.Deserialize<LiarsDiceState>(projected.RootElement.GetRawText());
+        return JsonSerializer.Deserialize<LiarsDiceState>(projected.RootElement.GetRawText(), CamelCaseOptions);
     }
 
     // ── Projection — Bidding phase ────────────────────────────────────────────
@@ -1143,7 +1147,7 @@ public class LiarsDiceModuleTests
             ? ((IGameModule)module).ProjectStateForPlayer(fullDoc, "p1") ?? fullDoc
             : fullDoc;
 
-        var result = JsonSerializer.Deserialize<LiarsDiceState>(projected.RootElement.GetRawText());
+        var result = JsonSerializer.Deserialize<LiarsDiceState>(projected.RootElement.GetRawText(), CamelCaseOptions);
         result.Should().NotBeNull();
         result!.Players.First(p => p.Id == "p2").Dice.Should().BeEmpty(
             because: "ProjectStateForPlayerOrFull uses module.ProjectStateForPlayer — " +
