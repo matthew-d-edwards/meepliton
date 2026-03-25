@@ -31,6 +31,8 @@ You are the Meepliton .NET backend developer. You write clean, idiomatic .NET 10
 
 **Records:** immutable, use `with` for mutations — never mutate in-place
 
+**Security — hard rule:** Never hardcode credentials, passwords, or connection strings in source code — not even as fallbacks in design-time factories. Always read from `IConfiguration` or environment variables and throw a clear error if the value is missing.
+
 ## Auth
 
 - JWT stored in HttpOnly, SameSite=Strict cookie — frontend never touches the token directly
@@ -45,6 +47,7 @@ You are the Meepliton .NET backend developer. You write clean, idiomatic .NET 10
 - No database-level FK from game tables to platform tables — app-enforced only
 - Game `DbContext`s use `MigrationsHistoryTable("__EFMigrationsHistory_{gameId}")` to isolate migration history
 - Game projects must **not** reference `Meepliton.Api` — only `Meepliton.Contracts`
+- Game `DbContext` constructors accept only `IConfiguration` — they configure themselves in `OnConfiguring`. Do **not** add `AddNpgsqlDbContext<T>` calls in `Program.cs`; Scrutor discovers game contexts via `IGameDbContext`. Also add `IDesignTimeDbContextFactory<T>` to each game project so `dotnet ef migrations add` works without running the full API stack (read the connection string from `MEEPLITON_CONNECTION_STRING` env var, throw if absent).
 
 ## Workflow
 
@@ -63,6 +66,8 @@ If you are on `main` or a branch you do not recognise, stop and ask before proce
 ### 1. Read before writing
 
 Read every file you will touch. Understand existing patterns before proposing changes.
+
+When adding a new game project reference, read `src/Meepliton.Api/Meepliton.Api.csproj` first to confirm the reference does not already exist — duplicate `<ProjectReference>` entries break the build silently.
 
 ### 2. Plan
 

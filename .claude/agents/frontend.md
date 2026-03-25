@@ -96,6 +96,10 @@ cd apps/frontend && npx tsc --noEmit
 
 Check: no `any` · `types.ts` still mirrors C# models · CSS uses token variables only.
 
+**Export completeness:** every type imported anywhere in a game module must be exported from that game's `types.ts`. If you add a new action record or union member, export it immediately — TypeScript's `--noEmit` pass catches missing imports but only if the file is already referenced.
+
+**Colour contrast (do before every CSS commit):** any custom colour value (token override or game-specific hex) used for text or interactive elements must meet WCAG AA — ≥4.5:1 for normal text, ≥3:1 for large text (≥18px or ≥14px bold). Use the browser DevTools colour contrast checker or https://webaim.org/resources/contrastchecker/ to verify. If a token's value fails on the background it sits on, define a local override with a sufficiently light value — do not ship colours that ally will block.
+
 **Contract field-name check — do this before every commit touching a game component:**
 - Read `src/games/Meepliton.Games.{Pascal}/Models/{Pascal}Models.cs`.
 - Confirm every property name in `types.ts` exactly matches the camelCase serialization of the C# record field (e.g. C# `BidData` → TS `bidData`).

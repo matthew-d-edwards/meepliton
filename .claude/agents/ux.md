@@ -79,6 +79,7 @@ Before shipping any screen:
 - [ ] All tap targets ≥ 44px
 - [ ] `position: relative; z-index: 1` on all content wrappers above atmospheric background
 - [ ] All icon-only buttons have `aria-label` (e.g. "Copy join code", not "Copy")
+- [ ] All text colours meet WCAG AA contrast on their background (≥4.5:1 normal, ≥3:1 large text) — verify any custom or overridden token value before committing, not after ally reviews
 
 ## Design review (`/ux review`)
 
