@@ -54,15 +54,25 @@ public class AuthApiFactory : WebApplicationFactory<Program>
     {
         builder.ConfigureTestServices(services =>
         {
-            // Remove any PlatformDbContext registrations registered by the app
-            // (Aspire's AddNpgsqlDbContext or standard AddDbContext).
-            services.RemoveAll<DbContextOptions<PlatformDbContext>>();
-            services.RemoveAll<PlatformDbContext>();
+            // Remove ALL registrations added by Aspire's AddNpgsqlDbContext (which calls
+            // AddDbContextPool). AddDbContextPool registers several internal EF Core singletons
+            // (IDbContextPool, IScopedDbContextLease, …) that must all be removed together
+            // before re-registering with AddDbContext for the InMemory provider.
+            var efDescriptors = services
+                .Where(d => d.ServiceType == typeof(PlatformDbContext) ||
+                            d.ServiceType == typeof(DbContextOptions<PlatformDbContext>) ||
+                            (d.ServiceType.IsGenericType &&
+                             d.ServiceType.GenericTypeArguments.Any(t => t == typeof(PlatformDbContext))))
+                .ToList();
+            foreach (var d in efDescriptors) services.Remove(d);
 
             // Register an in-memory database — unique per factory instance so
             // parallel test classes don't share state.
+            // IMPORTANT: capture the name before the lambda so every DI scope (test scope
+            // and each request scope) resolves the same in-memory database.
+            var dbName = "auth-tests-" + Guid.NewGuid();
             services.AddDbContext<PlatformDbContext>(opts =>
-                opts.UseInMemoryDatabase("auth-tests-" + Guid.NewGuid()));
+                opts.UseInMemoryDatabase(dbName));
 
             // Replace MigrationRunner with a no-op so the EF InMemory provider
             // doesn't throw "Migrations are not supported by the in-memory store"

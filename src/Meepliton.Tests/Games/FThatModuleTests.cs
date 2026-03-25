@@ -402,9 +402,10 @@ public class FThatModuleTests
     public void Scoring_ChainMinimum_CorrectForConsecutiveRun()
     {
         // Player holds [7, 8, 9, 20] with 3 chips remaining
-        // Sorted: 7, 8, 9, 20
-        // Chains: {7,8,9} → min is 7; {20} → min is 20
-        // cardScore = 7 + 20 = 27; total = 27 - 3 = 24
+        // After Take(), faceUpCard (5) is added → cards = [7,8,9,20,5]
+        // Sorted: 5, 7, 8, 9, 20
+        // Chains: {5} → min 5; {7,8,9} → min 7; {20} → min 20
+        // cardScore = 5 + 7 + 20 = 32; total = 32 - 3 = 29
         var players = new List<FThatPlayer>
         {
             MakePlayer("p1", 0, chips: 3, cards: [7, 8, 9, 20]),
@@ -415,9 +416,9 @@ public class FThatModuleTests
         var (next, _) = _module.Apply(state, Take());
 
         var score = next.Scores!.First(s => s.PlayerId == "p1");
-        score.CardScore.Should().Be(27);
+        score.CardScore.Should().Be(32);
         score.Chips.Should().Be(3);
-        score.Total.Should().Be(24);
+        score.Total.Should().Be(29);
     }
 
     [Fact]
@@ -434,9 +435,9 @@ public class FThatModuleTests
         var state     = MakeState(players, deck: [], faceUpCard: 5);
         var (next, _) = _module.Apply(state, Take());
 
-        // Score is same regardless of insertion order
+        // Score is same regardless of insertion order (faceUpCard 5 was added, sorted: [5,7,8,9,20])
         var score = next.Scores!.First(s => s.PlayerId == "p1");
-        score.CardScore.Should().Be(27);
+        score.CardScore.Should().Be(32);
 
         // Original player cards in next state should remain insertion-order
         // (not re-sorted by scoring function)
