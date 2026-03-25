@@ -24,6 +24,9 @@ var api = builder.AddProject<Projects.Meepliton_Api>("api")
 builder.AddViteApp("frontend", "../../apps/frontend")
     .WithReference(api)
     .WaitFor(api)
-    .WithHttpEndpoint(port: 5173, name: "frontend");
+    .WithHttpEndpoint(port: 5173, name: "frontend")
+    // Disable the DCP reverse proxy so the browser connects to Vite directly on 5173.
+    // Without this, Aspire picks a random proxy port on each restart.
+    .WithEndpoint("frontend", e => e.IsProxied = false);
 
 builder.Build().Run();
