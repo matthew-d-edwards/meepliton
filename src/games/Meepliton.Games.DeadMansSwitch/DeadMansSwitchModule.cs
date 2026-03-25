@@ -136,10 +136,18 @@ public class DeadMansSwitchModule : IGameModule, IGameHandler
                     return "You can only arm a device during the Placing phase.";
                 if (!IsCurrentPlayer(state, playerId))
                     return "It is not your turn.";
+                if (action.DiscType is null)
+                    return "You must choose whether to arm a dud (Rose) or a trigger (Skull).";
                 var player = state.Players[state.CurrentPlayerIndex];
                 int totalDiscsInHand = player.RosesOwned + (player.SkullOwned ? 1 : 0);
                 if (player.StackCount >= totalDiscsInHand)
                     return "You have no devices left to arm.";
+                var alreadyPlacedRoses = player.Stack.Count(d => d.Type == DiscType.Rose);
+                var alreadyPlacedSkull = player.Stack.Any(d => d.Type == DiscType.Skull);
+                if (action.DiscType == DiscType.Rose && alreadyPlacedRoses >= player.RosesOwned)
+                    return "You have no roses left to arm.";
+                if (action.DiscType == DiscType.Skull && (!player.SkullOwned || alreadyPlacedSkull))
+                    return "You have no trigger left to arm.";
                 return null;
             }
 
@@ -249,7 +257,7 @@ public class DeadMansSwitchModule : IGameModule, IGameHandler
     public DeadMansSwitchState Apply(DeadMansSwitchState state, DeadMansSwitchAction action, string playerId) =>
         action.Type switch
         {
-            "PlaceDisc"      => ApplyPlaceDisc(state, playerId),
+            "PlaceDisc"      => ApplyPlaceDisc(state, playerId, action.DiscType!.Value),
             "StartBid"       => ApplyStartBid(state, playerId, action.TargetCount!.Value),
             "RaiseBid"       => ApplyRaiseBid(state, action.NewBid!.Value),
             "Pass"           => ApplyPass(state),
@@ -261,29 +269,9 @@ public class DeadMansSwitchModule : IGameModule, IGameHandler
 
     // ── PlaceDisc ─────────────────────────────────────────────────────────────
 
-    private static DeadMansSwitchState ApplyPlaceDisc(DeadMansSwitchState state, string playerId)
+    private static DeadMansSwitchState ApplyPlaceDisc(DeadMansSwitchState state, string playerId, DiscType chosenType)
     {
         var player = state.Players[state.CurrentPlayerIndex];
-
-        // Randomly pick a disc from the player's remaining un-placed hand
-        // The player has RosesOwned roses + (SkullOwned ? 1 : 0) skulls total;
-        // StackCount are already placed. Pick randomly from remaining.
-        var remainingRoses  = player.RosesOwned  - player.Stack.Count(d => d.Type == DiscType.Rose);
-        var remainingSkull  = player.SkullOwned  && !player.Stack.Any(d => d.Type == DiscType.Skull);
-        var totalRemaining  = remainingRoses + (remainingSkull ? 1 : 0);
-
-        // Pick randomly
-        DiscType chosenType;
-        if (totalRemaining <= 0)
-        {
-            // Validation should have caught this; fallback to Rose
-            chosenType = DiscType.Rose;
-        }
-        else
-        {
-            var pick = Random.Shared.Next(totalRemaining);
-            chosenType = pick < remainingRoses ? DiscType.Rose : DiscType.Skull;
-        }
 
         var newSlot = new DiscSlot(chosenType, Flipped: false);
 

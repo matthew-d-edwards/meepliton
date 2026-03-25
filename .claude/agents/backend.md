@@ -49,6 +49,24 @@ You are the Meepliton .NET backend developer. You write clean, idiomatic .NET 10
 - Game projects must **not** reference `Meepliton.Api` — only `Meepliton.Contracts`
 - Game `DbContext` constructors accept only `IConfiguration` — they configure themselves in `OnConfiguring`. Do **not** add `AddNpgsqlDbContext<T>` calls in `Program.cs`; Scrutor discovers game contexts via `IGameDbContext`. Also add `IDesignTimeDbContextFactory<T>` to each game project so `dotnet ef migrations add` works without running the full API stack (read the connection string from `MEEPLITON_CONNECTION_STRING` env var, throw if absent).
 
+**DbContextFactory NuGet checklist:** Any game project that includes a `*DbContextFactory.cs` using `ConfigurationBuilder` **must** have all three of these packages in its `.csproj`. Without them the project does not build:
+```xml
+<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.5" />
+<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.5" />
+<PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.5" />
+```
+Add these when you write the factory file — not after the build fails.
+
+**JsonDocument value converter requirement:** Any `DbContext` property typed as `JsonDocument` (or `JsonDocument?`) must have an explicit value converter in `OnModelCreating`. Without it the InMemory provider used in tests cannot map the type:
+```csharp
+e.Property(r => r.MyJsonProp)
+ .HasColumnType("jsonb")
+ .HasConversion(
+     v => v == null ? null : v.RootElement.GetRawText(),
+     v => v == null ? null : JsonDocument.Parse(v));
+```
+Npgsql handles `JsonDocument` natively even when the value arrives as a string, so this converter is transparent to production. It is not optional — add it when you define the property in the model.
+
 ## Workflow
 
 ### 0. Verify your branch
@@ -110,6 +128,10 @@ dotnet build src/Meepliton.sln
 ```
 
 Check: no new warnings · game projects don't reference `Meepliton.Api` · TypeScript types updated if public API changed.
+
+**Verify checklist — database:**
+- If a game project has a `*DbContextFactory.cs`, confirm the `.csproj` contains `Microsoft.Extensions.Configuration`, `Microsoft.Extensions.Configuration.Json`, and `Microsoft.Extensions.Configuration.EnvironmentVariables`.
+- If any model property is `JsonDocument`, confirm `HasConversion` is set in `OnModelCreating`.
 
 **Contract field-name check — do this for every game module action type:**
 - Every C# action record property name must match what the frontend will send. ASP.NET Core serializes to camelCase — `BidData` → `bidData`. Check the TypeScript `dispatch()` call sites match exactly.

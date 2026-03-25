@@ -219,6 +219,44 @@
   opacity: 0.55;
 }
 
+/* Own face-down disc — player knows the type but it's still hidden from others.
+   Dashed border distinguishes from fully-revealed discs (solid border). */
+.discFaceDownDud {
+  width: 28px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1.5px dashed #22c55e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: color-mix(in srgb, #22c55e 8%, transparent);
+  color: #22c55e;
+  opacity: 0.75;
+}
+
+.discFaceDownTrigger {
+  width: 28px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1.5px dashed #f87171;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: color-mix(in srgb, #f87171 8%, transparent);
+  color: #f87171;
+  opacity: 0.75;
+}
+
 .discDud {
   width: 28px;
   height: 36px;

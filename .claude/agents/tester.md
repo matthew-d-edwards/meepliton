@@ -115,6 +115,61 @@ dotnet test src/Meepliton.Tests --filter "FullyQualifiedName~{Pascal}ModuleTests
 - Total: X passed, Y failed, Z skipped
 - For any failure: expected vs actual, file and line
 
+### Integration test factories — required patterns
+
+When writing `WebApplicationFactory<Program>` subclasses, three rules apply without exception:
+
+**Rule 1 — Remove all EF Core pool descriptors, not just DbContextOptions.**
+Aspire's `AddNpgsqlDbContext` calls `AddDbContextPool`, which registers `IDbContextPool<T>`, `IScopedDbContextLease<T>`, and related internal singletons. Removing only `DbContextOptions<T>` leaves orphaned pool services that cause DI validation failures at startup. Use a `GenericTypeArguments` filter:
+```csharp
+var efDescriptors = services
+    .Where(d => d.ServiceType == typeof(PlatformDbContext) ||
+                d.ServiceType == typeof(DbContextOptions<PlatformDbContext>) ||
+                (d.ServiceType.IsGenericType &&
+                 d.ServiceType.GenericTypeArguments.Any(t => t == typeof(PlatformDbContext))))
+    .ToList();
+foreach (var d in efDescriptors) services.Remove(d);
+```
+
+**Rule 2 — Capture the InMemory database name before the lambda.**
+`AddDbContext` with Scoped lifetime calls the options lambda once per DI scope. Each HTTP request is its own scope. If `Guid.NewGuid()` is inside the lambda, every scope gets a different database — users created in the test scope are invisible to request scopes, and authenticated endpoints return 401. Always capture outside the lambda:
+```csharp
+var dbName = "prefix-" + Guid.NewGuid();  // capture here
+services.AddDbContext<PlatformDbContext>(opts =>
+    opts.UseInMemoryDatabase(dbName));     // reference captured variable
+```
+
+**Rule 3 — Do not call AddScheme for schemes that Identity already registers.**
+`AddIdentity()` pre-registers `IdentityConstants.ExternalScheme` ("Identity.External"). Calling `AddScheme` for an existing name throws. To replace its handler in tests, mutate the existing builder via `Configure<AuthenticationOptions>`:
+```csharp
+services.Configure<AuthenticationOptions>(opts =>
+{
+    var existing = opts.Schemes.FirstOrDefault(s => s.Name == IdentityConstants.ExternalScheme);
+    if (existing != null)
+        existing.HandlerType = typeof(FakeGoogleAuthHandler);
+    else
+        opts.AddScheme(IdentityConstants.ExternalScheme,
+            s => s.HandlerType = typeof(FakeGoogleAuthHandler));
+});
+```
+
+### Deserializing game module output — camelCase options required
+
+Game modules serialize state and output as camelCase JSON. Any `JsonSerializer.Deserialize<T>()` call that processes module output or projected state must use `PropertyNameCaseInsensitive = true`. Without it, PascalCase C# property names like `CurrentBid` or `Board` remain `null` after deserialization.
+
+Declare once per test class and reuse:
+```csharp
+private static readonly JsonSerializerOptions CamelCaseOptions =
+    new() { PropertyNameCaseInsensitive = true };
+```
+
+When computing expected values for scoring or state-transition assertions, trace the full action sequence including all side effects. Write the derivation as a comment:
+```csharp
+// p1 starts with [7,8,9,20]. Take() adds faceUpCard 5 → [7,8,9,20,5].
+// Sorted: [5,7,8,9,20]. Chains: {5},{7,8,9},{20} → cardScore = 5+7+20 = 32
+score.CardScore.Should().Be(32);
+```
+
 ### 5. Fix failures
 
 If tests reveal a bug in the module (not the test), report it and offer to fix (involves the `backend` agent's domain). If the test expectation was wrong, fix the test and explain why.
