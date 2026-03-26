@@ -139,7 +139,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
   }
 
   function dispose(sell: number, trade: number) {
-    if (!isMyTurn || state.phase !== 'dispose') return
+    if (state.phase !== 'dispose') return
     send({ type: 'Dispose', sell, trade })
   }
 
@@ -216,7 +216,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
 
   // ── Waiting note (non-active player) ──────────────────────────────────────
 
-  const waitingNote = !isMyTurn ? (
+  const waitingNote = !isMyTurn && !isMyDisposeTurn ? (
     <p className={styles.waitingNote}>
       Waiting for {currentPlayer?.name ?? 'opponent'} to {PHASE_LABELS[state.phase].toLowerCase()}…
     </p>
@@ -251,7 +251,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
   const disposeIdx = state.pending?.disposeIdx ?? 0
   const disposeItem = disposeQueue[disposeIdx]
   const disposeDefunct = disposeItem?.defunct ?? state.pending?.defunct?.[0] ?? ''
-  const isMyDisposeTurn = isMyTurn && state.phase === 'dispose' && disposeItem?.playerIdx === myIdx
+  const isMyDisposeTurn = state.phase === 'dispose' && disposeItem?.playerIdx === myIdx
   const [disposeLocal, setDisposeLocal] = useState({ sell: 0, trade: 0 })
   const myDefunctStocks = me ? (me.stocks[disposeDefunct] ?? 0) : 0
   const survivorName = state.pending?.survivor ?? ''
@@ -276,14 +276,14 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
           </div>
           <span className={styles.phLabel}>{PHASE_LABELS[state.phase]}</span>
           <span className={styles.phCounter}>
-            {isMyTurn ? 'Your turn' : `${currentPlayer?.name ?? '?'}'s turn`}
+            {isMyTurn || isMyDisposeTurn ? 'Your turn' : `${currentPlayer?.name ?? '?'}'s turn`}
           </span>
         </div>
 
         {waitingNote}
 
-        {/* ── Action panel (only shown when it's viewer's turn) ─ */}
-        {isMyTurn && (
+        {/* ── Action panel (shown on viewer's turn, or dispose queue turn) ─ */}
+        {(isMyTurn || isMyDisposeTurn) && (
           <ActionPanel
             state={state}
             me={me}
@@ -496,8 +496,8 @@ function ActionPanel(props: ActionPanelProps) {
     )
   }
 
-  // ── Choose Survivor ────────────────────────────────────────────────────────
-  if (state.phase === 'merge' && !state.pending?.survivorChosen) {
+  // ── Choose Survivor (no survivor picked yet) ──────────────────────────────
+  if (state.phase === 'merge' && !state.pending?.survivor) {
     const survivors = state.pending?.survivors ?? []
     return (
       <div className={styles.actionCard}>
@@ -524,22 +524,27 @@ function ActionPanel(props: ActionPanelProps) {
             disabled={!selectedSurvivor}
             onClick={() => selectedSurvivor && onChooseSurvivor(selectedSurvivor)}
           >
-            Confirm survivor
+            Select survivor
           </button>
         </div>
       </div>
     )
   }
 
-  // ── Confirm Survivor ───────────────────────────────────────────────────────
-  if (state.phase === 'merge' && state.pending?.survivorChosen && !state.pending?.defunct?.length) {
+  // ── Confirm Survivor (survivor picked, awaiting confirmation) ──────────────
+  if (state.phase === 'merge' && state.pending?.survivor) {
     return (
       <div className={styles.actionCard}>
-        <div className={styles.actionTitle}>Merge Confirmed</div>
-        <div className={styles.actionSub}>Survivor: {survivorName ? HOTEL_LABELS[survivorName as Hotel] ?? survivorName : '?'}</div>
+        <div className={styles.actionTitle}>Confirm Merger</div>
+        <div className={styles.actionSub}>
+          Surviving chain: <strong>{survivorName ? HOTEL_LABELS[survivorName as Hotel] ?? survivorName : '?'}</strong>
+          {(state.pending?.defunct?.length ?? 0) > 0 && (
+            <> · Defunct: {state.pending!.defunct!.map(h => HOTEL_LABELS[h as Hotel] ?? h).join(', ')}</>
+          )}
+        </div>
         <div className={styles.btnRow}>
           <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={onConfirmSurvivor}>
-            Continue
+            Proceed
           </button>
         </div>
       </div>
