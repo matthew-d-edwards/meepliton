@@ -39,7 +39,13 @@ function AppRoutes() {
       return <Navigate to={`/sign-in?next=${encodeURIComponent(next)}`} replace />
     }
     return (
-      <AppShell user={user} onSignOut={handleSignOut} logoLinkAs={logoLink} themeToggle={<ThemeToggle />}>
+      <AppShell
+        user={{ displayName: user.displayName, avatarUrl: user.avatarUrl }}
+        onSignOut={handleSignOut}
+        logoLinkAs={logoLink}
+        themeToggle={<ThemeToggle />}
+        onAvatarClick={() => navigate('/account')}
+      >
         {page}
       </AppShell>
     )

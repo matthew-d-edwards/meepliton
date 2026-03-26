@@ -1,4 +1,5 @@
 export { AppShell } from './components/AppShell'
+export { Avatar } from './components/Avatar'
 export { RoomWaitingScreen } from './components/RoomWaitingScreen'
 export { PlayerPresence } from './components/PlayerPresence'
 export { JoinCodeDisplay } from './components/JoinCodeDisplay'

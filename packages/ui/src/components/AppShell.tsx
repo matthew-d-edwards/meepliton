@@ -1,7 +1,9 @@
 import { ReactNode } from 'react'
+import { Avatar } from './Avatar'
 
 interface AppShellUser {
   displayName: string
+  avatarUrl?: string | null
 }
 
 interface AppShellProps {
@@ -31,6 +33,12 @@ interface AppShellProps {
    * Until then, omit this prop and the slot is simply absent.
    */
   themeToggle?: ReactNode
+  /**
+   * Called when the user activates their avatar in the header.
+   * The caller is responsible for navigating (e.g. to /account).
+   * If omitted, the avatar renders without a click target.
+   */
+  onAvatarClick?: () => void
 }
 
 /**
@@ -53,6 +61,7 @@ export function AppShell({
   onSignOut,
   logoLinkAs: LogoLink,
   themeToggle,
+  onAvatarClick,
 }: AppShellProps) {
   const logo = LogoLink ? (
     <LogoLink className="meepliton-logo">
@@ -72,6 +81,23 @@ export function AppShell({
         <nav className="meepliton-header-actions" aria-label="Platform actions">
           {/* Theme toggle slot — story-011 wires the logic */}
           {themeToggle}
+
+          {/* Avatar — only shown when authenticated */}
+          {user && onAvatarClick && (
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={onAvatarClick}
+              aria-label={`Account settings (${user.displayName})`}
+              title={`Account settings (${user.displayName})`}
+              style={{ padding: 0, lineHeight: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+            >
+              <Avatar url={user.avatarUrl} displayName={user.displayName} size="sm" />
+            </button>
+          )}
+          {user && !onAvatarClick && (
+            <Avatar url={user.avatarUrl} displayName={user.displayName} size="sm" />
+          )}
 
           {/* Sign-out — only shown when authenticated */}
           {user && (
