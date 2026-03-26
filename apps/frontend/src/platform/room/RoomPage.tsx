@@ -103,6 +103,9 @@ export default function RoomPage({ join }: { join?: boolean }) {
       .build()
 
     hub.on('StateUpdated', (state) => { if (isCurrent) { setGameState(state); setRejectedReason(null) } })
+    hub.on('StateChanged', () => {
+      if (isCurrent) hub.invoke('GetState', roomId).catch(() => { /* ignore — reconnect will recover */ })
+    })
     hub.on('ActionRejected', ({ reason }: { reason: string }) => { if (isCurrent) setRejectedReason(reason) })
     hub.on('PlayerJoined', (p: PlayerInfo) => { if (isCurrent) setPlayers(prev => [...prev.filter(x => x.id !== p.id), p]) })
     hub.on('PlayerLeft', (playerId: string) => { if (isCurrent) setPlayers(prev => prev.filter(x => x.id !== playerId)) })
@@ -115,10 +118,11 @@ export default function RoomPage({ join }: { join?: boolean }) {
     hub.on('GameStarted', () => {
       if (!isCurrent) return
       setRoom(r => r ? { ...r, status: 'InProgress' } : r)
-      // Re-invoke JoinRoom so the hub pushes the initial projected state
-      // back to this client immediately (GameHub.JoinRoom sends StateUpdated
-      // if GameState is already set).
+      // JoinRoom handles group membership and sends initial projected state.
       hub.invoke('JoinRoom', roomId).catch(() => { /* ignore if already joined */ })
+      // GetState is an additional pull to ensure projected state reaches this client
+      // even if the JoinRoom side-effects cause ordering issues.
+      hub.invoke('GetState', roomId).catch(() => { /* ignore — JoinRoom covers it */ })
     })
     hub.on('HostTransferred', ({ newHostId }: { newHostId: string; oldHostId: string }) => {
       if (isCurrent) setRoom(r => r ? { ...r, hostId: newHostId } : r)
