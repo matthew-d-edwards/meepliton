@@ -2,39 +2,48 @@
 
 ### Summary
 
-A protected admin section at `/admin` giving trusted users (the owner group) a single place to inspect and operate the running platform: view all registered users, manage rooms and games, and surface structured application logs for troubleshooting. The portal is gated behind an ASP.NET Core Identity role (`Admin`) so it cannot be reached by regular players and is never reachable by unauthenticated requests.
+A protected admin section at `/admin` giving trusted users (the owner group) a single place to inspect and operate the running platform: view all registered users with management actions, and manage rooms. The portal is gated behind an ASP.NET Core Identity role (`Admin`) so it cannot be reached by regular players and is never reachable by unauthenticated requests.
 
-This is an internal operations tool, not a player-facing feature. The scope is deliberately narrow: the platform is a small friends group, so the portal does not need bulk actions, reporting dashboards, or audit logging beyond what the existing `action_log` already provides.
+This is an internal operations tool, not a player-facing feature. The scope is deliberately narrow: the platform is a small friends group, so the portal does not need bulk actions, reporting dashboards, or audit logging.
+
+**Spec revision history:**
+- Round 1 (2026-03-26): Initial analyst draft
+- Round 2 (2026-03-26): Architect review — objections raised
+- Round 3 (2026-03-26): Final consolidated spec — objections resolved
 
 ---
 
-### Clarifications and design decisions recorded here
+### Architect objection responses (Round 3)
 
-#### What does "force reset a user" mean?
+**Objection 1 (Critical) — Drop user delete from v1:** Accepted. The stated admin need (unblocking friends, granting access, cleaning up rooms) is fully covered by unlock, grant/revoke admin, and password reset. Hard-deleting users requires application-level cascade logic across hosted rooms, room_players, action_log, and Identity tables — meaningful complexity for a feature that has no immediate use case on a small platform. Ghost rows in game-module tables are already expected per ADR-003. User deletion is deferred to a future story.
 
-The request was ambiguous. Three plausible interpretations existed:
+**Objection 2 (Moderate) — Drop the Logs tab from v1:** Accepted. The original request included "operational visibility" as a motivation, and this analyst initially contested the objection. On reflection, the ring buffer is the only viable in-process approach, and it is genuinely lossy: entries disappear on every container recycle (Azure Container Apps on the Consumption plan recycles frequently on scale-to-zero). The result would be a log viewer that is empty after every cold start — worse than the Azure CLI alternative. The v1 Logs tab is dropped. Operational visibility for v1 is met by `az containerapp logs show --name meepliton-api --resource-group ... --follow` (documented in requirements.md §12). A v2 Logs tab backed by a persistent sink (Azure Monitor, Application Insights, or a managed Serilog sink) is noted in the roadmap.
 
-1. **Password reset** — invalidate the user's current password and send a reset email (what "reset" normally means in Identity).
-2. **Game state reset** — clear a player's in-progress room state, effectively removing them from a room.
-3. **Account reset** — delete or anonymise an account.
+**Objection 3 (Minor) — AdminSeeder pattern:** Accepted. The seeder follows the existing `DevSeeder` style: a registered hosted service, reads `ADMIN_SEED_EMAIL` env var, runs in all environments. If the env var is not set, or if the email is not found in the DB, the seeder logs a warning and skips — it never creates users. Idempotent.
 
-**Decision for this spec:** "Force reset" means **sending an admin-triggered password reset email** — i.e., the admin calls `UserManager.GeneratePasswordResetTokenAsync` and dispatches the reset email on behalf of the user. This is the safest interpretation because:
-- It uses existing Identity machinery with no new schema.
-- It is reversible (user still exists, they just get a new password link).
-- It is the meaning most operators reach for when a user is locked out or reports login trouble.
-- Account deletion is now separately supported in this spec via `DELETE /api/admin/users/{userId}` (see acceptance criteria and data model sections).
-- Game state reset is already possible via the room delete endpoint; exposing it in admin is covered separately in the game management section.
+---
+
+### v1 scope
+
+| Area | Included | Excluded |
+|---|---|---|
+| Auth | AdminSeeder (all envs), `AdminOnly` policy, JWT role claims at login | Role changes without relogin |
+| Users tab | Paginated + searchable list; unlock, grant admin, revoke admin, send password reset | Hard delete, bulk actions, audit log |
+| Rooms tab | Paginated list with filters; delete room with cascade | Game-state-level actions |
+| Logs tab | Dropped from v1 | Ring buffer, Application Insights |
+| Frontend | `/admin` route with role guard, nav shell (Users + Rooms tabs) | Logs tab UI |
 
 ---
 
 ### User stories
 
 - As an admin, I want to see all registered users so I can answer "who is on the platform" quickly.
-- As an admin, I want to send a forced password reset email to a user so I can unblock a locked-out friend without touching the database manually.
-- As an admin, I want to see all rooms (active, in-progress, finished) so I can understand what is happening on the platform right now.
+- As an admin, I want to send a forced password reset email to a user so I can unblock a locked-out friend without touching the database.
+- As an admin, I want to unlock a locked-out account so I can restore access without a password reset.
+- As an admin, I want to grant or revoke the Admin role so I can manage who has operational access.
+- As an admin, I want to see all rooms (active, in-progress, finished) so I can understand what is happening right now.
 - As an admin, I want to delete any room so I can clean up stale or broken sessions.
-- As an admin, I want to see recent structured application logs so I can diagnose errors without opening Azure Portal every time.
-- As a developer, I want the admin role to be assignable via a seed script or CLI command so the first admin can be granted access without a chicken-and-egg problem.
+- As a developer, I want the first admin role to be assigned via an environment variable so there is no chicken-and-egg problem on first deployment.
 
 ---
 
@@ -42,136 +51,164 @@ The request was ambiguous. Three plausible interpretations existed:
 
 #### Role gating
 
-- [ ] A new `Admin` Identity role exists; seeds on first startup if it does not exist already.
+- [ ] A new `Admin` Identity role exists; the `AdminSeeder` ensures it is created on startup if it does not exist already.
+- [ ] `AdminSeeder` runs in all environments (dev and production).
+- [ ] If `ADMIN_SEED_EMAIL` is set and a user with that email exists in the DB, the seeder assigns them the `Admin` role. If the user is already in the role, the seeder does nothing (idempotent).
+- [ ] If `ADMIN_SEED_EMAIL` is set but no user with that email exists, the seeder logs a warning and does not create a new user.
+- [ ] If `ADMIN_SEED_EMAIL` is not set, the seeder only ensures the `Admin` role row exists; no user is assigned.
+- [ ] `Admin` role claims are embedded in the JWT at login time — one extra `GetRolesAsync` call per login. Role changes require the user to log out and back in.
 - [ ] All admin API endpoints return `403 Forbidden` for authenticated non-admin users.
 - [ ] All admin API endpoints return `401 Unauthorized` for unauthenticated requests.
-- [ ] The `/admin` frontend route redirects non-admins to `/lobby` with a toast message.
-- [ ] If the `ADMIN_SEED_EMAIL` environment variable (or equivalent app setting) is set at startup, the `AdminRoleSeeder` finds or creates a user with that email and assigns them the `Admin` role. This is idempotent — re-running with the same email does nothing if the role is already assigned.
-- [ ] If `ADMIN_SEED_EMAIL` is not set, the seeder only ensures the `Admin` role exists and does not assign it to anyone.
+- [ ] The React route `/admin` and `/admin/*` redirects non-admins to `/lobby` with a visible toast message.
 
 #### User management
 
-- [ ] `GET /api/admin/users` returns a paginated list of all users; each entry includes: `id`, `displayName`, `email`, `emailConfirmed`, `createdAt`, `lastSeenAt`, `loginMethods` (`google`, `password`, or both), `isLockedOut`, `lockoutEnd`.
-- [ ] `GET /api/admin/users` supports query parameters: `search` (matches display name or email prefix), `page` (1-based, default 1), `pageSize` (default 25, max 100).
-- [ ] `POST /api/admin/users/{userId}/send-password-reset` generates a password reset token and sends the reset email to the user's address using the existing `IEmailSender`. Returns `204` on success. Returns `400` if the user has no email or has no password login method (Google-only accounts with no password cannot use this flow). Returns `404` if the user does not exist.
-- [ ] `POST /api/admin/users/{userId}/unlock` clears an active lockout (`UserManager.SetLockoutEndDateAsync(user, null)`) and resets the access failed count. Returns `204`. Returns `404` if the user does not exist.
-- [ ] `DELETE /api/admin/users/{userId}` hard-deletes the user account. Cascade-deletes their `room_players` rows and any rooms where they are the host (and the associated `room_players` and `action_log` rows for those rooms). Returns `204`. Returns `400` if `userId == currentUserId` (an admin cannot delete their own account). Returns `404` if the user does not exist.
-- [ ] `POST /api/admin/users/{userId}/grant-admin` adds the user to the `Admin` role. Returns `204`. Returns `400` if the user is already an Admin, or if `userId == currentUserId`. Returns `404` if the user does not exist.
-- [ ] `POST /api/admin/users/{userId}/revoke-admin` removes the user from the `Admin` role. Returns `204`. Returns `400` if `userId == currentUserId`. Returns `404` if the user does not exist.
-- [ ] The frontend admin user list shows a row per user with display name, email, confirmed status, login methods, last seen, and lockout status.
-- [ ] Each user row has action buttons: "Send reset email" (disabled for Google-only), "Unlock" (disabled unless locked out), "Delete user", and either "Grant admin" or "Revoke admin" depending on the user's current role.
-- [ ] The current user's "Grant admin" / "Revoke admin" buttons are disabled (an admin cannot change their own role).
-- [ ] Admin users display an "Admin" badge in their row.
-- [ ] The "Delete user" button opens a confirmation dialog before calling the delete endpoint. The dialog names the user's display name and email to prevent accidental deletion.
-- [ ] An admin cannot delete their own account — the delete button is disabled for the current user's row.
+- [ ] `GET /api/admin/users` returns a paginated list of all users; each entry includes: `id`, `displayName`, `email`, `emailConfirmed`, `createdAt`, `lastSeenAt`, `loginMethods` (`google`, `password`, or both), `isLockedOut`, `lockoutEnd`, `isAdmin`.
+- [ ] `isAdmin` is populated via a single join query against `user_roles`/`roles` tables — no N+1 `IsInRoleAsync` calls.
+- [ ] `GET /api/admin/users` supports query parameters: `search` (matches display name or email prefix, case-insensitive), `page` (1-based, default 1), `pageSize` (default 25, max 100).
+- [ ] `POST /api/admin/users/{userId}/send-password-reset` generates a password reset token and sends the reset email via the existing `IEmailSender`. Returns `204` on success. Returns `400` if the user has no password login method (Google-only accounts). Returns `404` if the user does not exist.
+- [ ] `POST /api/admin/users/{userId}/unlock` clears an active lockout (`UserManager.SetLockoutEndDateAsync(user, null)`) and resets the access failed count to 0. Returns `204`. Returns `404` if the user does not exist.
+- [ ] `POST /api/admin/users/{userId}/grant-admin` adds the user to the `Admin` role via `UserManager.AddToRoleAsync`. Returns `204`. Returns `400` if the user is already an Admin or if `userId == currentUserId`. Returns `404` if the user does not exist.
+- [ ] `POST /api/admin/users/{userId}/revoke-admin` removes the user from the `Admin` role via `UserManager.RemoveFromRoleAsync`. Returns `204`. Returns `400` if `userId == currentUserId`. Returns `404` if the user does not exist.
+- [ ] The frontend admin user list shows: display name, email, confirmed status (icon), login methods (icon or text), last seen (relative time), lockout status, and an "Admin" badge for admin users.
+- [ ] Each user row has action buttons: "Send reset email" (disabled for Google-only users), "Unlock" (disabled unless `isLockedOut` is true), "Grant admin" or "Revoke admin" (toggled by current state; both disabled for the current user's own row).
+- [ ] All action buttons show a success or error toast after the API call.
+- [ ] The "Grant admin" / "Revoke admin" button and badge update optimistically after a successful API response — no full page reload needed.
+- [ ] Pagination controls (previous / next) are visible when there are multiple pages.
+- [ ] Search input filters by display name or email — calls API on submit, not on every keystroke.
+- [ ] On mobile (375px viewport), the user table scrolls horizontally without clipping.
 
-#### Room/game management
+#### Room management
 
-- [ ] `GET /api/admin/rooms` returns a paginated list of all rooms; each entry includes: `id`, `joinCode`, `gameId`, `gameName`, `hostId`, `hostDisplayName`, `status`, `playerCount`, `connectedCount`, `createdAt`, `updatedAt`, `expiresAt`. (`connectedCount` is the number of `room_players` rows where `connected = true`.)
-- [ ] `GET /api/admin/rooms` supports query parameters: `status` (filter by room status; comma-separated values allowed, e.g. `waiting,in_progress`), `gameId`, `page`, `pageSize` (same defaults as users).
-- [ ] `DELETE /api/admin/rooms/{roomId}` hard-deletes the room and all `room_players` and `action_log` rows (cascade). Returns `204`. Returns `404` if not found.
-- [ ] The frontend admin rooms list shows a row per room with join code, game name, status badge, host name, player count, and created time.
-- [ ] Each room row has a "Delete" button that opens a confirmation dialog before calling the delete endpoint.
+- [ ] `GET /api/admin/rooms` returns a paginated list of all rooms; each entry includes: `id`, `joinCode`, `gameId`, `gameName`, `hostId`, `hostDisplayName`, `status`, `playerCount`, `connectedCount`, `createdAt`, `updatedAt`, `expiresAt`. (`connectedCount` is the count of `room_players` rows where `connected = true`.)
+- [ ] `GET /api/admin/rooms` supports: `status` (comma-separated filter, e.g. `waiting,in_progress`), `gameId`, `page`, `pageSize` (same defaults as users).
+- [ ] `DELETE /api/admin/rooms/{roomId}` hard-deletes the room and all `room_players` and `action_log` rows via ON DELETE CASCADE. Returns `204`. Returns `404` if not found.
+- [ ] The frontend admin rooms list shows: join code, game name, status badge (colour-coded), host display name, player count / connected count, created time.
+- [ ] Status badge colours: Waiting = neutral, InProgress = green, Finished = grey, Closed = muted.
+- [ ] Filter controls: status multi-select and game dropdown — applied on submit.
+- [ ] "Delete" button per row opens a confirmation dialog naming the room join code and game before calling the API.
+- [ ] On successful delete, the row is removed from the list without a full page reload.
+- [ ] Pagination controls when there are multiple pages.
+- [ ] On mobile, the rooms table scrolls horizontally without clipping.
 
-#### Log viewer
+#### Frontend routing and nav shell
 
-- [ ] `GET /api/admin/logs` returns the most recent N structured log entries emitted by the API process. Default N = 200, max 1000.
-- [ ] Each log entry includes: `timestamp`, `level` (`Debug`, `Information`, `Warning`, `Error`, `Critical`), `message`, `category` (logger name), `eventId` (if present), `exception` (if present, as a string).
-- [ ] The log viewer is backed by an **in-process ring buffer** (`ILoggerProvider`) that retains the last 1000 log entries in memory. No external dependency (no Application Insights, no file sink). Entries are lost on process restart — this is acceptable for a hobby project.
-- [ ] `GET /api/admin/logs` supports query parameters: `level` (minimum severity to include; default `Information`), `limit` (default 200, max 1000), `category` (filter by logger category prefix).
-- [ ] The frontend log viewer shows a scrollable list of log entries, colour-coded by level (info = neutral, warning = amber, error/critical = red).
-- [ ] The frontend log viewer has a "Refresh" button and shows the time of the last fetch.
-
-#### Frontend routing
-
-- [ ] The admin portal is a separate top-level route (`/admin/*`) nested inside the existing React Router shell.
-- [ ] The admin nav has three tabs: Users, Rooms, Logs.
-- [ ] On mobile (375px viewport), the admin tables scroll horizontally; no information is hidden by overflow clipping.
+- [ ] `/admin` redirects to `/admin/users`.
+- [ ] Persistent tab bar with two tabs: Users, Rooms. Active tab is visually distinct.
+- [ ] "Back to Lobby" link in the header or nav.
+- [ ] On mobile (375px), the tab bar fits within the viewport without overflow.
+- [ ] The admin shell re-uses the existing `AppShell` wrapper (same header, theme toggle, sign-out) — no bespoke platform chrome.
 
 ---
 
 ### API changes
 
-All new endpoints live under `/api/admin` and require the `Admin` role.
+All new endpoints live under `/api/admin` and require the `AdminOnly` authorization policy.
 
 ```
 GET    /api/admin/users                               → AdminUserListDto (paginated)
 POST   /api/admin/users/{userId}/send-password-reset  → 204
 POST   /api/admin/users/{userId}/unlock               → 204
-DELETE /api/admin/users/{userId}                      → 204
 POST   /api/admin/users/{userId}/grant-admin          → 204
 POST   /api/admin/users/{userId}/revoke-admin         → 204
 
 GET    /api/admin/rooms                               → AdminRoomListDto (paginated)
 DELETE /api/admin/rooms/{roomId}                      → 204
-
-GET    /api/admin/logs                                → AdminLogEntryDto[]
 ```
 
-New authorization policy in `Program.cs`:
+New authorization policy registered in `Program.cs`:
 
-```csharp
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
-});
+```
+options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
 ```
 
 New endpoint file: `src/Meepliton.Api/Endpoints/AdminEndpoints.cs`
+
+JWT role claims are added at login in `TokenService` (or equivalent auth handler) via one `GetRolesAsync` call. Role changes take effect after the user's next login.
 
 ---
 
 ### Data model changes
 
-No new tables. The `roles` and `user_roles` tables are already created by Identity migrations (noted in requirements §9.3 as "created by migrations, unused in v1"). The Admin role is created at startup; the `user_roles` entries are added or removed via `UserManager.AddToRoleAsync` / `UserManager.RemoveFromRoleAsync`.
+No new tables or migrations required.
 
-**User deletion cascade:** Deleting a user via `DELETE /api/admin/users/{userId}` must:
-1. Find all rooms where the user is the host and delete those rooms (which cascade-deletes their `room_players` and `action_log` rows via ON DELETE CASCADE).
-2. Delete the user's `room_players` rows in rooms they did not host.
-3. Delete the ASP.NET Core Identity user record (which cascade-deletes `user_roles`, `user_claims`, `user_logins`, `user_tokens` via Identity's FK setup).
+The `roles` and `user_roles` tables are already created by Identity migrations (noted in requirements §9.3 as "created by migrations, unused in v1"). The `Admin` role row is created at startup by `AdminSeeder`. Role assignments are managed via `UserManager.AddToRoleAsync` / `RemoveFromRoleAsync`.
 
-This is implemented in the endpoint handler, not as a DB-level cascade on the Identity user table, because the host-room deletion requires application-level logic.
+`LastSeenAt` already exists on `ApplicationUser` — no migration needed.
 
-**Room ID type note:** `Room.Id` in the C# model is `string` (GUID as text), matching ASP.NET Core Identity's convention. The PostgreSQL column is `UUID`. Admin endpoints accept the GUID string and EF Core handles the conversion — consistent with how `RoomEndpoints.cs` currently handles room lookups.
+**Room ID type note:** `Room.Id` in C# is `string` (GUID as text); the PostgreSQL column is `UUID`. Admin endpoints accept the GUID string; EF Core handles the conversion — consistent with existing `RoomEndpoints.cs`.
 
-No EF migration is required because the schema already exists. The only startup change is seeding the `Admin` role if it does not exist — this goes in a new `AdminRoleSeeder` service that runs from `Program.cs` after migrations, similar to `DevSeeder`.
+**`isAdmin` query:** Populated via a single join against `user_roles` and `roles`, not via N+1 `IsInRoleAsync` calls.
 
 ---
 
-### In-process log ring buffer
+### New service: AdminSeeder
 
-The log viewer does not require Application Insights or any Azure service. It uses a custom `ILoggerProvider`:
+Follows `DevSeeder` style: a registered hosted service (or `IHostedService`), runs on startup in all environments.
 
-```
-src/Meepliton.Api/Services/RingBufferLoggerProvider.cs
-src/Meepliton.Api/Services/RingBufferLogger.cs
-```
+Behaviour:
+1. Ensure the `Admin` role exists in the `roles` table. If not, create it.
+2. If `ADMIN_SEED_EMAIL` is set in configuration:
+   a. Find the user by email.
+   b. If not found: log a warning at `Warning` level, skip.
+   c. If found and already in `Admin` role: do nothing (idempotent).
+   d. If found and not in role: add to role via `UserManager.AddToRoleAsync`.
+3. If `ADMIN_SEED_EMAIL` is not set: step 2 is skipped entirely.
 
-The provider holds a `ConcurrentQueue<LogEntry>` capped at 1000 entries. When the queue exceeds 1000, the oldest entry is dequeued before adding the new one. The provider is registered as a singleton in `Program.cs` and is also injected into `AdminEndpoints` to read the current buffer.
-
-This keeps the implementation entirely in-process — no additional Azure resources, no cost increase, no configuration secrets needed.
+The seeder never creates user accounts — it only assigns roles to existing users.
 
 ---
 
-### Out of scope
+### ADR-011: Admin access via Identity roles + JWT claims
 
-- Account anonymisation / soft-delete (hard delete only; see data model section above).
-- Game state reset per-player (the room delete endpoint already covers the room-level case).
-- Bulk actions (delete all rooms older than N days, etc.).
+**Status:** Proposed
+**Date:** 2026-03-26
+
+#### Context
+
+The admin portal requires a way to gate access to a small set of trusted users. The platform already uses ASP.NET Core Identity for user management and JWTs for API authentication. The question is how and when the `Admin` role is surfaced in the token.
+
+#### Decision
+
+Embed role claims in the JWT at login time via a single `GetRolesAsync` call. An `AdminOnly` authorization policy (`RequireRole("Admin")`) gates all `/api/admin/*` endpoints and the frontend `/admin` route.
+
+Role changes (grant/revoke admin) take effect after the affected user's next login. "Relogin to activate admin" is acceptable given the platform's scale and usage pattern.
+
+#### Consequences
+
+- One extra DB call per login (negligible cost).
+- An admin whose role is revoked retains access until their current JWT expires. Acceptable: the platform is a private friends group with short session windows. If immediate revocation is needed in future, add a token blacklist or shorten JWT TTL.
+- No middleware plumbing for dynamic role claims is required.
+
+---
+
+### Out of scope (v1)
+
+- User hard delete (deferred — see note in objection 1 response above).
+- Account anonymisation or soft delete.
+- Log viewer (deferred to v2 — use `az containerapp logs show` in the interim).
+- Application Insights integration (separate decision — see requirements §17).
+- Bulk admin actions (delete all rooms older than N days, etc.).
 - Admin audit log (recording who performed which admin action).
-- Real-time log streaming (the refresh button is sufficient for a hobby platform).
-- Multi-environment (staging vs production) — there is one environment.
-- Application Insights integration — intentionally deferred (OQ in requirements §17).
+- Real-time log streaming.
+- Game state reset per-player.
 
 ---
 
 ### Open questions
 
-| # | Question | Impact | Status |
-|---|---|---|---|
-| OQ-ADMIN-01 | Was "force reset" meant to be account deletion rather than password reset email? If so, this spec needs a separate story with a confirmed deletion strategy (hard delete vs soft delete, referential integrity impact). | High — changes the user management story entirely | **Resolved 2026-03-26:** "Force reset" means password reset email. The spec's interpretation is correct. Account deletion is separately supported via `DELETE /api/admin/users/{userId}` (added as a new requirement). |
-| OQ-ADMIN-02 | Should the admin portal be reachable in production only (not dev), or in all environments? Recommended: available in all environments, but the admin role seed is dev-only. | Low — cosmetic | Proposed default accepted (no owner decision needed) |
-| OQ-ADMIN-03 | Who should receive the first Admin role in production? There is no UI for this. The proposed solution is a `dotnet run` CLI argument or a one-time SQL snippet. This needs a documented runbook. | Medium — blocks going live | **Resolved 2026-03-26:** Seed from `ADMIN_SEED_EMAIL` environment variable. If present at startup, the seeder finds or creates the user with that email and assigns the Admin role. Idempotent. No separate CLI or SQL runbook required. |
+All open questions from Round 1 are resolved. No blocking questions remain.
+
+| # | Question | Resolution |
+|---|---|---|
+| OQ-ADMIN-01 | "Force reset" — password reset or account deletion? | Password reset email. Account deletion dropped from v1. |
+| OQ-ADMIN-02 | Admin portal available in all environments or production only? | All environments. |
+| OQ-ADMIN-03 | How does the first admin get their role? | `ADMIN_SEED_EMAIL` env var at startup. Idempotent. |
+| OQ-ADMIN-04 | How are role claims surfaced in JWT? | `GetRolesAsync` at login, embedded in JWT. Relogin to activate. |
+| OQ-ADMIN-05 | How is `isAdmin` populated in the user list without N+1? | Single join against `user_roles`/`roles` tables. |
+| OQ-ADMIN-06 | Logs tab — ring buffer or drop from v1? | Dropped from v1. Ring buffer is lossy on container recycle. |
+
+---
 
 ### Story
 
