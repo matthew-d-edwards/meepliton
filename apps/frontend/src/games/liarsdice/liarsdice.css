@@ -1,8 +1,9 @@
 /* Liar's Dice — Pirate theme token overrides
    Scoped to [data-game-theme="pirates"] so the platform chrome is unaffected.
-   Aesthetic: maritime navigation charts, weathered brass, dark ocean. */
+   Aesthetic: maritime navigation charts, weathered brass, dark ocean, lantern light. */
 
 [data-game-theme="pirates"] {
+  /* ── Color aliases (used by styles.module.css via var(--color-*, fallback)) ── */
   --color-background:     #0d1b2a;   /* deep navy */
   --color-surface:        #152840;   /* dark ocean */
   --color-surface-raised: #1e3a57;   /* slightly lifted */
@@ -13,6 +14,29 @@
   --color-text:           #e8dfc8;   /* parchment */
   /* Lightened from #8aa3bb (~3.7:1) to meet WCAG AA 4.5:1 for small text on --color-background */
   --color-text-muted:     #a0b8cc;
+
+  /* ── Platform token overrides (replaces Blade Runner blue/cyan with tavern warmth) ── */
+  --surface-base:         #0d1b2a;
+  --surface-raised:       #152840;
+  --surface-float:        #1e3a57;
+  --surface-overlay:      #243f5e;
+
+  --edge-subtle:          #2a4a6b;
+  --edge-strong:          #3a5a80;
+
+  --text-muted:           #a0b8cc;
+  --text-primary:         #e8dfc8;   /* parchment */
+  --text-bright:          #f5ead0;   /* aged vellum */
+
+  --accent:               #c8973a;   /* weathered brass */
+  --accent-dim:           #c8973a18;
+  --accent-glow:          #c8973a55;
+
+  /* Lantern gold replaces Blade Runner cyan — old ship lanterns, not neon signs */
+  --neon-cyan:            #c8973a;
+  --neon-magenta:         #a05020;   /* rust */
+  --neon-orange:          #d4782a;   /* warm amber */
+
   /* Radius tightened — charts feel more precise than rounded */
   --radius-sm:            2px;
   --radius-md:            4px;
