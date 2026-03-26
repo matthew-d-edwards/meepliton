@@ -61,7 +61,7 @@ If the intent was account deletion or game state reset, that should be a separat
 
 #### Room/game management
 
-- [ ] `GET /api/admin/rooms` returns a paginated list of all rooms; each entry includes: `id`, `joinCode`, `gameId`, `gameName`, `hostId`, `hostDisplayName`, `status`, `playerCount`, `createdAt`, `updatedAt`, `expiresAt`.
+- [ ] `GET /api/admin/rooms` returns a paginated list of all rooms; each entry includes: `id`, `joinCode`, `gameId`, `gameName`, `hostId`, `hostDisplayName`, `status`, `playerCount`, `connectedCount`, `createdAt`, `updatedAt`, `expiresAt`. (`connectedCount` is the number of `room_players` rows where `connected = true`.)
 - [ ] `GET /api/admin/rooms` supports query parameters: `status` (filter by room status; comma-separated values allowed, e.g. `waiting,in_progress`), `gameId`, `page`, `pageSize` (same defaults as users).
 - [ ] `DELETE /api/admin/rooms/{roomId}` hard-deletes the room and all `room_players` and `action_log` rows (cascade). Returns `204`. Returns `404` if not found.
 - [ ] The frontend admin rooms list shows a row per room with join code, game name, status badge, host name, player count, and created time.
@@ -116,6 +116,8 @@ New endpoint file: `src/Meepliton.Api/Endpoints/AdminEndpoints.cs`
 
 No new tables. The `roles` and `user_roles` tables are already created by Identity migrations (noted in requirements §9.3 as "created by migrations, unused in v1"). The Admin role is created at startup; the `user_roles` entries are added via `UserManager.AddToRoleAsync`.
 
+**Room ID type note:** `Room.Id` in the C# model is `string` (GUID as text), matching ASP.NET Core Identity's convention. The PostgreSQL column is `UUID`. Admin endpoints accept the GUID string and EF Core handles the conversion — consistent with how `RoomEndpoints.cs` currently handles room lookups.
+
 No EF migration is required because the schema already exists. The only startup change is seeding the `Admin` role if it does not exist — this goes in a new `AdminRoleSeeder` service that runs from `Program.cs` after migrations, similar to `DevSeeder`.
 
 ---
@@ -150,8 +152,12 @@ This keeps the implementation entirely in-process — no additional Azure resour
 
 ### Open questions
 
-| # | Question | Impact |
-|---|---|---|
-| OQ-ADMIN-01 | Was "force reset" meant to be account deletion rather than password reset email? If so, this spec needs a separate story with a confirmed deletion strategy (hard delete vs soft delete, referential integrity impact). | High — changes the user management story entirely |
-| OQ-ADMIN-02 | Should the admin portal be reachable in production only (not dev), or in all environments? A dev-only portal is lower risk but forces any admin debugging to happen in production. Recommended: available in all environments, but the admin role seed is dev-only. | Low — cosmetic |
-| OQ-ADMIN-03 | Who should receive the first Admin role in production? There is no UI for this. The proposed solution is a `dotnet run` CLI command or a one-time SQL snippet. This needs a documented runbook. | Medium — blocks going live |
+| # | Question | Impact | Status |
+|---|---|---|---|
+| OQ-ADMIN-01 | Was "force reset" meant to be account deletion rather than password reset email? If so, this spec needs a separate story with a confirmed deletion strategy (hard delete vs soft delete, referential integrity impact). | High — changes the user management story entirely | Open — added to `docs/owner/TODO.md` 2026-03-26 |
+| OQ-ADMIN-02 | Should the admin portal be reachable in production only (not dev), or in all environments? Recommended: available in all environments, but the admin role seed is dev-only. | Low — cosmetic | Proposed default accepted (no owner decision needed) |
+| OQ-ADMIN-03 | Who should receive the first Admin role in production? There is no UI for this. The proposed solution is a `dotnet run` CLI argument or a one-time SQL snippet. This needs a documented runbook. | Medium — blocks going live | Open — added to `docs/owner/TODO.md` 2026-03-26 |
+
+### Story
+
+`docs/stories/story-031-admin-portal.md`
