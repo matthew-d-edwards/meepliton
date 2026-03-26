@@ -1,0 +1,40 @@
+/* Skyline — Corporate Empire theme token overrides
+   Scoped to [data-game-theme="skyline"] so the platform chrome is unaffected.
+   Aesthetic: polished boardroom, real estate ambition, wealth.
+   Deep navy-indigo surfaces, polished gold instead of cyan neon. */
+
+[data-game-theme="skyline"] {
+  /* ── Color aliases (used by styles.module.css via var(--color-*, fallback)) ── */
+  --color-background:     #080c18;   /* deep navy-indigo */
+  --color-surface:        #0d1630;
+  --color-surface-raised: #142040;
+  --color-surface-hover:  #1a2a50;
+  --color-primary:        #d4aa40;   /* polished gold */
+  --color-on-primary:     #080c18;
+  --color-border:         #1c3055;   /* night steel */
+  --color-text:           #c8d8f0;   /* cool blue-white */
+  /* Lightened to pass WCAG AA 4.5:1 for small text on --color-background */
+  --color-text-muted:     #5878a8;
+
+  /* ── Platform token overrides (used directly by styles.module.css) ── */
+  --surface-base:         #080c18;
+  --surface-raised:       #0d1630;
+  --surface-float:        #142040;
+  --surface-overlay:      #1a2a50;
+
+  --edge-subtle:          #1c3055;
+  --edge-strong:          #284068;
+
+  --text-muted:           #5878a8;
+  --text-primary:         #c8d8f0;
+  --text-bright:          #e0eeff;
+
+  --accent:               #d4aa40;
+  --accent-dim:           #d4aa4018;
+  --accent-glow:          #d4aa4055;
+
+  /* Gold glow replaces Blade Runner cyan — befitting a corporate empire */
+  --neon-cyan:            #d4aa40;
+  --neon-magenta:         #ff9040;   /* amber-orange */
+  --neon-orange:          #ffc040;   /* warm gold highlight */
+}

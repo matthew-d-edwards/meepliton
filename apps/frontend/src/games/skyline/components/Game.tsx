@@ -7,6 +7,7 @@ import type {
   Hotel,
 } from '../types'
 import { HOTELS, HOTEL_LABELS } from '../types'
+import '../skyline.css'
 import styles from '../styles.module.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -125,7 +126,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
   if (state.gameOver) {
     const ranked = state.rankedOrder ?? state.players.map((_, i) => i)
     return (
-      <div className={styles.goCard}>
+      <div data-game-theme="skyline" className={styles.goCard}>
         <div className={styles.goTitle}>GAME OVER</div>
         <div className={styles.goWinner}>
           {ranked[0] !== undefined && state.players[ranked[0]]
@@ -216,7 +217,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
   const survivorName = state.pending?.survivor ?? ''
 
   return (
-    <div className={styles.gameLayout}>
+    <div data-game-theme="skyline" className={styles.gameLayout}>
       {/* ── Main column ─────────────────────────────────────── */}
       <div className={styles.mainCol}>
 

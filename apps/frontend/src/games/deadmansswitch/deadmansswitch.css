@@ -1,17 +1,45 @@
-/* Dead Man's Switch — Heist / bomb-defusal theme token overrides
+/* Dead Man's Switch — Classified Terminal theme token overrides
    Scoped to [data-game-theme="deadmansswitch"] so the platform chrome is unaffected.
-   Aesthetic: black-ops / industrial — near-black backgrounds, steel surfaces, amber-yellow accents. */
+   Aesthetic: black-ops / military terminal — pitch black, amber warnings, red alerts.
+   Zero decorative radius — precision matters when lives are on the line. */
 
 [data-game-theme="deadmansswitch"] {
+  /* ── Color aliases (used by styles.module.css via var(--color-*, fallback)) ── */
   --color-background:     #0a0a0c;
   --color-surface:        #121218;
   --color-surface-raised: #1c1c26;
   --color-surface-hover:  #22222e;
-  --color-primary:        #d4a017;
+  --color-primary:        #d4a017;   /* amber warning */
   --color-on-primary:     #0a0a0c;
   --color-border:         #2a2a38;
   --color-text:           #d8d8e0;
   --color-text-muted:     #8a8aa8;
-  --radius-sm:            2px;
-  --radius-md:            3px;
+
+  /* ── Platform token overrides (replaces Blade Runner cyan/magenta with ops palette) ── */
+  --surface-base:         #0a0a0c;
+  --surface-raised:       #121218;
+  --surface-float:        #1c1c26;
+  --surface-overlay:      #22222e;
+
+  --edge-subtle:          #2a2a38;
+  --edge-strong:          #3a3a50;
+
+  --text-muted:           #8a8aa8;
+  --text-primary:         #d8d8e0;
+  --text-bright:          #f0f0ff;
+
+  --accent:               #d4a017;   /* amber warning */
+  --accent-dim:           #d4a01718;
+  --accent-glow:          #d4a01755;
+
+  /* Amber and red only — no decorative colours in a classified terminal */
+  --neon-cyan:            #d4a017;   /* amber */
+  --neon-magenta:         #ff3020;   /* red alert */
+  --neon-orange:          #ff6000;   /* hot warning orange */
+
+  /* Zero-radius — precision cuts, no softness */
+  --radius-sm:            0px;
+  --radius-md:            2px;
+  --radius-lg:            3px;
+  --radius-xl:            4px;
 }

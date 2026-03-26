@@ -1,8 +1,45 @@
-/* F'That — comedic card game theme
-   Light overrides on platform defaults, with a pop of color for the cursed card. */
+/* F'That — Game Night theme token overrides
+   Scoped to [data-game-theme="fthat"] so the platform chrome is unaffected.
+   Aesthetic: warm card table, chaotic fun, game night energy.
+   Deep burgundy surfaces, vivid orange primary, electric purple neon, rounder shapes. */
 
 [data-game-theme="fthat"] {
-  --color-primary:    #f97316; /* lightened from #e85d04 — passes WCAG AA as text on --surface-base */
-  --color-on-primary: #ffffff;
-  --color-text-muted: #7a9ab8; /* overrides platform --text-muted (#3d5a78) — passes WCAG AA on --surface-base */
+  /* ── Color aliases (used by styles.module.css via var(--color-*, fallback)) ── */
+  --color-background:     #1a0e18;   /* warm dark — card table felt */
+  --color-surface:        #261420;
+  --color-surface-raised: #321c2c;
+  --color-surface-hover:  #3e2438;
+  --color-primary:        #f97316;   /* vivid orange — passes WCAG AA on --color-background */
+  --color-on-primary:     #ffffff;
+  --color-border:         #4a2840;
+  --color-text:           #f0e0ec;   /* warm pink-white */
+  /* Passes WCAG AA 4.5:1 for small text on --color-background */
+  --color-text-muted:     #9a7090;
+
+  /* ── Platform token overrides (replaces Blade Runner cold blue with warm card-table vibe) ── */
+  --surface-base:         #1a0e18;
+  --surface-raised:       #261420;
+  --surface-float:        #321c2c;
+  --surface-overlay:      #3e2438;
+
+  --edge-subtle:          #4a2840;
+  --edge-strong:          #602050;
+
+  --text-muted:           #9a7090;
+  --text-primary:         #f0e0ec;
+  --text-bright:          #fff0f8;
+
+  --accent:               #f97316;   /* orange energy */
+  --accent-dim:           #f9731618;
+  --accent-glow:          #f9731655;
+
+  /* Fun chaos replaces cold Blade Runner neons */
+  --neon-cyan:            #f97316;   /* orange */
+  --neon-magenta:         #c040f0;   /* electric purple */
+  --neon-orange:          #ffcc00;   /* bright yellow */
+
+  /* Rounder shapes — friendlier, more playful */
+  --radius-md:            10px;
+  --radius-lg:            14px;
+  --radius-xl:            18px;
 }
