@@ -1,7 +1,6 @@
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
+using Meepliton.Api.Helpers;
 using Meepliton.Api.Identity;
 using Meepliton.Api.Services;
 using Microsoft.AspNetCore.Authentication;
@@ -467,21 +466,8 @@ public static class AuthEndpoints
     /// Returns the effective avatar URL: user-set override, then derived Gravatar URL for
     /// email/password users, then null (Google-only accounts without a stored picture).
     /// </summary>
-    private static string? ResolveAvatarUrl(ApplicationUser u)
-    {
-        if (u.AvatarUrl is not null)
-            return u.AvatarUrl;
-
-        if (!string.IsNullOrWhiteSpace(u.Email))
-        {
-            var normalized = u.Email.Trim().ToLowerInvariant();
-            var hash = Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(normalized)))
-                              .ToLowerInvariant();
-            return $"https://www.gravatar.com/avatar/{hash}?d=identicon&s=80";
-        }
-
-        return null;
-    }
+    private static string? ResolveAvatarUrl(ApplicationUser u) =>
+        AvatarHelper.ResolveAvatarUrl(u.AvatarUrl, u.Email);
 
     private static UserDto ToUserDto(ApplicationUser u) =>
         new(u.Id, u.DisplayName, ResolveAvatarUrl(u), u.Email ?? string.Empty, u.Theme);

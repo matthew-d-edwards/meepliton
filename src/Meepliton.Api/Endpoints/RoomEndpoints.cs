@@ -1,4 +1,5 @@
 using Meepliton.Api.Data;
+using Meepliton.Api.Helpers;
 using Meepliton.Api.Hubs;
 using Meepliton.Api.Models;
 using Meepliton.Contracts;
@@ -118,7 +119,7 @@ public static class RoomEndpoints
                     {
                         id          = user.Id,
                         displayName = user.DisplayName,
-                        avatarUrl   = user.AvatarUrl,
+                        avatarUrl   = AvatarHelper.ResolveAvatarUrl(user.AvatarUrl, user.Email),
                         seatIndex   = seat,
                         connected   = true,
                     }, ct);
@@ -140,10 +141,12 @@ public static class RoomEndpoints
             if (playerCount < module.MinPlayers)
                 return Results.BadRequest(new { message = $"Need at least {module.MinPlayers} players to start." });
 
-            var players = await db.RoomPlayers
+            var players = (await db.RoomPlayers
                 .Where(rp => rp.RoomId == roomId)
-                .Join(db.Users, rp => rp.UserId, u => u.Id, (rp, u) => new PlayerInfo(u.Id, u.DisplayName, u.AvatarUrl, rp.SeatIndex))
-                .ToListAsync(ct);
+                .Join(db.Users, rp => rp.UserId, u => u.Id, (rp, u) => new { u.Id, u.DisplayName, u.AvatarUrl, u.Email, rp.SeatIndex })
+                .ToListAsync(ct))
+                .Select(p => new PlayerInfo(p.Id, p.DisplayName, AvatarHelper.ResolveAvatarUrl(p.AvatarUrl, p.Email), p.SeatIndex))
+                .ToList();
 
             room.GameState    = module.CreateInitialState(players, room.GameOptions);
             room.Status       = RoomStatus.InProgress;
@@ -170,12 +173,16 @@ public static class RoomEndpoints
 
         group.MapGet("/rooms/{roomId}/players", async (string roomId, PlatformDbContext db, CancellationToken ct) =>
         {
-            var players = await db.RoomPlayers
+            var rawPlayers = await db.RoomPlayers
                 .Where(rp => rp.RoomId == roomId)
                 .Join(db.Users, rp => rp.UserId, u => u.Id,
-                    (rp, u) => new { id = u.Id, displayName = u.DisplayName, avatarUrl = u.AvatarUrl, seatIndex = rp.SeatIndex })
-                .OrderBy(p => p.seatIndex)
+                    (rp, u) => new { u.Id, u.DisplayName, u.AvatarUrl, u.Email, rp.SeatIndex })
+                .OrderBy(p => p.SeatIndex)
                 .ToListAsync(ct);
+
+            var players = rawPlayers
+                .Select(p => new { id = p.Id, displayName = p.DisplayName, avatarUrl = AvatarHelper.ResolveAvatarUrl(p.AvatarUrl, p.Email), seatIndex = p.SeatIndex })
+                .ToList();
             return Results.Ok(players);
         });
 
