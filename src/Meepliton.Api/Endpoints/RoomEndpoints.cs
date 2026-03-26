@@ -71,11 +71,31 @@ public static class RoomEndpoints
                 if (r.GameState is not null)
                 {
                     var root = r.GameState.RootElement;
-                    if (root.TryGetProperty("currentTurnPlayerId", out var ctpProp) &&
-                        ctpProp.ValueKind == System.Text.Json.JsonValueKind.String)
+
+                    // Resolve whose turn it is. Games store the current player as an integer
+                    // seat index. Try the two convention field names used across game modules:
+                    // "currentPlayerIndex" (LiarsDice, FThat, DeadMansSwitch) and
+                    // "currentPlayer" (Skyline). Resolve the index to a user ID via seatIndex.
+                    int? turnSeatIndex = null;
+                    if (root.TryGetProperty("currentPlayerIndex", out var cpiProp) &&
+                        cpiProp.ValueKind == System.Text.Json.JsonValueKind.Number &&
+                        cpiProp.TryGetInt32(out var cpi))
                     {
-                        currentTurnPlayerId = ctpProp.GetString();
+                        turnSeatIndex = cpi;
                     }
+                    else if (root.TryGetProperty("currentPlayer", out var cpProp) &&
+                             cpProp.ValueKind == System.Text.Json.JsonValueKind.Number &&
+                             cpProp.TryGetInt32(out var cp))
+                    {
+                        turnSeatIndex = cp;
+                    }
+
+                    if (turnSeatIndex is not null)
+                    {
+                        currentTurnPlayerId = roomPlayers
+                            .FirstOrDefault(p => p.SeatIndex == turnSeatIndex.Value)?.Id;
+                    }
+
                     if (root.TryGetProperty("roundNumber", out var rnProp) &&
                         rnProp.ValueKind == System.Text.Json.JsonValueKind.Number &&
                         rnProp.TryGetInt32(out var rn) && rn > 0)
