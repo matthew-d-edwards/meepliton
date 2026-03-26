@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface AvatarProps {
   url: string | null | undefined
@@ -12,7 +12,10 @@ const SIZE_PX: Record<AvatarProps['size'], number> = {
 }
 
 function getInitials(displayName: string): string {
-  return displayName.slice(0, 2).toUpperCase()
+  const parts = displayName.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 /**
@@ -25,6 +28,7 @@ function getInitials(displayName: string): string {
  */
 export function Avatar({ url, displayName, size }: AvatarProps) {
   const [imgFailed, setImgFailed] = useState(false)
+  useEffect(() => setImgFailed(false), [url])
   const px = SIZE_PX[size]
 
   const baseStyle: React.CSSProperties = {
