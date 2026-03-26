@@ -1,0 +1,74 @@
+/* AvatarStrip */
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.unit {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* On mobile (< 700px): overlap avatars */
+@media (max-width: 699px) {
+  .unit + .unit {
+    margin-left: -8px;
+  }
+}
+
+/* On desktop (≥ 700px): small gap between units */
+@media (min-width: 700px) {
+  .unit + .unit {
+    margin-left: var(--space-1);
+  }
+}
+
+.dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--surface-raised);
+}
+
+.dot--online {
+  background: var(--status-success, #00e070);
+}
+
+.dot--offline {
+  background: var(--text-muted);
+}
+
+.overflow {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-float);
+  border: 1px solid var(--edge-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Visually hidden accessible list */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

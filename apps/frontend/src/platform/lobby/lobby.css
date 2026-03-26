@@ -199,8 +199,11 @@
 }
 
 .room-card-info {
-  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   min-width: 0;
+  margin-bottom: var(--space-2);
 }
 
 .room-card-game {
@@ -215,9 +218,12 @@
 
 .room-card-meta {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--text-muted);
-  margin-top: 2px;
+  font-size: 0.8rem;
+  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
 }
 
 .status-badge {
@@ -336,4 +342,60 @@
 
 .game-card-footer .btn {
   min-height: 44px;
+}
+
+/* ── ROOM CARD ENHANCEMENTS ── */
+
+/* Avatar strip wrapper */
+.room-card-avatars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+/* Player names (mobile only — comma-separated) */
+.room-card-player-names {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 700px) {
+  .room-card-player-names {
+    display: none;
+  }
+}
+
+/* Turn/round meta line */
+.room-card-your-turn {
+  color: var(--accent);
+  font-weight: 600;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.room-card-their-turn {
+  color: var(--text-muted);
+}
+
+.room-card-round {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.room-card-meta-sep {
+  color: var(--text-muted);
+}
+
+/* Finished card: dim content but not button */
+.room-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.room-card-content--dimmed {
+  opacity: 0.6;
 }
