@@ -29,7 +29,8 @@ This planning story tracks the full admin portal feature. It will be broken into
 
 **Acceptance criteria:**
 - [ ] `Admin` role is created on startup via `AdminRoleSeeder` if it does not already exist (always runs, both dev and prod)
-- [ ] `AdminRoleSeeder` does NOT auto-assign any user to the `Admin` role — that is a manual step (see Notes)
+- [ ] If the `ADMIN_SEED_EMAIL` environment variable (or equivalent app setting) is set, `AdminRoleSeeder` finds or creates a user with that email and assigns them the `Admin` role. If the variable is not set, no user is assigned automatically.
+- [ ] The seed is idempotent — running it multiple times with the same email does nothing if the role is already assigned.
 - [ ] `builder.Services.AddAuthorization` includes a policy `"AdminOnly"` requiring the `Admin` role
 - [ ] Any request to `/api/admin/*` from a non-admin authenticated user returns `403`
 - [ ] Any request to `/api/admin/*` from an unauthenticated user returns `401`
@@ -41,14 +42,17 @@ This planning story tracks the full admin portal feature. It will be broken into
 
 ### story-031b: Admin user list and actions (backend)
 
-**What:** New endpoints at `GET /api/admin/users`, `POST /api/admin/users/{userId}/send-password-reset`, and `POST /api/admin/users/{userId}/unlock`.
+**What:** New endpoints at `GET /api/admin/users`, `POST /api/admin/users/{userId}/send-password-reset`, `POST /api/admin/users/{userId}/unlock`, `DELETE /api/admin/users/{userId}`, `POST /api/admin/users/{userId}/grant-admin`, and `POST /api/admin/users/{userId}/revoke-admin`.
 
 **Acceptance criteria:**
-- [ ] `GET /api/admin/users` returns paginated users with: `id`, `displayName`, `email`, `emailConfirmed`, `createdAt`, `lastSeenAt`, `loginMethods`, `isLockedOut`, `lockoutEnd`
+- [ ] `GET /api/admin/users` returns paginated users with: `id`, `displayName`, `email`, `emailConfirmed`, `createdAt`, `lastSeenAt`, `loginMethods`, `isLockedOut`, `lockoutEnd`, `isAdmin`
 - [ ] Supports `search` (display name or email prefix), `page` (default 1), `pageSize` (default 25, max 100)
 - [ ] `POST /api/admin/users/{userId}/send-password-reset` calls `UserManager.GeneratePasswordResetTokenAsync`, constructs the reset link, and dispatches via `IEmailSender`. Returns `204`. Returns `400` if user has no password login method (Google-only). Returns `404` if user not found.
 - [ ] `POST /api/admin/users/{userId}/unlock` calls `UserManager.SetLockoutEndDateAsync(user, null)` and resets `AccessFailedCount` to 0. Returns `204`. Returns `404` if user not found.
-- [ ] All three endpoints require the `AdminOnly` policy
+- [ ] `DELETE /api/admin/users/{userId}` hard-deletes the user. Returns `400` if `userId == currentUserId`. Returns `404` if user not found. Deletion cascade: (1) delete all rooms where the user is the host (cascade removes their `room_players` and `action_log` rows); (2) delete the user's `room_players` rows in non-hosted rooms; (3) delete the Identity user record.
+- [ ] `POST /api/admin/users/{userId}/grant-admin` adds user to the `Admin` role via `UserManager.AddToRoleAsync`. Returns `204`. Returns `400` if user is already an Admin or if `userId == currentUserId`. Returns `404` if user not found.
+- [ ] `POST /api/admin/users/{userId}/revoke-admin` removes user from the `Admin` role via `UserManager.RemoveFromRoleAsync`. Returns `204`. Returns `400` if `userId == currentUserId`. Returns `404` if user not found.
+- [ ] All six endpoints require the `AdminOnly` policy
 
 **Agent:** backend
 
@@ -59,10 +63,12 @@ This planning story tracks the full admin portal feature. It will be broken into
 **What:** The `/admin/users` page shows all users in a table with actions.
 
 **Acceptance criteria:**
-- [ ] Table shows: display name, email, confirmed status, login methods (icons or text), last seen, lockout status
+- [ ] Table shows: display name, email, confirmed status, login methods (icons or text), last seen, lockout status, and an "Admin" badge for admin users
 - [ ] "Send reset email" button per row — disabled and visually indicated as unavailable for Google-only users
 - [ ] "Unlock" button per row — disabled unless `isLockedOut` is true
-- [ ] Both buttons show a success or error toast after the API call
+- [ ] "Delete user" button per row — opens a confirmation dialog naming the user's display name and email before calling `DELETE /api/admin/users/{userId}`. Disabled for the current user's own row.
+- [ ] "Grant admin" or "Revoke admin" button per row (shows "Grant admin" if the user is not an Admin, "Revoke admin" if they are). Both are disabled for the current user's own row. After the API call, the badge and button label update to reflect the new state.
+- [ ] All action buttons show a success or error toast after the API call
 - [ ] Pagination controls (previous / next) visible when there are multiple pages
 - [ ] Search input filters by display name or email (calls API on submit, not live)
 - [ ] On mobile (375px viewport), the table scrolls horizontally without clipping
@@ -162,16 +168,16 @@ This planning story tracks the full admin portal feature. It will be broken into
 - [ ] tester has written integration tests for the three admin endpoint groups (users, rooms, logs)
 - [ ] ally has reviewed the admin UI and all "Must fix" items are resolved
 - [ ] docs has confirmed no user-facing copy needs updating (admin portal is internal; no public-facing strings change)
-- [ ] A runbook exists documenting how to grant the Admin role to a user in production (see Notes)
+- [ ] `ADMIN_SEED_EMAIL` behaviour is verified: setting the env var grants the Admin role on startup; omitting it leaves no user assigned (idempotent either way)
 
 ---
 
 ## Notes
 
-**Blocking open questions (see `docs/owner/TODO.md`):**
+**Resolved open questions:**
 
-- OQ-ADMIN-01: Was "force reset" meant to be account deletion rather than password reset email? This spec interprets it as password reset. If deletion was intended, story-031b needs redesigning before backend work starts.
-- OQ-ADMIN-03: Who gets the first Admin role in production, and how? A runbook or CLI helper is needed. This blocks the portal being usable in production even if all stories are complete.
+- OQ-ADMIN-01 (resolved 2026-03-26): "Force reset" means password reset email — the spec's original interpretation is correct. Account deletion is separately supported via `DELETE /api/admin/users/{userId}` (see story-031b).
+- OQ-ADMIN-03 (resolved 2026-03-26): The first Admin role is granted via the `ADMIN_SEED_EMAIL` environment variable. If set at startup, `AdminRoleSeeder` finds or creates the user with that email and assigns them the Admin role. The seed is idempotent. No separate CLI command or SQL runbook is required.
 
 **Sub-story ordering:**
 
