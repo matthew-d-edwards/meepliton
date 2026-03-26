@@ -70,15 +70,10 @@ public class GameDispatcher(
         // Broadcast state — fan out per-player if the module implements projection
         if (module?.HasStateProjection == true)
         {
-            var players = await db.RoomPlayers
-                .Where(rp => rp.RoomId == roomId)
-                .Select(rp => rp.UserId)
-                .ToListAsync(ct);
-            foreach (var pid in players)
-            {
-                var projected = ProjectStateForPlayerOrFull(room.GameId, result.NewState, pid);
-                await hubContext.Clients.User(pid).SendAsync("StateUpdated", projected, ct);
-            }
+            // Signal every player in the room to pull their own projected state via GetState.
+            // This avoids User(pid) routing which requires NameIdentifier claim on SignalR
+            // connections — the JWT uses "sub", so User(pid) silently delivers to nobody.
+            await hubContext.Clients.Group(roomId).SendAsync("StateChanged", ct);
         }
         else
         {
