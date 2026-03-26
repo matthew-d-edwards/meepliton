@@ -25,25 +25,77 @@ public static class RoomEndpoints
                 .Where(r => r.Status != RoomStatus.Finished)
                 .ToListAsync();
 
-            // Count players per room in one query.
-            var roomIds      = userRooms.Select(r => r.Id).ToList();
-            var playerCounts = await db.RoomPlayers
+            // Load players (with user info) for all rooms in one query.
+            var roomIds     = userRooms.Select(r => r.Id).ToList();
+            var now         = DateTimeOffset.UtcNow;
+            var onlineThreshold = now.AddMinutes(-5);
+
+            var allPlayers = await db.RoomPlayers
                 .Where(rp => roomIds.Contains(rp.RoomId))
-                .GroupBy(rp => rp.RoomId)
-                .Select(g => new { RoomId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.RoomId, x => x.Count);
+                .Join(db.Users, rp => rp.UserId, u => u.Id,
+                    (rp, u) => new
+                    {
+                        rp.RoomId,
+                        u.Id,
+                        u.DisplayName,
+                        u.AvatarUrl,
+                        u.Email,
+                        u.LastSeenAt,
+                        rp.SeatIndex,
+                    })
+                .OrderBy(p => p.SeatIndex)
+                .ToListAsync();
+
+            // Group by room for O(1) lookup.
+            var playersByRoom = allPlayers
+                .GroupBy(p => p.RoomId)
+                .ToDictionary(g => g.Key, g => g.ToList());
 
             // Build a lookup from gameId → module for gameName resolution.
             var moduleMap = modules.ToDictionary(m => m.GameId, StringComparer.OrdinalIgnoreCase);
 
-            var rooms = userRooms.Select(r => new
+            var rooms = userRooms.Select(r =>
             {
-                roomId      = r.Id,
-                gameId      = r.GameId,
-                gameName    = moduleMap.TryGetValue(r.GameId, out var mod) ? mod.Name : r.GameId,
-                status      = MapStatus(r.Status),
-                playerCount = playerCounts.TryGetValue(r.Id, out var cnt) ? cnt : 0,
-                joinCode    = r.JoinCode,
+                var roomPlayers = playersByRoom.TryGetValue(r.Id, out var list) ? list : [];
+                var playerDtos  = roomPlayers.Select(p => new
+                {
+                    id          = p.Id,
+                    displayName = p.DisplayName,
+                    avatarUrl   = AvatarHelper.ResolveAvatarUrl(p.AvatarUrl, p.Email),
+                    seatIndex   = p.SeatIndex,
+                    connected   = p.LastSeenAt >= onlineThreshold,
+                }).ToList();
+
+                string?  currentTurnPlayerId = null;
+                int?     roundNumber         = null;
+                if (r.GameState is not null)
+                {
+                    var root = r.GameState.RootElement;
+                    if (root.TryGetProperty("currentTurnPlayerId", out var ctpProp) &&
+                        ctpProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        currentTurnPlayerId = ctpProp.GetString();
+                    }
+                    if (root.TryGetProperty("roundNumber", out var rnProp) &&
+                        rnProp.ValueKind == System.Text.Json.JsonValueKind.Number &&
+                        rnProp.TryGetInt32(out var rn) && rn > 0)
+                    {
+                        roundNumber = rn;
+                    }
+                }
+
+                return new
+                {
+                    roomId              = r.Id,
+                    gameId              = r.GameId,
+                    gameName            = moduleMap.TryGetValue(r.GameId, out var mod) ? mod.Name : r.GameId,
+                    status              = MapStatus(r.Status),
+                    playerCount         = roomPlayers.Count,
+                    joinCode            = r.JoinCode,
+                    players             = playerDtos,
+                    currentTurnPlayerId,
+                    roundNumber,
+                };
             });
 
             var games = modules.Select(m => new
