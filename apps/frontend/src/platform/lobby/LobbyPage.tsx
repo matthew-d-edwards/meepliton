@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import type { PlayerInfo } from '@meepliton/contracts'
+import { AvatarStrip } from '@meepliton/ui'
+import { useAuth } from '../auth/AuthContext'
 import './lobby.css'
 
 interface GameInfo {
@@ -17,6 +20,9 @@ interface RoomInfo {
   status: 'waiting' | 'playing' | 'finished'
   playerCount: number
   joinCode: string
+  players?: PlayerInfo[]
+  currentTurnPlayerId?: string
+  roundNumber?: number
 }
 
 interface LobbyData {
@@ -37,6 +43,7 @@ function StatusBadge({ status }: { status: RoomInfo['status'] }) {
 
 export default function LobbyPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [data, setData] = useState<LobbyData | null>(null)
   const [loadingLobby, setLoadingLobby] = useState(true)
@@ -167,19 +174,44 @@ export default function LobbyPage() {
                 <li key={room.roomId}>
                   <div className="room-card">
                     <span className="room-card-code">{room.joinCode}</span>
-                    <div className="room-card-info">
-                      <div className="room-card-game">{room.gameName}</div>
-                      <div className="room-card-meta">
-                        {room.playerCount} player{room.playerCount !== 1 ? 's' : ''}
+                    <div className={room.status === 'finished' ? 'room-card-content room-card-content--dimmed' : 'room-card-content'}>
+                      <div className="room-card-info">
+                        <div className="room-card-game">{room.gameName}</div>
+                        <StatusBadge status={room.status} />
                       </div>
+                      {room.players && room.players.length > 0 && (
+                        <div className="room-card-avatars">
+                          <AvatarStrip players={room.players} />
+                          <p className="room-card-player-names">
+                            {room.players.map(p => p.displayName).join(', ')}
+                          </p>
+                        </div>
+                      )}
+                      {room.status === 'playing' && (room.currentTurnPlayerId || room.roundNumber) && (
+                        <div className="room-card-meta">
+                          {room.currentTurnPlayerId && (
+                            <span className={room.currentTurnPlayerId === user?.id ? 'room-card-your-turn' : 'room-card-their-turn'}>
+                              {room.currentTurnPlayerId === user?.id
+                                ? 'Your turn'
+                                : `${room.players?.find(p => p.id === room.currentTurnPlayerId)?.displayName ?? 'Someone'}'s turn`}
+                            </span>
+                          )}
+                          {room.currentTurnPlayerId && room.roundNumber && room.roundNumber > 0 && (
+                            <span className="room-card-meta-sep"> · </span>
+                          )}
+                          {room.roundNumber && room.roundNumber > 0 && (
+                            <span className="room-card-round">Round {room.roundNumber}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <StatusBadge status={room.status} />
                     <button
-                      className="btn btn-secondary btn-sm"
+                      className="btn btn-secondary"
                       onClick={() => navigate(`/room/${room.roomId}`)}
                       style={{ minHeight: '44px' }}
+                      aria-label={`${room.status === 'finished' ? 'View' : 'Rejoin'} ${room.gameName} room ${room.joinCode}`}
                     >
-                      Rejoin
+                      {room.status === 'finished' ? 'View' : 'Rejoin'}
                     </button>
                   </div>
                 </li>
