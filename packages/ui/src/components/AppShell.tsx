@@ -1,7 +1,9 @@
 import { ReactNode } from 'react'
+import { Avatar } from './Avatar'
 
 interface AppShellUser {
   displayName: string
+  avatarUrl?: string | null
 }
 
 interface AppShellProps {
@@ -31,6 +33,12 @@ interface AppShellProps {
    * Until then, omit this prop and the slot is simply absent.
    */
   themeToggle?: ReactNode
+  /**
+   * Called when the user activates their avatar in the header.
+   * The caller is responsible for navigating (e.g. to /account).
+   * If omitted, the avatar renders without a click target.
+   */
+  onAvatarClick?: () => void
 }
 
 /**
@@ -39,6 +47,7 @@ interface AppShellProps {
  * Renders:
  *  - Meepliton logo (links to /lobby when logoLinkAs is provided)
  *  - Theme toggle slot (story-011 will fill this)
+ *  - Avatar button (when user is authenticated and onAvatarClick is provided)
  *  - Sign-out icon button (when user is authenticated)
  *
  * Uses global class names from tokens.css — no CSS Modules needed here
@@ -53,6 +62,7 @@ export function AppShell({
   onSignOut,
   logoLinkAs: LogoLink,
   themeToggle,
+  onAvatarClick,
 }: AppShellProps) {
   const logo = LogoLink ? (
     <LogoLink className="meepliton-logo">
@@ -69,9 +79,26 @@ export function AppShell({
       <header className="meepliton-header" role="banner">
         {logo}
 
-        <nav className="meepliton-header-actions" aria-label="Platform actions">
+        <div className="meepliton-header-actions">
           {/* Theme toggle slot — story-011 wires the logic */}
           {themeToggle}
+
+          {/* Avatar — only shown when authenticated */}
+          {user && onAvatarClick && (
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={onAvatarClick}
+              aria-label={`Account settings (${user.displayName})`}
+              title={`Account settings (${user.displayName})`}
+              style={{ padding: 0, lineHeight: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+            >
+              <Avatar url={user.avatarUrl} displayName={user.displayName} size="sm" />
+            </button>
+          )}
+          {user && !onAvatarClick && (
+            <Avatar url={user.avatarUrl} displayName={user.displayName} size="sm" />
+          )}
 
           {/* Sign-out — only shown when authenticated */}
           {user && (
@@ -101,7 +128,7 @@ export function AppShell({
               </svg>
             </button>
           )}
-        </nav>
+        </div>
       </header>
 
       {children}

@@ -787,6 +787,12 @@ public class ApplicationUser : IdentityUser
     public DateTimeOffset LastSeenAt  { get; set; } = DateTimeOffset.UtcNow;
 }
 
+// src/Meepliton.Api/Helpers/AvatarHelper.cs
+// Pure static helper for resolving a player's effective avatar URL.
+// Priority: stored URL → Gravatar (MD5 of email, identicon fallback) → null.
+// Use this any time you need to populate avatarUrl in a DTO or SignalR payload.
+// Never compute Gravatar URLs inline — always go through AvatarHelper.ResolveAvatarUrl().
+
 // src/Meepliton.Api/Data/PlatformDbContext.cs
 // Inherits from IdentityDbContext<ApplicationUser> — this generates all Identity tables.
 // Also owns the platform game/room tables.
@@ -1122,6 +1128,8 @@ The platform provides only what every game room needs regardless of the game bei
 
 | Component | Purpose |
 |---|---|
+| `<AppShell />` | Sticky header wrapping every page — logo, theme toggle slot, avatar button, sign-out button |
+| `<Avatar />` | User avatar — shows profile image URL or falls back to initials. Used in the header, `<PlayerPresence>`, and `<TurnIndicator>`. |
 | `<PlayerPresence />` | Shows connected/disconnected status for each player in the room |
 | `<JoinCodeDisplay />` | Large readable join code with copy button — shown on waiting screen |
 | `<QRCode />` | QR code from join URL |
@@ -1708,7 +1716,7 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 - [ ] SignalR `GameHub`: `JoinRoom`, `SendAction`, reconnect with full state push
 - [ ] React shell: auth flow, lobby page, room waiting screen, dark/light theme
 - [ ] Join code generation, shareable URL (`meepliton.com/join/CODE`), client-side QR code
-- [ ] `@meepliton/ui`: platform chrome only — `<RoomWaitingScreen>`, `<PlayerPresence>`, `<JoinCodeDisplay>`, `<QRCode>`, `<ActionRejectedToast>`
+- [ ] `@meepliton/ui`: platform chrome only — `<AppShell>`, `<Avatar>`, `<RoomWaitingScreen>`, `<PlayerPresence>`, `<JoinCodeDisplay>`, `<QRCode>`, `<ActionRejectedToast>`
 - [ ] First game module: **Skyline** (C# module + `SkylineDbContext` + React board)
 - [ ] GitHub Actions CI/CD: build → test → migrate → push → deploy
 - [ ] Custom domains: `meepliton.com` + `api.meepliton.com`
@@ -1745,4 +1753,4 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 *Maintained in `docs/requirements.md` in the meepliton GitHub repository.*
 *Architecture decisions recorded in §3 (Architecture Decision Records).*
 *Claude skill files for game development are in `.claude/skills/`.*
-*Last updated: 2026-03-24*
+*Last updated: 2026-03-26*
