@@ -157,12 +157,8 @@ public static class RoomEndpoints
             // the board without waiting for a player action.
             if (module.HasStateProjection)
             {
-                // Fan out per-player projected state (e.g. hidden hands in Skyline).
-                foreach (var p in players)
-                {
-                    var projected = module.ProjectStateForPlayer(room.GameState!, p.Id) ?? room.GameState!;
-                    await hubContext.Clients.User(p.Id).SendAsync("StateUpdated", projected, ct);
-                }
+                // Signal all players to pull their own projected state via GetState.
+                await hubContext.Clients.Group(roomId).SendAsync("StateChanged", ct);
             }
             else
             {

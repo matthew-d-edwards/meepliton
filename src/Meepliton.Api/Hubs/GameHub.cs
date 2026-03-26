@@ -34,6 +34,22 @@ public class GameHub(GameDispatcher dispatcher, PlatformDbContext db, ILogger<Ga
         logger.LogInformation("Player {PlayerId} joined/rejoined room {RoomId}", playerId, roomId);
     }
 
+    /// <summary>
+    /// Sends the caller their current projected game state without any side effects
+    /// (no group join, no PlayerConnected broadcast). Called by clients when they
+    /// receive a StateChanged notification after an action or game start.
+    /// </summary>
+    public async Task GetState(string roomId)
+    {
+        var playerId = Context.UserIdentifier!;
+        var room = await db.Rooms.FindAsync(roomId);
+        if (room?.GameState is not null)
+        {
+            var stateToSend = dispatcher.ProjectStateForPlayerOrFull(room.GameId, room.GameState, playerId);
+            await Clients.Caller.SendAsync("StateUpdated", stateToSend);
+        }
+    }
+
     public async Task LeaveRoom(string roomId)
     {
         _connectionRooms.TryRemove(Context.ConnectionId, out _);
