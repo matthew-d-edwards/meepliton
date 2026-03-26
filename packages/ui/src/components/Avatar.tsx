@@ -55,7 +55,7 @@ export function Avatar({ url, displayName, size }: AvatarProps) {
     )
   }
 
-  const fontSize = size === 'sm' ? 11 : 16
+  const fontSize = size === 'sm' ? '0.6875rem' : '1rem'
 
   return (
     <div
