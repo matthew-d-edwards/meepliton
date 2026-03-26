@@ -6,6 +6,15 @@
 
 ---
 
+## Platform identity
+
+**In-game name:** The Inner Circle
+**Tagline:** "Everyone's lying. Only one is winning."
+
+The name positions the game as political intrigue among a shadowy ruling elite — fitting the character-claiming and bluffing mechanics. Tone: cold, tense, sophisticated.
+
+---
+
 ## Summary
 
 Coup is a hidden-role bluffing game for 2–6 players. Each player controls two face-down influence cards (characters) and tries to eliminate all other players' influence. On your turn you take an action — which may require claiming a character you may or may not actually hold. Any player can challenge a claim, and targeted players can attempt to block. The last player with any influence wins. Coup is chosen as a Meepliton game because it is fast (15–30 min), deeply replayable, and introduces a new interaction pattern: multi-step turn resolution with asynchronous responses from multiple players.
@@ -86,9 +95,9 @@ A turn proceeds through these steps:
 - Foreign Aid: +2 coins.
 - Coup: target loses 1 influence (they choose which).
 - Tax: +3 coins.
-- Assassinate: target loses 1 influence (they choose which, unless also blocked/challenged).
-- Steal: take up to 2 coins from target (take all their coins if they have fewer than 2).
-- Exchange: draw 2 cards from deck; choose 2 to keep (must keep exactly 2); return rest.
+- Assassinate: target loses 1 influence (they choose which). **The 3-coin cost is paid when declared and is never refunded**, even if blocked by Contessa or the claim is successfully challenged.
+- Steal: take `min(2, target.coins)` coins from target. If all valid targets are protected by Handmaid, the action fails and no coins move.
+- Exchange: actor draws 2 from deck — they now hold 4 cards total (2 influence + 2 drawn). They choose exactly 2 to keep; the other 2 return to the deck (shuffled in). Their influence cards update to the 2 kept cards.
 
 ### Losing influence
 Losing influence = revealing one face-down card of your choice. Once revealed it stays face-up and has no further effect.
@@ -318,7 +327,26 @@ Scrollable feed of resolved actions, challenges, and blocks with outcomes.
 Ambassador sees 4 cards (their 2 + 2 drawn); must pick exactly 2 to keep.
 
 ### Visual / theme direction
-Political intrigue aesthetic: dark charcoal backgrounds, muted gold accents, character portraits in a playing-card style. `data-game-theme="coup"` on room wrapper.
+
+Cold political-intrigue aesthetic: dark charcoal backgrounds, muted gold accents, character portraits rendered in a stark playing-card style. No warm colours — this game should feel like a boardroom of enemies.
+
+`data-game-theme="inner-circle"` on room wrapper.
+
+```css
+[data-game-theme="inner-circle"] {
+  --color-background:      #0f0f12;   /* near-black */
+  --color-surface:         #18181f;   /* dark charcoal */
+  --color-surface-raised:  #22222c;
+  --color-surface-hover:   #2c2c3a;
+  --color-primary:         #b8973a;   /* muted political gold */
+  --color-on-primary:      #0f0f12;
+  --color-border:          #303044;
+  --color-text:            #ddd8cc;   /* warm off-white */
+  --color-text-muted:      #7a7a8a;
+  --radius-sm:             2px;
+  --radius-md:             4px;       /* sharp, formal */
+}
+```
 
 ---
 
@@ -336,6 +364,19 @@ Multi-step resolution is managed entirely in server state — no separate Signal
 ## Database
 
 No supplementary tables required for v1. `CoupDbContext` exists (scaffolding requirement) but owns no tables.
+
+---
+
+## CI changes
+
+One migration step must be added to the GitHub Actions backend job:
+
+```yaml
+- name: Apply Coup migrations
+  run: dotnet ef database update
+       --project src/games/Meepliton.Games.Coup
+       --context CoupDbContext
+```
 
 ---
 
@@ -371,6 +412,6 @@ No supplementary tables required for v1. `CoupDbContext` exists (scaffolding req
 
 ## Open questions
 
-- **OQ-CU-01** (blocking): What is the response timeout? If a player is slow to respond, the game stalls. Recommendation: display a "Pass" auto-timer (30–60 seconds); auto-pass on expiry. Requires platform timer support or a game-owned timer tick.
+- **OQ-CU-01** (non-blocking for v1): Response timeout — if a player is slow, the game stalls. For a friends-only app this is tolerable in v1; the group can self-moderate. A future story can add a 60-second auto-pass timer using a server-side `Task.Delay` or a background service. Does not block implementation.
 - **OQ-CU-02** (non-blocking): When multiple players could block or challenge simultaneously, should the first response win, or should there be a brief window? Recommendation: first response wins for challenges; only the target can block in the first window (others can challenge the block).
 - **OQ-CU-03** (non-blocking): Should eliminated players be able to chat? Recommendation: yes, eliminated players should stay in the room as spectators.

@@ -6,6 +6,15 @@
 
 ---
 
+## Platform identity
+
+**In-game name:** Affairs of the Court
+**Tagline:** "One card. One chance. Win the heart of the Princess."
+
+The name leans into the royal court setting and the drama of each card play. Elegant and slightly theatrical — matches the burgundy/gold visual direction.
+
+---
+
 ## Summary
 
 Love Letter is a micro card game for 2–4 players (standard deck). Each player holds exactly one card at a time; on their turn they draw a second card and must play one of the two, applying its effect. Players are eliminated by effects or by holding the lowest card when the deck runs out. Rounds are fast — often 2–5 minutes — and play continues until one player accumulates enough Tokens of Affection to win. Love Letter is chosen as a Meepliton game because it has an exceptionally small state surface, plays well asynchronously (turns are seconds-long and purely sequential), and rewards psychological reading of opponents.
@@ -55,7 +64,7 @@ Total: 16 cards.
 3. Play passes to the left.
 
 ### Countess rule (forced discard)
-If a player's two cards are Countess + King **or** Countess + Prince, they **must** play the Countess on their turn. This is enforced by the server during validation.
+After drawing, if a player holds both the Countess and the King, **or** both the Countess and a Prince, they **must** play the Countess on that turn. The server validates this: if the card being played is not the Countess, and the player holds Countess + King or Countess + Prince, the action is rejected. Players are not told *why* another player played the Countess — only that they did.
 
 ### Handmaid immunity
 A player who played Handmaid on their last turn is immune to being targeted. If all other players are protected by Handmaid, a targeting effect has no effect (the action still counts as played).
@@ -103,7 +112,8 @@ public record LoveLetterPlayer(
     int           Tokens,          // tokens of affection accumulated
     bool          Active,          // false = eliminated this round
     bool          Handmaid,        // true = currently protected by Handmaid
-    bool          InGame           // false = eliminated from the full game (0 tokens path not applicable — players can't be knocked out of the game permanently in standard rules; keep for expansion compatibility)
+    // Note: no InGame field — in standard Love Letter players are never permanently
+    // eliminated from the game, only from the current round. Removed to keep state minimal.
 );
 
 public record RoundResult(
@@ -225,9 +235,10 @@ export type LoveLetterAction =
 ### PlayCard — routing by card type
 
 **Guard:**
-1. Validate: target is active, not Handmaid-protected, not the actor. Guessed card is not "Guard".
+1. Validate: target is active, not Handmaid-protected, **not the actor** (cannot Guard yourself). Guessed card is not "Guard".
 2. If target's hand card matches `GuessedCard`: target is eliminated.
 3. Otherwise: nothing (card still played).
+4. Edge case: if all other players are Handmaid-protected, the Guard has no valid targets and is played with no effect (actor must still play it).
 
 **Priest:**
 1. Validate: target is active, not Handmaid-protected, not the actor.
@@ -245,10 +256,10 @@ export type LoveLetterAction =
 3. On next turn start, clear `Handmaid` for the drawing player.
 
 **Prince:**
-1. Validate: target is active and (not Handmaid-protected OR target is the actor).
-2. Discard target's hand card (no effect from discard — except Princess eliminates).
+1. Validate: target is active and (not Handmaid-protected OR target is the actor). Prince **can** target the actor themselves even through their own Handmaid.
+2. Discard target's hand card (playing it does **not** trigger its effect — except Princess, which eliminates).
 3. If Princess discarded: target eliminated.
-4. Otherwise: target draws top card from deck (or SetAsideCard if deck empty).
+4. Otherwise: target draws top card from deck. **If the deck is empty**, target takes the face-down set-aside card instead.
 
 **King:**
 1. Validate: target is active, not Handmaid-protected, not the actor.
@@ -310,7 +321,26 @@ Shows hand reveal, winner announcement, token update, then "Start Next Round" bu
 Private modal shown only to the Priest viewer. "You saw [Name]'s card: [Card]". Dismissed with `AcknowledgePriest`.
 
 ### Visual / theme direction
-Elegant royal-court aesthetic: deep burgundy, cream parchment, gold foil card borders, calligraphic card labels. `data-game-theme="love-letter"` on room wrapper.
+
+Elegant royal-court aesthetic: deep burgundy backgrounds, cream parchment card faces, gold-foil borders, calligraphic card labels. Think: illuminated manuscript meets playing card.
+
+`data-game-theme="affairs-of-the-court"` on room wrapper.
+
+```css
+[data-game-theme="affairs-of-the-court"] {
+  --color-background:      #1a0812;   /* deep burgundy-black */
+  --color-surface:         #2a1020;   /* rich burgundy */
+  --color-surface-raised:  #381528;
+  --color-surface-hover:   #441c32;
+  --color-primary:         #d4a843;   /* warm gold foil */
+  --color-on-primary:      #1a0812;
+  --color-border:          #5a2040;
+  --color-text:            #f5ecd8;   /* parchment */
+  --color-text-muted:      #a07880;
+  --radius-sm:             3px;
+  --radius-md:             6px;
+}
+```
 
 ---
 
@@ -327,6 +357,19 @@ Elegant royal-court aesthetic: deep burgundy, cream parchment, gold foil card bo
 ## Database
 
 No supplementary tables required for v1. `LoveLetterDbContext` exists (scaffolding requirement) but owns no tables. Tokens are per-game session state only.
+
+---
+
+## CI changes
+
+One migration step must be added to the GitHub Actions backend job:
+
+```yaml
+- name: Apply Love Letter migrations
+  run: dotnet ef database update
+       --project src/games/Meepliton.Games.LoveLetter
+       --context LoveLetterDbContext
+```
 
 ---
 

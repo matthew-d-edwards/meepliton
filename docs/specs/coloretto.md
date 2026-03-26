@@ -6,6 +6,15 @@
 
 ---
 
+## Platform identity
+
+**In-game name:** Chameleon Market
+**Tagline:** "Collect wisely. Everything else costs you."
+
+The name references the joker (chameleon) cards and the market-stall feel of claiming rows of goods. The theme is abstract and colourful — Mondrian meets board game.
+
+---
+
 ## Summary
 
 Coloretto is a push-your-luck set-collection game for 2–5 players. On your turn you either draw the top card from the deck and add it to any row, or take an entire row and collect its cards. Rows fill up to 3 cards — the more you add, the better the row becomes for whoever takes it, but also the riskier if you needed it yourself. After the game-end card appears (and the current round finishes), players score: their best 3 colour groups score positively on an escalating scale; all other colours score negatively on the same scale. Coloretto is chosen as a Meepliton game because the draw-or-take decision is simple to explain, deeply strategic, and maps cleanly to a satisfying browser UI.
@@ -27,21 +36,26 @@ Coloretto is a push-your-luck set-collection game for 2–5 players. On your tur
 ## Game rules
 
 ### Deck composition
-- 9 colours (Brown, Blue, Green, Orange, Purple, Red, Yellow, Pink, White — only 7 used in a full 5-player game; subset chosen at game start by player count):
-  - 2-player: 3 colours (recommended: any 3)
-  - 3-player: 5 colours
-  - 4-player: 6 colours
-  - 5-player: 7 colours
-- Each active colour has 9 cards = up to 63 colour cards.
+- 9 available colours; the active subset is fixed by player count (resolved — OQ-CO-03):
+
+| Players | Active colours | Colour names |
+|---|---|---|
+| 2 | 3 | Brown, Blue, Green |
+| 3 | 5 | Brown, Blue, Green, Orange, Purple |
+| 4 | 6 | Brown, Blue, Green, Orange, Purple, Red |
+| 5 | 7 | Brown, Blue, Green, Orange, Purple, Red, Yellow |
+
+- Each active colour has 9 cards.
 - 3 Joker (chameleon) cards — count as any colour at scoring time.
 - 1 End-of-game trigger card ("Last Round" card) — shuffled into the lower half of the deck.
+- **No "+2 point cards"** — these are not part of standard Coloretto and are not implemented in v1.
 
 Total deck: varies by player count (active-colour cards + 3 jokers + 1 end card).
 
 ### Rows
-- There are always **one more row than the number of players** (3p → 4 rows, 4p → 5 rows, 5p → 6 rows).
-  - Exception: 2-player uses 3 rows.
+- Row count = players + 1: 2p → 3 rows, 3p → 4 rows, 4p → 5 rows, 5p → 6 rows.
 - Each row can hold a maximum of **3 cards**.
+- **If all rows are full (3 cards each) and at least one player has not yet taken**, the only valid action for the current player is `TakeRow`. `DrawCard` is rejected.
 - An empty row can be drawn into by any player.
 - A row with 3 cards cannot receive more cards; it must be taken.
 
@@ -54,7 +68,7 @@ On your turn you must do exactly one of:
 A round ends when all players have taken a row. All taken rows are cleared. New empty rows begin for the next round. Players who haven't taken yet go in their original seating order in the new round.
 
 ### Game end trigger
-When the End-of-game card is drawn and placed in a row, it is visible to all players. After the current round finishes (everyone has taken a row), the game ends immediately. Then scoring begins.
+When the End-of-game card is drawn it is **placed in a row like any other card** (resolved — OQ-CO-02), occupying a slot. It is immediately visible to all players as a special marker. After the current round finishes (everyone has taken a row), the game ends. The player who takes the row containing the end card simply receives the colour cards in that row; the end card itself has no point value and is discarded.
 
 ### Scoring
 For each player:
@@ -74,8 +88,10 @@ For each player:
 | 5 | 15 |
 | 6 | 21 |
 | 7 | 28 |
+| 8 | 36 |
+| 9 | 45 |
 
-(i.e. n cards score triangular-ish: 0, 1, 3, 6, 10, 15, 21, 28)
+(Scale continues for 8 and 9 cards — achievable in a 5-player game with all 9 cards of a colour.)
 
 The player with the highest total score wins. Ties: joint win.
 
@@ -266,7 +282,38 @@ End-game overlay with per-player breakdown: collection, chosen top 3 colours, pe
 Appears when `endGameTriggered = true`. "Final round in progress — game ends when everyone has taken a row."
 
 ### Visual / theme direction
-Clean, colourful, almost abstract — big coloured squares/rectangles representing cards. Inspired by Mondrian-style colour fields. White backgrounds, thick colour outlines. `data-game-theme="coloretto"` on room wrapper.
+
+Abstract, bold, and colourful — big coloured squares representing cards, inspired by Mondrian-style colour field paintings. The UI should feel almost toy-like in its clarity: strong colour blocks, thick outlines, minimal chrome.
+
+`data-game-theme="chameleon-market"` on room wrapper.
+
+```css
+[data-game-theme="chameleon-market"] {
+  --color-background:      #f5f5f0;   /* off-white canvas */
+  --color-surface:         #ffffff;
+  --color-surface-raised:  #f0f0ea;
+  --color-surface-hover:   #e8e8e0;
+  --color-primary:         #1a1a1a;   /* near-black for contrast on light bg */
+  --color-on-primary:      #ffffff;
+  --color-border:          #1a1a1a;   /* thick Mondrian-style borders */
+  --color-text:            #1a1a1a;
+  --color-text-muted:      #555550;
+  --radius-sm:             0px;       /* hard edges — no rounding */
+  --radius-md:             0px;
+}
+/* Card colour tokens (used for the colour-chip cards) */
+[data-game-theme="chameleon-market"] {
+  --card-brown:   #8B4513;
+  --card-blue:    #1565C0;
+  --card-green:   #2E7D32;
+  --card-orange:  #E65100;
+  --card-purple:  #6A1B9A;
+  --card-red:     #C62828;
+  --card-yellow:  #F9A825;
+  --card-pink:    #AD1457;
+  --card-white:   #EEEEEE;
+}
+```
 
 ---
 
@@ -309,6 +356,19 @@ No supplementary tables required for v1. `ColorettoDbContext` exists (scaffoldin
 
 ---
 
+## CI changes
+
+One migration step must be added to the GitHub Actions backend job:
+
+```yaml
+- name: Apply Coloretto migrations
+  run: dotnet ef database update
+       --project src/games/Meepliton.Games.Coloretto
+       --context ColorettoDbContext
+```
+
+---
+
 ## Out of scope
 
 - Player colour-group selection for top 3 (server picks optimally in v1)
@@ -343,7 +403,7 @@ No supplementary tables required for v1. `ColorettoDbContext` exists (scaffoldin
 
 ## Open questions
 
-- **OQ-CO-01** (non-blocking): What is the tiebreak when two colour groups have the same count and the player must choose their top 3? Recommendation: server picks the top 3 that maximises total score (exhaustive since max 9 colours). If still tied, alphabetical. Allow player to manually override in a future story.
-- **OQ-CO-02** (non-blocking): Should the end-game trigger card be placed in a row (occupying a slot) or simply removed from the deck and flagged? Recommendation: remove from play (not placed in a row); it has no card value and placing it would confuse the row.
-- **OQ-CO-03** (non-blocking): Which 3/5/6/7 colours should be active for each player count? Recommendation: fix a canonical set (e.g. 2p = Brown/Blue/Green, 3p = +Orange/Purple, etc.) rather than host-selectable for v1.
-- **OQ-CO-04** (non-blocking): Number of rows: the rules say one more than player count, except 2-player uses 3 rows. Confirm: 2p=3, 3p=4, 4p=5, 5p=6.
+- **OQ-CO-01** (resolved): Tiebreak for top-3 colour selection — server picks the combination of 3 colours that maximises total score (exhaustive check; max 9 colours = 84 combinations at most). If still tied (same total score from different groupings), alphabetical colour order determines the top 3. Player override is a future story.
+- **OQ-CO-02** (resolved): End-game card is placed in a row like a normal card. See "Game end trigger" section.
+- **OQ-CO-03** (resolved): Canonical colour sets fixed per player count. See deck composition table above.
+- **OQ-CO-04** (resolved): Row count = players + 1. Confirmed: 2p=3, 3p=4, 4p=5, 5p=6.

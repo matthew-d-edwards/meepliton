@@ -6,6 +6,15 @@
 
 ---
 
+## Platform identity
+
+**In-game name:** The Sushi Train
+**Tagline:** "Pick fast, pass left, score big."
+
+The name evokes the conveyor-belt kaiten-zushi restaurant experience — cards flow around the table like plates on a belt. The theme is warm and playful without being childish.
+
+---
+
 ## Summary
 
 Sushi Go! is a card-drafting game for 2–5 players. Each round, players are dealt a hand of cards and simultaneously pick one to keep, then pass their hand to the next player. This continues until all cards are played. After three rounds scores are totalled, with an end-of-game pudding bonus/penalty applied. Sushi Go is chosen as the next Meepliton game because it introduces simultaneous selection (a new interaction pattern for the platform), has rich visual card art potential, and plays well at all supported player counts.
@@ -68,7 +77,7 @@ After all cards are played, score each player's tableau (except Pudding):
 - **Tempura:** every complete pair scores 5 pts (e.g. 3 tempura = 5 pts; leftover single = 0).
 - **Sashimi:** every complete set of 3 scores 10 pts (e.g. 5 sashimi = 10 pts).
 - **Dumpling:** 1=1, 2=3, 3=6, 4=10, 5+=15 pts (total, not per card).
-- **Maki Rolls:** sum each player's maki icon count. Player with most icons: 6 pts. Player with second-most: 3 pts. Ties split evenly (round down). In a 2-player game, only 1st place scores.
+- **Maki Rolls:** sum each player's maki icon count (Maki×3 card = 3 icons, ×2 = 2 icons, ×1 = 1 icon). Player(s) with most icons: share 6 pts (split evenly, round down). Player(s) with second-most icons: share 3 pts (split, round down). If all tied for first: all share 6 pts; nobody gets the 3 pts. If nobody played any Maki: nobody scores. In a 2-player game, only 1st place scores (no 3-pt award).
 - **Nigiri:** each nigiri scores its base value (Salmon=2, Squid=3, Egg=1). If there is an unused Wasabi in the tableau beneath the nigiri, it scores 3× instead.
 - **Wasabi without a nigiri:** 0 pts (wasted).
 - **Chopsticks:** 0 pts.
@@ -243,7 +252,26 @@ End-of-round overlay with per-player breakdown: card group scores, maki ranking,
 Shows which players have picked (checkmark) vs. still choosing (spinner). Does not reveal what they picked.
 
 ### Visual / theme direction
-Cute Japanese restaurant aesthetic: warm paper-lantern pinks and reds, clean white card faces, bold card-type iconography. `data-game-theme="sushi-go"` on the room wrapper.
+
+Kaiten-zushi (conveyor belt) restaurant aesthetic: warm paper-lantern pinks, deep red accents, clean cream card faces, bold card-type iconography. Think: a cheerful, modern Tokyo sushi bar.
+
+`data-game-theme="sushi-train"` on the room wrapper.
+
+```css
+[data-game-theme="sushi-train"] {
+  --color-background:      #1a0a0a;   /* very dark red-black */
+  --color-surface:         #2d1010;   /* deep crimson surface */
+  --color-surface-raised:  #3d1818;
+  --color-surface-hover:   #4a1f1f;
+  --color-primary:         #e8325a;   /* vivid sushi-pink */
+  --color-on-primary:      #fff8f8;
+  --color-border:          #5a2020;
+  --color-text:            #fff0f0;   /* warm white */
+  --color-text-muted:      #c08080;
+  --radius-sm:             6px;
+  --radius-md:             12px;      /* rounded, playful */
+}
+```
 
 ---
 
@@ -252,7 +280,7 @@ Cute Japanese restaurant aesthetic: warm paper-lantern pinks and reds, clean whi
 - `SushiGoModule : IGameModule, IGameHandler`
 - `HasStateProjection = true`
 - `MinPlayers = 2`, `MaxPlayers = 5`
-- `AllowLateJoin = false`, `SupportsAsync = true` (turns are simultaneous, not sequential), `SupportsUndo = false`
+- `AllowLateJoin = false`, `SupportsAsync = false` (simultaneous selection requires all players to be present; a disconnected player would stall the round), `SupportsUndo = false`
 
 ### Key helpers
 - `BuildDeck()` → returns shuffled 108-card `List<string>`
@@ -271,6 +299,19 @@ No supplementary tables required for v1. State lives in `rooms.game_state` JSONB
 ## API changes
 
 None — all interaction via `SendAction` / `StateUpdated` SignalR.
+
+---
+
+## CI changes
+
+One migration step must be added to the GitHub Actions backend job, following the Skyline/LiarsDice pattern:
+
+```yaml
+- name: Apply Sushi Go migrations
+  run: dotnet ef database update
+       --project src/games/Meepliton.Games.SushiGo
+       --context SushiGoDbContext
+```
 
 ---
 
@@ -308,4 +349,4 @@ None — all interaction via `SendAction` / `StateUpdated` SignalR.
 
 - **OQ-SG-01** (non-blocking): Should `AdvanceRound` be automatic (server auto-advances after a fixed delay) or host-initiated? Recommendation: host-initiated, matching the Liar's Dice `StartNextRound` pattern.
 - **OQ-SG-02** (non-blocking): Should Chopsticks use a "mode toggle" UI (tap Chopsticks in tableau to enter multi-select mode) or a dedicated button? Recommendation: dedicated "Use Chopsticks" button visible only when applicable.
-- **OQ-SG-03** (blocking): Does the platform support simultaneous action submission? All players submit independently — the server collects and auto-advances when all have submitted. Confirm `SendAction` under concurrent load does not double-advance.
+- **OQ-SG-03** (resolved): Simultaneous pick resolution — the server collects each `PickCard` action independently. The `Apply` function marks the player's pick in `PendingPicks` and only advances the round when all active players have picked. Concurrent `SendAction` calls are safe because `GameDispatcher` processes actions sequentially (one at a time per room) — the second pick to arrive will see the first already recorded. No race condition. The `Revealing` phase exists to allow the UI to animate the reveal before state advances; it is auto-advanced by the server immediately after recording all picks (no player action required).
