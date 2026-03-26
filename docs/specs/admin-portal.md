@@ -161,7 +161,7 @@ The seeder never creates user accounts — it only assigns roles to existing use
 
 ### ADR-011: Admin access via Identity roles + JWT claims
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-03-26
 
 #### Context
