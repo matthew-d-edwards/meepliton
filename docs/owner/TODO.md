@@ -76,4 +76,10 @@ _Nothing urgent yet._
 
 - [ ] **2026-03-24** Docs sweep for story-030 (Dead Man's Switch + F'That): the session owner referenced three resolved ally items by the labels FTHAT-MUST-01, FTHAT-MUST-02, and DMS-MUST-01. Those labels do not appear anywhere in this file or in the specs. The six 2026-03-24 ally items in this file are all still open. Confirm which three correspond to those labels, check them off here, and confirm the remaining items are deferred (not blocking the PR). (docs)
 
+- [ ] **2026-03-26** Profile-images ally review — commit two must-fix edits: (1) `packages/ui/src/styles/tokens.css` — added `.icon-btn:focus-visible` rule (WCAG 2.4.7 focus visible); (2) `packages/ui/src/components/Avatar.tsx` — changed initials `fontSize` from raw pixel numbers to `rem` strings (WCAG 1.4.4 resize text). No other files changed. Commit message: `fix(a11y): focus ring for icon-btn, rem font sizes in Avatar`. (ally)
+
+- [ ] **2026-03-26** Profile-images ally review — `TurnIndicator` has no flex layout on `.turn-indicator`. The avatar and label will stack or flow awkwardly without `display: flex; align-items: center; gap: var(--space-2)`. Ask `ux` to confirm layout intent and ask `frontend` to add it. Non-blocking (visual only). (ally)
+
+- [ ] **2026-03-26** Profile-images ally review — manual contrast verification: Avatar initials use `--text-bright` over `--accent-dim` (`#f0c040` at 9.4% alpha) composited on `--surface-base`. Dark theme effective background ≈ `#161308`. Verify `#e8f6ff` on `#161308` meets 4.5:1 for both themes using WebAIM Contrast Checker. Calculated ratio is high (likely >15:1) but confirm before ship. (ally)
+
 *Agents: add items with a short description, the date, which story is blocked, and which agent surfaced it.*
