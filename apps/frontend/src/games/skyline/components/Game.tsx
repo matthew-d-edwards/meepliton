@@ -17,6 +17,50 @@ const LUXOR_TOWER_PRICES =        [0, 200, 300, 400, 500, 600, 700, 800, 900, 10
 const AMERICAN_FESTIVAL_WORLDWIDE = [0, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]
 const CONTINENTAL_IMPERIAL =        [0, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300]
 
+// ── Board constants ────────────────────────────────────────────────────────────
+
+const ROWS = ['A','B','C','D','E','F','G','H','I']
+const COLS = [1,2,3,4,5,6,7,8,9,10,11,12]
+const SAFE_SIZE = 11
+const ENDGAME_SIZE = 41
+const TOTAL_HOTELS = 7
+
+// ── Tile analysis helpers (mirrors C# Analyze / GetNeighbors) ─────────────────
+
+function getNeighbors(tileId: string): string[] {
+  const row = tileId[0]
+  const col = parseInt(tileId.slice(1), 10)
+  const ri = ROWS.indexOf(row)
+  const result: string[] = []
+  if (ri > 0)               result.push(`${ROWS[ri - 1]}${col}`)
+  if (ri < ROWS.length - 1) result.push(`${ROWS[ri + 1]}${col}`)
+  if (col > 1)              result.push(`${row}${col - 1}`)
+  if (col < 12)             result.push(`${row}${col + 1}`)
+  return result
+}
+
+function analyzeTile(tileId: string, state: SkylineState): 'isolated' | 'found' | 'extend' | 'merge' | 'illegal' {
+  const neighbors = getNeighbors(tileId).filter(n => n in state.board)
+  if (neighbors.length === 0) return 'isolated'
+  const hotelNeighbors = [...new Set(
+    neighbors.filter(n => state.board[n] !== 'neutral').map(n => state.board[n])
+  )]
+  if (hotelNeighbors.length === 0) {
+    const activeCount = Object.values(state.chains).filter(c => c.active).length
+    return activeCount >= TOTAL_HOTELS ? 'illegal' : 'found'
+  }
+  if (hotelNeighbors.length === 1) return 'extend'
+  const safeCount = hotelNeighbors.filter(h => (state.chains[h]?.size ?? 0) >= SAFE_SIZE).length
+  return safeCount >= 2 ? 'illegal' : 'merge'
+}
+
+function canEndGame(state: SkylineState): boolean {
+  const active = Object.values(state.chains).filter(c => c.active)
+  if (active.length === 0) return false
+  if (active.some(c => c.size >= ENDGAME_SIZE)) return true
+  return active.every(c => c.size >= SAFE_SIZE)
+}
+
 function sizeTier(size: number): number {
   if (size <= 0)  return 0
   if (size <= 2)  return 1
@@ -95,7 +139,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
   }
 
   function dispose(sell: number, trade: number) {
-    if (!isMyTurn || state.phase !== 'dispose') return
+    if (state.phase !== 'dispose') return
     send({ type: 'Dispose', sell, trade })
   }
 
@@ -111,7 +155,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
   }
 
   function endTurn() {
-    if (!isMyTurn || state.phase !== 'buy') return
+    if (!isMyTurn || (state.phase !== 'buy' && state.phase !== 'draw')) return
     send({ type: 'EndTurn' })
     setBuyQty({})
   }
@@ -172,17 +216,13 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
 
   // ── Waiting note (non-active player) ──────────────────────────────────────
 
-  const waitingNote = !isMyTurn ? (
+  const waitingNote = !isMyTurn && !isMyDisposeTurn ? (
     <p className={styles.waitingNote}>
       Waiting for {currentPlayer?.name ?? 'opponent'} to {PHASE_LABELS[state.phase].toLowerCase()}…
     </p>
   ) : null
 
   // ── Board rendering ────────────────────────────────────────────────────────
-
-  // Build a 9×12 grid. Rows A–I (9), Cols 1–12.
-  const ROWS = ['A','B','C','D','E','F','G','H','I']
-  const COLS = [1,2,3,4,5,6,7,8,9,10,11,12]
 
   function tileClass(tileId: string): string {
     const placed = state.board[tileId]
@@ -211,7 +251,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
   const disposeIdx = state.pending?.disposeIdx ?? 0
   const disposeItem = disposeQueue[disposeIdx]
   const disposeDefunct = disposeItem?.defunct ?? state.pending?.defunct?.[0] ?? ''
-  const isMyDisposeTurn = isMyTurn && state.phase === 'dispose' && disposeItem?.playerIdx === myIdx
+  const isMyDisposeTurn = state.phase === 'dispose' && disposeItem?.playerIdx === myIdx
   const [disposeLocal, setDisposeLocal] = useState({ sell: 0, trade: 0 })
   const myDefunctStocks = me ? (me.stocks[disposeDefunct] ?? 0) : 0
   const survivorName = state.pending?.survivor ?? ''
@@ -236,14 +276,14 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
           </div>
           <span className={styles.phLabel}>{PHASE_LABELS[state.phase]}</span>
           <span className={styles.phCounter}>
-            {isMyTurn ? 'Your turn' : `${currentPlayer?.name ?? '?'}'s turn`}
+            {isMyTurn || isMyDisposeTurn ? 'Your turn' : `${currentPlayer?.name ?? '?'}'s turn`}
           </span>
         </div>
 
         {waitingNote}
 
-        {/* ── Action panel (only shown when it's viewer's turn) ─ */}
-        {isMyTurn && (
+        {/* ── Action panel (shown on viewer's turn, or dispose queue turn) ─ */}
+        {(isMyTurn || isMyDisposeTurn) && (
           <ActionPanel
             state={state}
             me={me}
@@ -280,15 +320,40 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
               COLS.map(col => {
                 const tileId = `${row}${col}`
                 const placed = state.board[tileId]
-                const isInHand = me?.hand.includes(tileId) ?? false
-                const canPlace = isPlacingPhase && isInHand && selectedHandTile === tileId
+                const isInHand = isPlacingPhase && (me?.hand.includes(tileId) ?? false)
+                const isSelected = isInHand && selectedHandTile === tileId
+                const isIllegal = isInHand && analyzeTile(tileId, state) === 'illegal'
+                const showInHand = isInHand && !isSelected && !isIllegal
+
+                function handleBoardClick() {
+                  if (!isInHand || isIllegal) return
+                  if (isSelected) {
+                    placeTile(tileId)
+                  } else {
+                    setSelectedHandTile(tileId)
+                  }
+                }
+
                 return (
                   <div
                     key={tileId}
-                    className={`${styles.tile} ${tileClass(tileId)} ${canPlace ? styles.tilePlayable : ''} ${selectedHandTile === tileId && isPlacingPhase ? styles.tileSelected : ''}`}
-                    onClick={() => canPlace ? placeTile(tileId) : undefined}
-                    role={canPlace ? 'button' : undefined}
-                    aria-label={placed ? `${tileId}: ${placed}` : isInHand && isPlacingPhase ? `Place ${tileId}` : tileId}
+                    className={[
+                      styles.tile,
+                      tileClass(tileId),
+                      showInHand ? styles.tileInHand : '',
+                      isSelected ? styles.tileSelected : '',
+                      isIllegal ? styles.tileIllegal : '',
+                    ].filter(Boolean).join(' ')}
+                    onClick={handleBoardClick}
+                    role={isInHand && !isIllegal ? 'button' : undefined}
+                    aria-label={
+                      isIllegal ? `${tileId}: cannot play` :
+                      isSelected ? `Place ${tileId}` :
+                      isInHand ? `Select ${tileId}` :
+                      placed ? `${tileId}: ${placed}` :
+                      tileId
+                    }
+                    aria-pressed={isSelected || undefined}
                   >
                     <span className={styles.tileId}>{tileId}</span>
                   </div>
@@ -310,22 +375,31 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
           <div className={styles.handRow}>
             {me ? (
               me.hand.length > 0
-                ? me.hand.map(tileId => (
-                    <div
-                      key={tileId}
-                      className={`${styles.htile} ${isPlacingPhase && selectedHandTile === tileId ? styles.htileSel : ''} ${!isMyTurn || state.phase !== 'place' ? styles.htileEmpty : ''}`}
-                      onClick={() => {
-                        if (!isMyTurn || state.phase !== 'place') return
-                        setSelectedHandTile(prev => prev === tileId ? null : tileId)
-                      }}
-                      role="button"
-                      aria-label={`Hand tile ${tileId}`}
-                      aria-pressed={selectedHandTile === tileId}
-                      aria-disabled={!isMyTurn || state.phase !== 'place'}
-                    >
-                      {tileId}
-                    </div>
-                  ))
+                ? me.hand.map(tileId => {
+                    const isHandIllegal = isPlacingPhase && analyzeTile(tileId, state) === 'illegal'
+                    return (
+                      <div
+                        key={tileId}
+                        className={[
+                          styles.htile,
+                          isPlacingPhase && selectedHandTile === tileId ? styles.htileSel : '',
+                          isHandIllegal ? styles.htileIllegal : '',
+                          !isMyTurn || state.phase !== 'place' ? styles.htileEmpty : '',
+                        ].filter(Boolean).join(' ')}
+                        onClick={() => {
+                          if (!isMyTurn || state.phase !== 'place') return
+                          if (isHandIllegal) return
+                          setSelectedHandTile(prev => prev === tileId ? null : tileId)
+                        }}
+                        role="button"
+                        aria-label={isHandIllegal ? `${tileId}: cannot play` : `Hand tile ${tileId}`}
+                        aria-pressed={selectedHandTile === tileId}
+                        aria-disabled={!isMyTurn || state.phase !== 'place' || isHandIllegal}
+                      >
+                        {tileId}
+                      </div>
+                    )
+                  })
                 : Array.from({ length: HAND_SIZE }, (_, i) => (
                     <div key={i} className={`${styles.htile} ${styles.htileEmpty}`} aria-label="Empty slot" />
                   ))
@@ -422,8 +496,8 @@ function ActionPanel(props: ActionPanelProps) {
     )
   }
 
-  // ── Choose Survivor ────────────────────────────────────────────────────────
-  if (state.phase === 'merge' && !state.pending?.survivorChosen) {
+  // ── Choose Survivor (no survivor picked yet) ──────────────────────────────
+  if (state.phase === 'merge' && !state.pending?.survivor) {
     const survivors = state.pending?.survivors ?? []
     return (
       <div className={styles.actionCard}>
@@ -450,22 +524,27 @@ function ActionPanel(props: ActionPanelProps) {
             disabled={!selectedSurvivor}
             onClick={() => selectedSurvivor && onChooseSurvivor(selectedSurvivor)}
           >
-            Confirm survivor
+            Select survivor
           </button>
         </div>
       </div>
     )
   }
 
-  // ── Confirm Survivor ───────────────────────────────────────────────────────
-  if (state.phase === 'merge' && state.pending?.survivorChosen && !state.pending?.defunct?.length) {
+  // ── Confirm Survivor (survivor picked, awaiting confirmation) ──────────────
+  if (state.phase === 'merge' && state.pending?.survivor) {
     return (
       <div className={styles.actionCard}>
-        <div className={styles.actionTitle}>Merge Confirmed</div>
-        <div className={styles.actionSub}>Survivor: {survivorName ? HOTEL_LABELS[survivorName as Hotel] ?? survivorName : '?'}</div>
+        <div className={styles.actionTitle}>Confirm Merger</div>
+        <div className={styles.actionSub}>
+          Surviving chain: <strong>{survivorName ? HOTEL_LABELS[survivorName as Hotel] ?? survivorName : '?'}</strong>
+          {(state.pending?.defunct?.length ?? 0) > 0 && (
+            <> · Defunct: {state.pending!.defunct!.map(h => HOTEL_LABELS[h as Hotel] ?? h).join(', ')}</>
+          )}
+        </div>
         <div className={styles.btnRow}>
           <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={onConfirmSurvivor}>
-            Continue
+            Proceed
           </button>
         </div>
       </div>
@@ -574,6 +653,11 @@ function ActionPanel(props: ActionPanelProps) {
           <button className={`${styles.btn} ${styles.btnGhost} ${styles.btnSm}`} onClick={onEndTurn}>
             End Turn
           </button>
+          {canEndGame(state) && (
+            <button className={`${styles.btn} ${styles.btnGhost} ${styles.btnSm}`} onClick={onEndGame}>
+              End Game
+            </button>
+          )}
         </div>
       </div>
     )
@@ -585,13 +669,16 @@ function ActionPanel(props: ActionPanelProps) {
       <div className={styles.actionCard}>
         <div className={styles.actionTitle}>Drawing Tile</div>
         <div className={styles.actionSub}>A new tile will be drawn to your hand.</div>
-        {state.bag.length <= 6 && (
-          <div className={styles.btnRow}>
+        <div className={styles.btnRow}>
+          <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={onEndTurn}>
+            End Turn
+          </button>
+          {canEndGame(state) && (
             <button className={`${styles.btn} ${styles.btnGhost} ${styles.btnSm}`} onClick={onEndGame}>
-              End Game (tiles low)
+              End Game
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     )
   }
