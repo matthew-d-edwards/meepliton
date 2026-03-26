@@ -10,6 +10,10 @@ _Nothing urgent yet._
 
 ## Needs your decision
 
+- [x] **2026-03-26** Admin portal — OQ-ADMIN-01: the request said "force reset a user". This spec interprets that as sending an admin-triggered password reset email. If you meant **account deletion** (hard delete or anonymisation), story-031b needs to be redesigned before backend work begins. Confirm: password reset email, or account deletion? — **Resolved 2026-03-26: "Force reset" means password reset email. Account deletion is separately supported via `DELETE /api/admin/users/{userId}`.** (analyst)
+
+- [x] **2026-03-26** Admin portal — OQ-ADMIN-03: how should the first Admin role be granted in production? There is no UI for this. Options: (a) a `dotnet run --admin-seed email@example.com` CLI argument checked at startup, (b) a one-time SQL snippet in a runbook, or (c) a short script in `scripts/`. A documented runbook is required before the portal is usable in production — **Resolved 2026-03-26: seed from `ADMIN_SEED_EMAIL` environment variable. If present at startup, `AdminRoleSeeder` finds or creates the user with that email and assigns the Admin role. Idempotent. No separate CLI or SQL runbook required.** (analyst)
+
 - [x] **2026-03-22** Dead Man's Switch — OQ-DMS-02: when the Challenger hits an opponent's skull, does the skull owner actively choose which of the Challenger's discs to discard, or does the server pick randomly and advance immediately? **Resolved 2026-03-23: server picks randomly. `OpponentDiscardChoice` phase and `ChooseDiscardForChallenger` action removed. `OpponentDiscardOwnerId` state field removed.** (analyst)
 
 - [x] **2026-03-14** Choose avatar storage strategy for v1: **Gravatar** (derive from email hash). (analyst) — decided 2026-03-14
