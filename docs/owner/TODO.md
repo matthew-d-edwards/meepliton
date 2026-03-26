@@ -76,7 +76,9 @@ _Nothing urgent yet._
 
 - [ ] **2026-03-24** Docs sweep for story-030 (Dead Man's Switch + F'That): the session owner referenced three resolved ally items by the labels FTHAT-MUST-01, FTHAT-MUST-02, and DMS-MUST-01. Those labels do not appear anywhere in this file or in the specs. The six 2026-03-24 ally items in this file are all still open. Confirm which three correspond to those labels, check them off here, and confirm the remaining items are deferred (not blocking the PR). (docs)
 
-- [ ] **2026-03-26** Profile-images ally review — commit two must-fix edits: (1) `packages/ui/src/styles/tokens.css` — added `.icon-btn:focus-visible` rule (WCAG 2.4.7 focus visible); (2) `packages/ui/src/components/Avatar.tsx` — changed initials `fontSize` from raw pixel numbers to `rem` strings (WCAG 1.4.4 resize text). No other files changed. Commit message: `fix(a11y): focus ring for icon-btn, rem font sizes in Avatar`. (ally)
+- [x] **2026-03-26** Profile-images ally review — `.icon-btn:focus-visible` rule confirmed present in `tokens.css`; Avatar.tsx `fontSize` values confirmed as rem strings. Both were already in the codebase. No commit needed. (ally)
+
+- [x] **2026-03-26** Profile-images ally review — `<nav aria-label="Platform actions">` in `AppShell.tsx` changed to `<div>`. `<nav>` is a navigation landmark and must not wrap action buttons. Fixed directly in `packages/ui/src/components/AppShell.tsx`. (ally)
 
 - [ ] **2026-03-26** Profile-images ally review — `TurnIndicator` has no flex layout on `.turn-indicator`. The avatar and label will stack or flow awkwardly without `display: flex; align-items: center; gap: var(--space-2)`. Ask `ux` to confirm layout intent and ask `frontend` to add it. Non-blocking (visual only). (ally)
 

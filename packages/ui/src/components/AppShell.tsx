@@ -47,6 +47,7 @@ interface AppShellProps {
  * Renders:
  *  - Meepliton logo (links to /lobby when logoLinkAs is provided)
  *  - Theme toggle slot (story-011 will fill this)
+ *  - Avatar button (when user is authenticated and onAvatarClick is provided)
  *  - Sign-out icon button (when user is authenticated)
  *
  * Uses global class names from tokens.css — no CSS Modules needed here
@@ -78,7 +79,7 @@ export function AppShell({
       <header className="meepliton-header" role="banner">
         {logo}
 
-        <nav className="meepliton-header-actions" aria-label="Platform actions">
+        <div className="meepliton-header-actions">
           {/* Theme toggle slot — story-011 wires the logic */}
           {themeToggle}
 
@@ -127,7 +128,7 @@ export function AppShell({
               </svg>
             </button>
           )}
-        </nav>
+        </div>
       </header>
 
       {children}
