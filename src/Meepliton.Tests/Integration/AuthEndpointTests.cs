@@ -119,7 +119,7 @@ public static class AuthTestHelpers
     public static string MintToken(IServiceScope scope, ApplicationUser user)
     {
         var tokenService = scope.ServiceProvider.GetRequiredService<TokenService>();
-        return tokenService.GenerateToken(user);
+        return tokenService.GenerateTokenAsync(user).GetAwaiter().GetResult();
     }
 
     /// <summary>

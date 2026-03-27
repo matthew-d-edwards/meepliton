@@ -210,6 +210,30 @@ The platform is built around two constraints that every architectural decision m
 
 ---
 
+### ADR-011: Admin access via Identity roles and JWT claims
+
+**Date:** 2026-03-26
+**Status:** Accepted
+
+#### Context
+
+The admin portal requires a way to gate access to a small set of trusted users. The platform already uses ASP.NET Core Identity for user management and JWTs for API authentication. The question is how and when the `Admin` role is surfaced in the token, and how the first admin is bootstrapped without manual DB intervention.
+
+#### Decision
+
+Embed role claims in the JWT at login time via a single `GetRolesAsync` call in `TokenService`. An `AdminOnly` authorization policy (`RequireRole("Admin")`) gates all `/api/admin/*` endpoints and the frontend `/admin` route. Role changes (grant/revoke admin) take effect after the affected user's next login.
+
+An `AdminSeeder` hosted service runs in all environments on startup. It ensures the `Admin` role row exists, and if the `ADMIN_SEED_EMAIL` environment variable is set, assigns that role to the matching user. The seeder never creates users — it only assigns roles to existing accounts. It is idempotent.
+
+#### Consequences
+
+- One extra DB call per login (negligible at hobby scale).
+- An admin whose role is revoked retains access until their current JWT expires. Acceptable for a private friends-group platform with short session windows. If immediate revocation is ever needed, shorten JWT TTL or introduce a token blacklist.
+- No middleware plumbing for dynamic role claims is required.
+- First-deployment bootstrap: set `ADMIN_SEED_EMAIL` in the Azure Container App environment before starting the API after the first user has registered.
+
+---
+
 ## 4. User Stories
 
 ### Authentication
@@ -1275,6 +1299,22 @@ scale:
           concurrentRequests: "20"
 ```
 
+### 12.3a Operational Log Access (v1)
+
+The admin portal (story-031) does not include a log viewer tab in v1. An in-process ring buffer was considered and rejected: Azure Container Apps on the Consumption plan recycles containers on scale-to-zero, making any in-memory buffer unreliable.
+
+**v1 approach — Azure CLI:**
+```bash
+az containerapp logs show \
+  --name meepliton-api \
+  --resource-group rg-meepliton-prod \
+  --follow
+```
+
+**v2 consideration:** A persistent log sink (Azure Monitor structured logs or Application Insights) would enable a proper browser-based log viewer. This is noted on the roadmap but requires a separate product decision and cost assessment before implementation.
+
+---
+
 ### 12.4 API Dockerfile
 
 ```dockerfile
@@ -1738,8 +1778,11 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 - [x] Fourth game module — **F'That** (card-passing with chips, server-side state projection for private chip counts)
 - [ ] Application Insights: errors + response times
 - [ ] Host-only action log rewind (undo to N-1 state)
+- [ ] Admin portal (story-031): user management (unlock, grant/revoke admin, password reset) + room management (list, delete) — no log viewer in v1
 
 ### Phase 3 — Async & Tooling
+
+- [ ] Admin log viewer tab backed by a persistent sink (Azure Monitor or Application Insights) — depends on Phase 2 Application Insights work
 
 - [ ] Async room persistence (rooms survive browser close; opt-in via `SupportsAsync`)
 - [ ] Turn notifications (Web Push API)
