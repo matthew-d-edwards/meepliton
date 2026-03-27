@@ -71,7 +71,7 @@ public class CoupModule : IGameModule, IGameHandler
         return state with
         {
             Players = projectedPlayers,
-            Deck    = [],
+            Deck    = new List<string>(),
             Pending = projectedPending
         };
     }
@@ -88,7 +88,7 @@ public class CoupModule : IGameModule, IGameHandler
             DisplayName: p.DisplayName,
             AvatarUrl:   p.AvatarUrl,
             SeatIndex:   p.SeatIndex,
-            Influence:   [],
+            Influence:   new List<InfluenceCard>(),
             Coins:       0,
             Active:      true
         )).ToList();
@@ -96,7 +96,7 @@ public class CoupModule : IGameModule, IGameHandler
         return new CoupState(
             Phase:              CoupPhase.Waiting,
             Players:            coupPlayers,
-            Deck:               [],
+            Deck:               new List<string>(),
             ActivePlayerIndex:  0,
             Pending:            null,
             Winner:             null
@@ -333,7 +333,7 @@ public class CoupModule : IGameModule, IGameHandler
                 ActorId:              actorId,
                 TargetId:             null,
                 Step:                 PendingStep.ActionResponses,
-                PassedPlayers:        [],
+                PassedPlayers:        new List<string>(),
                 BlockerId:            null,
                 ChallengerId:         null,
                 ExchangeOptions:      null,
@@ -358,7 +358,7 @@ public class CoupModule : IGameModule, IGameHandler
                 ActorId:              actorId,
                 TargetId:             action.TargetId,
                 Step:                 PendingStep.ActionResponses,
-                PassedPlayers:        [],
+                PassedPlayers:        new List<string>(),
                 BlockerId:            null,
                 ChallengerId:         null,
                 ExchangeOptions:      null,
@@ -381,7 +381,7 @@ public class CoupModule : IGameModule, IGameHandler
                 ActorId:              actorId,
                 TargetId:             null,
                 Step:                 PendingStep.ActionResponses,
-                PassedPlayers:        [],
+                PassedPlayers:        new List<string>(),
                 BlockerId:            null,
                 ChallengerId:         null,
                 ExchangeOptions:      null,
@@ -405,7 +405,7 @@ public class CoupModule : IGameModule, IGameHandler
                 ActorId:              actorId,
                 TargetId:             action.TargetId,
                 Step:                 PendingStep.ActionResponses,
-                PassedPlayers:        [],
+                PassedPlayers:        new List<string>(),
                 BlockerId:            null,
                 ChallengerId:         null,
                 ExchangeOptions:      null,
@@ -426,7 +426,7 @@ public class CoupModule : IGameModule, IGameHandler
                 ActorId:              actorId,
                 TargetId:             action.TargetId,
                 Step:                 PendingStep.ActionResponses,
-                PassedPlayers:        [],
+                PassedPlayers:        new List<string>(),
                 BlockerId:            null,
                 ChallengerId:         null,
                 ExchangeOptions:      null,
@@ -447,7 +447,7 @@ public class CoupModule : IGameModule, IGameHandler
                 ActorId:              actorId,
                 TargetId:             null,
                 Step:                 PendingStep.ActionResponses,
-                PassedPlayers:        [],
+                PassedPlayers:        new List<string>(),
                 BlockerId:            null,
                 ChallengerId:         null,
                 ExchangeOptions:      null,
@@ -485,8 +485,8 @@ public class CoupModule : IGameModule, IGameHandler
                     Deck    = newDeck,
                     Pending = newState.Pending! with
                     {
-                        ChallengerId:          challengerId,
-                        InfluenceLossPlayerId: challengerId
+                        ChallengerId = challengerId,
+                        InfluenceLossPlayerId = challengerId
                     }
                 };
             }
@@ -498,8 +498,8 @@ public class CoupModule : IGameModule, IGameHandler
                     Phase   = CoupPhase.InfluenceLoss,
                     Pending = pending with
                     {
-                        ChallengerId:          challengerId,
-                        InfluenceLossPlayerId: pending.ActorId
+                        ChallengerId = challengerId!,
+                        InfluenceLossPlayerId = pending.ActorId
                     }
                 };
             }
@@ -527,8 +527,8 @@ public class CoupModule : IGameModule, IGameHandler
                     Deck    = newDeck,
                     Pending = refunded.Pending! with
                     {
-                        ChallengerId:          challengerId,
-                        InfluenceLossPlayerId: pending.ActorId
+                        ChallengerId = challengerId,
+                        InfluenceLossPlayerId = pending.ActorId
                     }
                 };
             }
@@ -540,8 +540,8 @@ public class CoupModule : IGameModule, IGameHandler
                     Phase   = CoupPhase.InfluenceLoss,
                     Pending = pending with
                     {
-                        ChallengerId:          challengerId,
-                        InfluenceLossPlayerId: pending.BlockerId
+                        ChallengerId = challengerId,
+                        InfluenceLossPlayerId = pending.BlockerId
                     }
                 };
             }
@@ -560,9 +560,9 @@ public class CoupModule : IGameModule, IGameHandler
             {
                 Step          = PendingStep.BlockResponses,
                 BlockerId     = blockerId,
-                PassedPlayers = [],
+                PassedPlayers = new List<string>(),
                 // Reuse ExchangeOptions to store the blocker character claim
-                ExchangeOptions = [action.Character!]
+                ExchangeOptions = new List<string> { action.Character! }
             }
         };
     }
@@ -835,7 +835,7 @@ public class CoupModule : IGameModule, IGameHandler
                 Step           = PendingStep.ActionResponses,
                 BlockerId      = null,
                 ChallengerId   = null,
-                PassedPlayers  = [],
+                PassedPlayers  = new List<string>(),
                 ExchangeOptions = null,
                 InfluenceLossPlayerId = null
             };
