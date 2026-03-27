@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import type { PlayerInfo } from '@meepliton/contracts'
 import { AvatarStrip } from '@meepliton/ui'
 import { useAuth } from '../auth/AuthContext'
@@ -122,6 +122,30 @@ export default function LobbyPage() {
   return (
     <div className="lobby-page">
       <main className="lobby-content">
+        {user?.isAdmin && (
+          <Link
+            to="/admin"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              background: 'var(--accent-dim)',
+              border: '1px solid var(--accent-glow)',
+              color: 'var(--accent)',
+              fontSize: '13px',
+              fontWeight: 600,
+              textDecoration: 'none',
+              letterSpacing: '0.03em',
+              alignSelf: 'flex-start',
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Admin portal
+          </Link>
+        )}
+
         {/* Join a room */}
         <section aria-label="Join a room">
           <h2 className="lobby-section-title">Join a room</h2>
