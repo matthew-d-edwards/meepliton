@@ -31,7 +31,9 @@
     <ProjectReference Include="..\games\Meepliton.Games.Skyline\Meepliton.Games.Skyline.csproj" />
     <ProjectReference Include="..\games\Meepliton.Games.DeadMansSwitch\Meepliton.Games.DeadMansSwitch.csproj" />
     <ProjectReference Include="..\games\Meepliton.Games.FThat\Meepliton.Games.FThat.csproj" />
+    <ProjectReference Include="..\games\Meepliton.Games.LoveLetter\Meepliton.Games.LoveLetter.csproj" />
     <ProjectReference Include="..\games\Meepliton.Games.SushiGo\Meepliton.Games.SushiGo.csproj" />
+    <ProjectReference Include="..\games\Meepliton.Games.Coloretto\Meepliton.Games.Coloretto.csproj" />
   </ItemGroup>
 
   <ItemGroup>
