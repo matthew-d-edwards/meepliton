@@ -101,6 +101,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
   const [selectedHotel, setSelectedHotel] = useState<string | null>(null)
   const [selectedSurvivor, setSelectedSurvivor] = useState<string | null>(null)
   const [buyQty, setBuyQty] = useState<Record<string, number>>({})
+  const [disposeLocal, setDisposeLocal] = useState({ sell: 0, trade: 0 })
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
@@ -214,6 +215,16 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
     buy: 'Buy Stocks', draw: 'Draw Tile',
   }
 
+  // ── Dispose state ──────────────────────────────────────────────────────────
+  // Dispose: current player in queue
+  const disposeQueue = state.pending?.disposeQueue ?? []
+  const disposeIdx = state.pending?.disposeIdx ?? 0
+  const disposeItem = disposeQueue[disposeIdx]
+  const disposeDefunct = disposeItem?.defunct ?? state.pending?.defunct?.[0] ?? ''
+  const isMyDisposeTurn = state.phase === 'dispose' && disposeItem?.playerIdx === myIdx
+  const myDefunctStocks = me ? (me.stocks[disposeDefunct] ?? 0) : 0
+  const survivorName = state.pending?.survivor ?? ''
+
   // ── Waiting note (non-active player) ──────────────────────────────────────
 
   const waitingNote = !isMyTurn && !isMyDisposeTurn ? (
@@ -244,17 +255,6 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<Skylin
 
   const totalBuyQty = Object.values(buyQty).reduce((s, v) => s + v, 0)
   const buyCost = HOTELS.reduce((sum, h) => sum + (buyQty[h] ?? 0) * stockPrice(h, state.chains), 0)
-
-  // ── Dispose state ──────────────────────────────────────────────────────────
-  // Dispose: current player in queue
-  const disposeQueue = state.pending?.disposeQueue ?? []
-  const disposeIdx = state.pending?.disposeIdx ?? 0
-  const disposeItem = disposeQueue[disposeIdx]
-  const disposeDefunct = disposeItem?.defunct ?? state.pending?.defunct?.[0] ?? ''
-  const isMyDisposeTurn = state.phase === 'dispose' && disposeItem?.playerIdx === myIdx
-  const [disposeLocal, setDisposeLocal] = useState({ sell: 0, trade: 0 })
-  const myDefunctStocks = me ? (me.stocks[disposeDefunct] ?? 0) : 0
-  const survivorName = state.pending?.survivor ?? ''
 
   return (
     <div data-game-theme="skyline" className={styles.gameLayout}>
