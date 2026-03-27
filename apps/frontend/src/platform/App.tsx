@@ -11,6 +11,9 @@ import LobbyPage from './lobby/LobbyPage'
 import RoomPage from './room/RoomPage'
 import RoomNotFoundPage from './room/RoomNotFoundPage'
 import ProfilePage from './account/ProfilePage'
+import AdminUsersPage from './admin/AdminUsersPage'
+import AdminRoomsPage from './admin/AdminRoomsPage'
+import { ToastProvider } from './admin/ToastContext'
 
 function logoLink({ children, className }: { children: ReactNode; className: string }) {
   return (
@@ -51,6 +54,18 @@ function AppRoutes() {
     )
   }
 
+  /** Admin-only route: requires authentication and Admin role. */
+  function adminRoute(page: ReactNode) {
+    if (!user) {
+      const next = location.pathname + location.search
+      return <Navigate to={`/sign-in?next=${encodeURIComponent(next)}`} replace />
+    }
+    if (!user.isAdmin) {
+      return <Navigate to="/lobby" replace />
+    }
+    return page
+  }
+
   return (
     <Routes>
       {/* Auth pages — no shell */}
@@ -68,6 +83,11 @@ function AppRoutes() {
       <Route path="/join/:code" element={shell(<RoomPage join />)} />
       <Route path="/room-not-found" element={shell(<RoomNotFoundPage />)} />
 
+      {/* Admin pages — requires Admin role */}
+      <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
+      <Route path="/admin/users" element={adminRoute(<AdminUsersPage />)} />
+      <Route path="/admin/rooms" element={adminRoute(<AdminRoomsPage />)} />
+
       {/* Fallback */}
       <Route path="*" element={<Navigate to={user ? '/lobby' : '/sign-in'} replace />} />
     </Routes>
@@ -77,7 +97,9 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <ToastProvider>
+        <AppRoutes />
+      </ToastProvider>
     </AuthProvider>
   )
 }

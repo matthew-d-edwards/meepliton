@@ -6,6 +6,7 @@ export interface User {
   avatarUrl: string | null
   email: string
   theme: 'light' | 'dark' | 'system'
+  isAdmin?: boolean
 }
 
 interface AuthContextValue {
