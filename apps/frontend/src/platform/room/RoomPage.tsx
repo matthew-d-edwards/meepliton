@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext'
 import { gameRegistry } from '../../games/registry'
 import type { GameContext, PlayerInfo } from '@meepliton/contracts'
 import { TurnIndicator } from './TurnIndicator'
+import { RoomSubNav } from './RoomSubNav'
 import './room.css'
 import { RoomWaitingScreen, ActionRejectedToast } from '@meepliton/ui'
 
@@ -36,6 +37,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
   const [gameState, setGameState] = useState<unknown>(null)
   const [rejectedReason, setRejectedReason] = useState<string | null>(null)
   const [minPlayers, setMinPlayers] = useState(2)
+  const [gameName, setGameName] = useState('')
   const [debugOpen, setDebugOpen] = useState(false)
   const [actionLog, setActionLog] = useState<ActionLogEntry[]>([])
   const [actionLogError, setActionLogError] = useState(false)
@@ -81,14 +83,17 @@ export default function RoomPage({ join }: { join?: boolean }) {
           )
           .catch(() => { /* player list is non-fatal — game can still load */ })
 
-        // Load game info to get minPlayers
+        // Load game info to get minPlayers and game name
         fetch('/api/lobby', { credentials: 'include' })
           .then(r => r.json())
-          .then((data: { games?: Array<{ gameId: string; minPlayers: number }> }) => {
+          .then((data: { games?: Array<{ gameId: string; minPlayers: number; name: string }> }) => {
             const game = data.games?.find(g => g.gameId === loadedRoom.gameId)
-            if (game) setMinPlayers(game.minPlayers)
+            if (game) {
+              setMinPlayers(game.minPlayers)
+              setGameName(game.name)
+            }
           })
-          .catch(() => { /* minPlayers is non-fatal — defaults to 2 */ })
+          .catch(() => { /* minPlayers/gameName is non-fatal — defaults to 2 / empty */ })
       })
       .catch(() => { /* navigation already handled above for non-ok responses */ })
   }, [roomId])
@@ -162,18 +167,29 @@ export default function RoomPage({ join }: { join?: boolean }) {
           
   if (!room || !user) return <RoomLoadingScreen />
 
+  const subNav = (
+    <RoomSubNav
+      gameName={gameName}
+      joinCode={room.joinCode}
+      players={players}
+    />
+  )
+
   if (room.status === 'Waiting') {
     return (
-      <RoomWaitingScreen
-        joinCode={room.joinCode}
-        players={players}
-        isHost={room.hostId === user.id}
-        onStart={startGame}
-        minPlayers={minPlayers}
-        onRemovePlayer={room.hostId === user.id ? removePlayer : undefined}
-        onTransferHost={room.hostId === user.id ? transferHost : undefined}
-        currentUserId={user.id}
-      />
+      <>
+        {subNav}
+        <RoomWaitingScreen
+          joinCode={room.joinCode}
+          players={players}
+          isHost={room.hostId === user.id}
+          onStart={startGame}
+          minPlayers={minPlayers}
+          onRemovePlayer={room.hostId === user.id ? removePlayer : undefined}
+          onTransferHost={room.hostId === user.id ? transferHost : undefined}
+          currentUserId={user.id}
+        />
+      </>
     )
   }
 
@@ -198,7 +214,9 @@ export default function RoomPage({ join }: { join?: boolean }) {
   const currentPlayerId = (ctx.state as Record<string, unknown> | null)?.currentPlayerId as string | null ?? null
 
   return (
-    <div className="room-page">
+    <>
+      {subNav}
+      <div className="room-page">
       {rejectedReason && (
         <ActionRejectedToast
           reason={rejectedReason}
@@ -254,7 +272,8 @@ export default function RoomPage({ join }: { join?: boolean }) {
         </div>
       )}
       <GameLoader load={loadGame} ctx={ctx} />
-    </div>
+      </div>
+    </>
   )
 }
 
