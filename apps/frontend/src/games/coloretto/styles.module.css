@@ -1,0 +1,365 @@
+/* Chameleon Market — scoped CSS Modules
+   All values via design tokens.
+   Theme overrides live in coloretto.css scoped to [data-game-theme="chameleon-market"]. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  min-height: 100%;
+  background: var(--color-background, var(--surface-base));
+  color: var(--color-text, var(--text-primary));
+  font-family: var(--font-body);
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  border-bottom: 2px solid var(--color-border, var(--edge-strong));
+  padding-bottom: var(--space-3);
+}
+
+.headerTitle {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-text, var(--text-bright));
+}
+
+.headerInfo {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+/* ── Status banner ── */
+.statusBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: var(--color-surface-raised, var(--surface-raised));
+  border: 2px solid var(--color-border, var(--edge-strong));
+  padding: var(--space-3) var(--space-5);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.statusBannerEndGame {
+  border-color: var(--card-red, #C62828);
+  color: var(--card-red, #C62828);
+  background: color-mix(in srgb, var(--card-red, #C62828) 8%, transparent);
+}
+
+/* ── Rows area ── */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-surface, var(--surface-float));
+  border: 2px solid var(--color-border, var(--edge-strong));
+  padding: var(--space-3);
+  transition: border-color 150ms;
+}
+
+.rowSelected {
+  border-color: var(--color-primary, var(--accent));
+  box-shadow: inset 0 0 0 1px var(--color-primary, var(--accent));
+}
+
+.rowCards {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.rowEmptySlot {
+  width: 36px;
+  height: 36px;
+  border: 2px dashed var(--color-border, var(--edge-strong));
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+.rowFullBadge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.rowActions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border, var(--edge-strong));
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 150ms;
+  min-height: 44px;
+}
+
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn:focus-visible { outline: 2px solid var(--color-primary, var(--accent)); outline-offset: 2px; }
+
+.btnPrimary {
+  background: var(--color-primary, var(--accent));
+  color: var(--color-on-primary, #fff);
+  border-color: var(--color-primary, var(--accent));
+}
+
+.btnPrimary:hover:not(:disabled) { filter: brightness(0.9); }
+
+.btnSecondary {
+  background: transparent;
+  color: var(--color-text, var(--text-primary));
+  border-color: var(--color-border, var(--edge-strong));
+}
+
+.btnSecondary:hover:not(:disabled) { background: var(--color-surface-hover, var(--surface-overlay)); }
+
+.actionRow {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Players section ── */
+.playersSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.playersSectionTitle {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.playersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+@media (max-width: 375px) {
+  .playersGrid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Player card ── */
+.playerCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-surface, var(--surface-float));
+  border: 2px solid var(--color-border, var(--edge-strong));
+  padding: var(--space-3);
+  transition: border-color 150ms;
+}
+
+.playerCardMe { border-color: var(--color-primary, var(--accent)); }
+.playerCardCurrentTurn { box-shadow: 0 0 0 2px var(--color-primary, var(--accent)); }
+.playerCardTaken { opacity: 0.65; }
+
+.playerCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.playerName {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text, var(--text-primary));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.takenTag {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+  border: 1px solid var(--color-border, var(--edge-strong));
+  padding: 1px 5px;
+}
+
+/* ── Collection ── */
+.collection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.collectionEntry {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.collectionCount {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--color-text, var(--text-primary));
+}
+
+.collectionScorePos {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--card-green, #2E7D32);
+  font-weight: 700;
+}
+
+.collectionScoreNeg {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--card-red, #C62828);
+  font-weight: 700;
+}
+
+/* ── Scores panel ── */
+.scoresPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--color-surface, var(--surface-float));
+  border: 2px solid var(--color-border, var(--edge-strong));
+  padding: var(--space-5);
+}
+
+.scoresPanelTitle {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.scoreRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-raised, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-strong));
+  flex-wrap: wrap;
+}
+
+.scoreRowMe { border-width: 2px; }
+.scoreRowWinner { background: color-mix(in srgb, var(--card-green, #2E7D32) 8%, transparent); }
+
+.scoreRowName {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text, var(--text-primary));
+  min-width: 80px;
+}
+
+.scoreRowTotal {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--color-text, var(--text-bright));
+  margin-left: auto;
+}
+
+/* ── Winner banner ── */
+.winnerBanner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  border: 2px solid var(--color-border, var(--edge-strong));
+}
+
+.winnerTitle {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.winnerName {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-text, var(--text-bright));
+  text-align: center;
+}
+
+/* ── Waiting lobby ── */
+.waitingArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+}
+
+.waitingTitle {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-text, var(--text-bright));
+}
+
+.waitingSubtitle {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-text-muted, var(--text-muted));
+}

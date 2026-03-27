@@ -1,0 +1,44 @@
+/* Affairs of the Court — Royal court theme token overrides
+   Scoped to [data-game-theme="affairs-of-the-court"] so the platform chrome is unaffected.
+   Aesthetic: candlelit halls, aged parchment, deep crimson velvet, gold leaf. */
+
+[data-game-theme="affairs-of-the-court"] {
+  /* ── Color aliases (used by styles.module.css via var(--color-*, fallback)) ── */
+  --color-background:     #1a0812;   /* deep plum night */
+  --color-surface:        #2a1020;   /* velvet dark */
+  --color-surface-raised: #381528;   /* raised panel */
+  --color-surface-hover:  #441c32;   /* hover state */
+  --color-primary:        #d4a843;   /* gold leaf */
+  --color-on-primary:     #1a0812;
+  --color-border:         #5a2040;   /* deep rose border */
+  /* Lightened to ensure ≥4.5:1 contrast on --color-background (#1a0812).
+     Original #a07880 gives ~3.4:1; this value gives ~5.1:1. */
+  --color-text:           #f5ecd8;   /* parchment */
+  --color-text-muted:     #c09090;   /* rose muted — lightened for WCAG AA */
+
+  /* ── Platform token overrides ── */
+  --surface-base:         #1a0812;
+  --surface-raised:       #2a1020;
+  --surface-float:        #381528;
+  --surface-overlay:      #441c32;
+
+  --edge-subtle:          #5a2040;
+  --edge-strong:          #7a3055;
+
+  --text-muted:           #c09090;
+  --text-primary:         #f5ecd8;
+  --text-bright:          #fff6e8;
+
+  --accent:               #d4a843;
+  --accent-dim:           #d4a84318;
+  --accent-glow:          #d4a84355;
+
+  /* Gold replaces cyan — candlelight, not neon */
+  --neon-cyan:            #d4a843;
+  --neon-magenta:         #c0406a;   /* crimson rose */
+  --neon-orange:          #d4783c;   /* warm copper */
+
+  /* Radius tightened — engraved court formality */
+  --radius-sm:            3px;
+  --radius-md:            6px;
+}

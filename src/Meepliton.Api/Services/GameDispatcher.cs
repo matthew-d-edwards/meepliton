@@ -1,3 +1,4 @@
+using System.Data;
 using System.Text.Json;
 using Meepliton.Api.Data;
 using Meepliton.Api.Hubs;
@@ -28,8 +29,16 @@ public class GameDispatcher(
         JsonDocument action,
         CancellationToken ct = default)
     {
+        // Use SELECT FOR UPDATE to acquire a per-room exclusive row lock before reading state.
+        // The lock is held until the transaction commits, so concurrent requests for the same
+        // room queue up at the database — each sees the fully-committed state of the previous.
+        // Different rooms lock different rows and never block each other.
+        // This works correctly across multiple backend instances without any retry logic.
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+
         var room = await db.Rooms
-            .FirstOrDefaultAsync(r => r.Id == roomId, ct)
+            .FromSqlRaw("SELECT * FROM rooms WHERE id = {0} FOR UPDATE", roomId)
+            .FirstOrDefaultAsync(ct)
             ?? throw new InvalidOperationException($"Room {roomId} not found.");
 
         var handler = handlers.FirstOrDefault(h => h.GameId == room.GameId)
@@ -66,6 +75,7 @@ public class GameDispatcher(
         });
 
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         // Broadcast state — fan out per-player if the module implements projection
         if (module?.HasStateProjection == true)

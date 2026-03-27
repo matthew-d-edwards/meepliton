@@ -1,0 +1,42 @@
+/* The Inner Circle — Coup theme token overrides
+   Scoped to [data-game-theme="inner-circle"] so the platform chrome is unaffected.
+   Aesthetic: cold political power, shadow and gold, marble and candlelight. */
+
+[data-game-theme="inner-circle"] {
+  /* ── Color aliases (used by styles.module.css via var(--color-*, fallback)) ── */
+  --color-background:     #0f0f12;   /* near-black */
+  --color-surface:        #18181f;   /* dark charcoal */
+  --color-surface-raised: #22222c;   /* slightly lifted */
+  --color-surface-hover:  #2c2c3a;
+  --color-primary:        #b8973a;   /* tarnished gold */
+  --color-on-primary:     #0f0f12;
+  --color-border:         #303044;   /* dark indigo */
+  --color-text:           #ddd8cc;   /* warm off-white */
+  /* Lightened from original #7a7a8a (~4.1:1) to meet WCAG AA 4.5:1 for small text on --color-background */
+  --color-text-muted:     #8e8ea0;
+
+  /* ── Platform token overrides ── */
+  --surface-base:         #0f0f12;
+  --surface-raised:       #18181f;
+  --surface-float:        #22222c;
+  --surface-overlay:      #2c2c3a;
+
+  --edge-subtle:          #303044;
+  --edge-strong:          #454560;
+
+  --text-muted:           #8e8ea0;
+  --text-primary:         #ddd8cc;
+  --text-bright:          #f0ece0;   /* warm ivory */
+
+  --accent:               #b8973a;   /* tarnished gold */
+  --accent-dim:           #b8973a18;
+  --accent-glow:          #b8973a55;
+
+  --neon-cyan:            #b8973a;
+  --neon-magenta:         #8a3a6e;   /* deep crimson */
+  --neon-orange:          #c4602a;   /* burnt sienna */
+
+  /* Radius tightened — power politics feels angular, not playful */
+  --radius-sm:            2px;
+  --radius-md:            4px;
+}

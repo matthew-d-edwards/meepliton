@@ -1,0 +1,503 @@
+/* Sushi Go — scoped CSS Modules
+   All values via design tokens.
+   Sushi Train overrides live in sushigo.css scoped to [data-game-theme="sushi-train"]. */
+
+/* ── Root ── */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  min-height: 100%;
+  background: var(--color-background, var(--surface-base));
+  color: var(--color-text, var(--text-primary));
+  font-family: var(--font-body);
+}
+
+/* ── Header bar ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.headerTitle {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-primary, var(--accent));
+}
+
+.headerRound {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+/* ── Phase banner ── */
+.phaseBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: var(--color-surface-raised, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-5);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.phaseBannerActive {
+  color: var(--color-primary, var(--accent));
+  border-color: var(--color-primary, var(--accent));
+  background: color-mix(in srgb, var(--color-primary, var(--accent)) 10%, transparent);
+}
+
+/* ── Players grid ── */
+.playersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 375px) {
+  .playersGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+}
+
+/* ── Player card ── */
+.playerCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--color-surface, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  transition: border-color 200ms;
+}
+
+.playerCardMe {
+  border-color: var(--color-primary, var(--accent));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-primary, var(--accent)) 20%, transparent);
+}
+
+.playerCardPicked {
+  opacity: 0.7;
+}
+
+.playerCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.playerName {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text, var(--text-primary));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playerMeTag {
+  font-size: 0.7rem;
+  color: var(--color-text-muted, var(--text-muted));
+  font-weight: 400;
+}
+
+.playerPickedTag {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-primary, var(--accent));
+  border: 1px solid var(--color-primary, var(--accent));
+  border-radius: var(--radius-pill);
+  padding: 1px 6px;
+}
+
+.playerWaitingTag {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-pill);
+  padding: 1px 6px;
+}
+
+/* ── Player stats row ── */
+.playerStats {
+  display: flex;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.playerStat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.playerStatLabel {
+  font-size: 0.62rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.playerStatValue {
+  color: var(--color-text, var(--text-primary));
+  font-weight: 600;
+}
+
+/* ── Tableau ── */
+.tableau {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-height: 28px;
+}
+
+.tableauEmpty {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-text-muted, var(--text-muted));
+  font-style: italic;
+  align-self: center;
+}
+
+.tableauChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised, var(--surface-float));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+/* ── Hand section (own cards to pick from) ── */
+.handSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--color-surface-raised, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.handLabel {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.handCards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ── Card button ── */
+.cardBtn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 72px;
+  min-height: 88px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border, var(--edge-strong));
+  background: var(--color-surface, var(--surface-float));
+  color: var(--color-text, var(--text-primary));
+  cursor: pointer;
+  transition: all 150ms;
+  font-family: var(--font-body);
+}
+
+.cardBtn:hover:not(:disabled) {
+  border-color: var(--color-primary, var(--accent));
+  background: var(--color-surface-hover, var(--surface-float));
+}
+
+.cardBtn:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
+}
+
+.cardBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cardBtnSelected {
+  border-color: var(--color-primary, var(--accent));
+  background: color-mix(in srgb, var(--color-primary, var(--accent)) 15%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary, var(--accent)) 35%, transparent);
+}
+
+.cardBtnEmoji {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.cardBtnLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-align: center;
+  color: var(--color-text, var(--text-primary));
+}
+
+/* ── Chopsticks action ── */
+.chopsticksSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: color-mix(in srgb, var(--color-primary, var(--accent)) 8%, transparent);
+  border: 1px solid var(--color-primary, var(--accent));
+  border-radius: var(--radius-sm);
+}
+
+.chopsticksLabel {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-primary, var(--accent));
+}
+
+.chopsticksHint {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+/* ── Action button ── */
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 150ms;
+  min-height: 44px;
+}
+
+.actionBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.actionBtn:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
+}
+
+.actionBtnPrimary {
+  background: var(--color-primary, var(--accent));
+  color: var(--color-on-primary, #fff8f8);
+  border-color: var(--color-primary, var(--accent));
+}
+
+.actionBtnPrimary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.actionBtnSecondary {
+  background: transparent;
+  color: var(--color-text, var(--text-primary));
+  border-color: var(--color-border, var(--edge-strong));
+}
+
+.actionBtnSecondary:hover:not(:disabled) {
+  border-color: var(--color-primary, var(--accent));
+  color: var(--color-primary, var(--accent));
+}
+
+/* ── Action row ── */
+.actionRow {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Scores panel ── */
+.scoresPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--color-surface-raised, var(--surface-raised));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.scoresPanelTitle {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.scoresTable {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.scoresRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface, var(--surface-base));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+}
+
+.scoresRowMe {
+  border-color: var(--color-primary, var(--accent));
+}
+
+.scoresRowName {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text, var(--text-primary));
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scoresRowRounds {
+  display: flex;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.scoresRowRoundBadge {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised, var(--surface-float));
+  border: 1px solid var(--color-border, var(--edge-subtle));
+}
+
+.scoresRowTotal {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--color-primary, var(--accent));
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+/* ── Winner banner ── */
+.winnerBanner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: color-mix(in srgb, var(--color-primary, var(--accent)) 10%, transparent);
+  border: 1px solid var(--color-primary, var(--accent));
+  border-radius: var(--radius-lg);
+}
+
+.winnerTitle {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+.winnerName {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-primary, var(--accent));
+  text-align: center;
+}
+
+/* ── Waiting lobby ── */
+.waitingArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+}
+
+.waitingTitle {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-primary, var(--accent));
+}
+
+.waitingSubtitle {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-text-muted, var(--text-muted));
+}
+
+/* ── Hand size indicators for opponents ── */
+.handSizeRow {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.handSizePip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-border, var(--edge-strong));
+}

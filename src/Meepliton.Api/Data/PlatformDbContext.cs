@@ -34,6 +34,9 @@ public class PlatformDbContext(DbContextOptions<PlatformDbContext> options)
             e.Property(r => r.Status)
              .HasConversion<string>()
              .HasDefaultValue(RoomStatus.Waiting);
+            // state_version is incremented on every write so the action log has a monotonic
+            // sequence number. Serialization is handled by SELECT FOR UPDATE in GameDispatcher,
+            // not by an optimistic concurrency token.
             // Value converters let the InMemory provider (used in tests) handle JsonDocument.
             // Npgsql still stores the value as JSONB; it just receives/returns a JSON string.
             e.Property(r => r.GameState)

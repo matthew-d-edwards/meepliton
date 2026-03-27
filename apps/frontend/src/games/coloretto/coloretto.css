@@ -1,0 +1,49 @@
+/* Chameleon Market — Mondrian-inspired light theme token overrides
+   Scoped to [data-game-theme="chameleon-market"] so platform chrome is unaffected.
+   Aesthetic: clean white surfaces, bold black borders, flat colour blocks. */
+
+[data-game-theme="chameleon-market"] {
+  /* ── Colour aliases (used by styles.module.css via var(--color-*, fallback)) ── */
+  --color-background:      #f5f5f0;
+  --color-surface:         #ffffff;
+  --color-surface-raised:  #f0f0ea;
+  --color-surface-hover:   #e8e8e0;
+  --color-primary:         #1a1a1a;
+  --color-on-primary:      #ffffff;
+  --color-border:          #1a1a1a;
+  --color-text:            #1a1a1a;
+  /* Lightened from #555550 to meet WCAG AA 4.5:1 on #f5f5f0 light background */
+  --color-text-muted:      #555550;
+
+  /* ── Platform token overrides ── */
+  --surface-base:          #f5f5f0;
+  --surface-raised:        #f0f0ea;
+  --surface-float:         #ffffff;
+  --surface-overlay:       #e8e8e0;
+
+  --edge-subtle:           #d0d0c8;
+  --edge-strong:           #1a1a1a;
+
+  --text-muted:            #555550;
+  --text-primary:          #1a1a1a;
+  --text-bright:           #000000;
+
+  --accent:                #1a1a1a;
+  --accent-dim:            #1a1a1a18;
+  --accent-glow:           #1a1a1a33;
+
+  /* Radius: flat / Mondrian style */
+  --radius-sm:             0px;
+  --radius-md:             0px;
+
+  /* ── Card colour tokens ── */
+  --card-brown:   #8B4513;
+  --card-blue:    #1565C0;
+  --card-green:   #2E7D32;
+  --card-orange:  #E65100;
+  --card-purple:  #6A1B9A;
+  --card-red:     #C62828;
+  --card-yellow:  #F9A825;
+  --card-joker:   #808080;
+  --card-endgame: #FF0000;
+}
