@@ -71,7 +71,7 @@ public class LoveLetterModule : IGameModule, IGameHandler
     // ── IGameModule.CreateInitialState ────────────────────────────────────────
 
     JsonDocument IGameModule.CreateInitialState(IReadOnlyList<PlayerInfo> players, JsonDocument? options)
-        => Serialize(CreateInitialState(players));
+        => Serialize(ApplyStartGame(CreateInitialState(players)));
 
     public LoveLetterState CreateInitialState(IReadOnlyList<PlayerInfo> players)
     {

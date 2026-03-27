@@ -184,32 +184,10 @@ export default function LoveLetterGame({ state, myPlayerId, dispatch }: GameCont
       {/* Header */}
       <div className={styles.header}>
         <span className={styles.headerTitle}>Affairs of the Court</span>
-        {state.phase !== 'Waiting' && (
-          <span className={styles.headerInfo}>
-            Round {state.round} · {state.deckSize} cards left
-          </span>
-        )}
+        <span className={styles.headerInfo}>
+          Round {state.round} · {state.deckSize} cards left
+        </span>
       </div>
-
-      {/* ── Waiting ── */}
-      {state.phase === 'Waiting' && (
-        <div className={styles.waitingArea}>
-          <div className={styles.waitingTitle}>Waiting for players…</div>
-          <div className={styles.waitingSubtitle}>
-            {state.players.length} player{state.players.length !== 1 ? 's' : ''} in room
-          </div>
-          {isHost ? (
-            <div className={styles.actionRow}>
-              <button type="button" className={`${styles.btn} ${styles.btnPrimary}`}
-                onClick={() => send({ type: 'StartGame' })}>
-                Start Game
-              </button>
-            </div>
-          ) : (
-            <div className={styles.waitingSubtitle}>Waiting for the host to start…</div>
-          )}
-        </div>
-      )}
 
       {/* ── Game Over ── */}
       {state.phase === 'GameOver' && state.winner !== null && (
@@ -222,19 +200,17 @@ export default function LoveLetterGame({ state, myPlayerId, dispatch }: GameCont
       )}
 
       {/* Players grid */}
-      {state.phase !== 'Waiting' && (
-        <div className={styles.playersGrid}>
-          {state.players.map(player => (
-            <PlayerCard
-              key={player.id}
-              player={player}
-              isMe={player.id === myPlayerId}
-              isCurrentTurn={player.id === currentPlayer?.id}
-              tokenTarget={tokenTarget}
-            />
-          ))}
-        </div>
-      )}
+      <div className={styles.playersGrid}>
+        {state.players.map(player => (
+          <PlayerCard
+            key={player.id}
+            player={player}
+            isMe={player.id === myPlayerId}
+            isCurrentTurn={player.id === currentPlayer?.id}
+            tokenTarget={tokenTarget}
+          />
+        ))}
+      </div>
 
       {/* 2-player face-up set aside cards */}
       {state.phase === 'Playing' && state.faceUpSetAside.length > 0 && (

@@ -258,36 +258,10 @@ export default function SushiGoGame({ state, myPlayerId, dispatch }: GameContext
       {/* Header */}
       <div className={styles.header}>
         <span className={styles.headerTitle}>The Sushi Train</span>
-        {state.phase !== 'Waiting' && (
-          <span className={styles.headerRound}>
-            Round {state.round} of 3 · Turn {state.turn}
-          </span>
-        )}
+        <span className={styles.headerRound}>
+          Round {state.round} of 3 · Turn {state.turn}
+        </span>
       </div>
-
-      {/* ── Waiting ── */}
-      {state.phase === 'Waiting' && (
-        <div className={styles.waitingArea}>
-          <div className={styles.waitingTitle}>Waiting for players…</div>
-          <div className={styles.waitingSubtitle}>
-            {state.players.length} player{state.players.length !== 1 ? 's' : ''} in room
-          </div>
-          {isHost && (
-            <div className={styles.actionRow}>
-              <button
-                type="button"
-                className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
-                onClick={() => send({ type: 'StartGame' })}
-              >
-                Start Game
-              </button>
-            </div>
-          )}
-          {!isHost && (
-            <div className={styles.waitingSubtitle}>Waiting for the host to start…</div>
-          )}
-        </div>
-      )}
 
       {/* ── Picking / Revealing ── */}
       {(state.phase === 'Picking' || state.phase === 'Revealing') && (

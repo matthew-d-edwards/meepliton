@@ -79,7 +79,7 @@ public class CoupModule : IGameModule, IGameHandler
     // ── IGameModule.CreateInitialState ───────────────────────────────────────
 
     JsonDocument IGameModule.CreateInitialState(IReadOnlyList<PlayerInfo> players, JsonDocument? options)
-        => Serialize(CreateInitialState(players));
+        => Serialize(ApplyStartGame(CreateInitialState(players)));
 
     public CoupState CreateInitialState(IReadOnlyList<PlayerInfo> players)
     {
