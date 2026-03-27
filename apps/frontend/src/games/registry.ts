@@ -9,5 +9,8 @@ export const gameRegistry: Record<string, () => Promise<{ default: AnyGameModule
   liarsdice: () => import('./liarsdice'),
   deadmansswitch: () => import('./deadmansswitch'),
   fthat: () => import('./fthat'),
-  // Add new games here ↓
+  sushigo: () => import('./sushigo'),
+  coup: () => import('./coup'),
+  loveletter: () => import('./loveletter'),
+  coloretto: () => import('./coloretto'),
 }
