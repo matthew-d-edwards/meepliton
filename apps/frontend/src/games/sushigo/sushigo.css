@@ -1,0 +1,39 @@
+/* Sushi Go — Sushi Train theme token overrides
+   Scoped to [data-game-theme="sushi-train"] so the platform chrome is unaffected.
+   Aesthetic: warm neon, deep red conveyor belt, Japanese street food warmth. */
+
+[data-game-theme="sushi-train"] {
+  /* ── Color aliases (used by styles.module.css via var(--color-*, fallback)) ── */
+  --color-background:      #1a0a0a;   /* deep dark red */
+  --color-surface:         #2d1010;   /* dark surface */
+  --color-surface-raised:  #3d1818;   /* slightly lifted */
+  --color-surface-hover:   #4a1f1f;
+  --color-primary:         #e8325a;   /* vibrant sushi red */
+  --color-on-primary:      #fff8f8;
+  --color-border:          #5a2020;   /* muted red border */
+  --color-text:            #fff0f0;   /* warm white */
+  /* Raised from #c08080 (~3.5:1 on #1a0a0a) to meet WCAG AA 4.5:1 */
+  --color-text-muted:      #d4a0a0;
+
+  /* ── Platform token overrides (replaces Blade Runner blue/cyan with sushi warmth) ── */
+  --surface-base:          #1a0a0a;
+  --surface-raised:        #2d1010;
+  --surface-float:         #3d1818;
+  --surface-overlay:       #4a1f1f;
+
+  --edge-subtle:           #5a2020;
+  --edge-strong:           #7a3030;
+
+  --text-muted:            #d4a0a0;
+  --text-primary:          #fff0f0;
+  --text-bright:           #ffffff;
+
+  --accent:                #e8325a;   /* sushi red */
+  --accent-dim:            #e8325a18;
+  --accent-glow:           #e8325a55;
+
+  /* Neon overrides — warm red/orange instead of cyan/magenta */
+  --neon-cyan:             #e8325a;   /* sushi red */
+  --neon-magenta:          #ff6b35;   /* salmon orange */
+  --neon-orange:           #ff9a3c;   /* tempura gold */
+}
