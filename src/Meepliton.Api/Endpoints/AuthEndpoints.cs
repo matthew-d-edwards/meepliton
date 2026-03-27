@@ -171,7 +171,8 @@ public static class AuthEndpoints
             user.LastSeenAt = DateTimeOffset.UtcNow;
             await userManager.UpdateAsync(user);
 
-            return Results.Ok(ToUserDto(user));
+            var isAdmin = await userManager.IsInRoleAsync(user, "Admin");
+            return Results.Ok(ToUserDto(user, isAdmin));
         });
 
         // Logout
@@ -202,7 +203,8 @@ public static class AuthEndpoints
             user.LastSeenAt = DateTimeOffset.UtcNow;
             await userManager.UpdateAsync(user);
 
-            return Results.Ok(ToUserDto(user));
+            var isAdmin = await userManager.IsInRoleAsync(user, "Admin");
+            return Results.Ok(ToUserDto(user, isAdmin));
         }).RequireAuthorization();
 
         // Me — PUT
@@ -470,8 +472,8 @@ public static class AuthEndpoints
     private static string? ResolveAvatarUrl(ApplicationUser u) =>
         AvatarHelper.ResolveAvatarUrl(u.AvatarUrl, u.Email);
 
-    private static UserDto ToUserDto(ApplicationUser u) =>
-        new(u.Id, u.DisplayName, ResolveAvatarUrl(u), u.Email ?? string.Empty, u.Theme);
+    private static UserDto ToUserDto(ApplicationUser u, bool isAdmin = false) =>
+        new(u.Id, u.DisplayName, ResolveAvatarUrl(u), u.Email ?? string.Empty, u.Theme, isAdmin);
 
     /// <summary>Returns null if valid, or an error message if invalid.</summary>
     private static string? ValidateDisplayName(string displayName)
@@ -490,7 +492,7 @@ public static class AuthEndpoints
     record LoginRequest(string Email, string Password);
     record ResendConfirmationRequest(string Email);
     record AddPasswordRequest(string NewPassword);
-    record UserDto(string Id, string DisplayName, string? AvatarUrl, string Email, string Theme);
+    record UserDto(string Id, string DisplayName, string? AvatarUrl, string Email, string Theme, bool IsAdmin);
 
     /// <summary>
     /// PUT /api/auth/me request body.  All fields are optional — omitted fields are not changed.
