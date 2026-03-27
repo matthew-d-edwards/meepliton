@@ -127,7 +127,7 @@ public class CoupModule : IGameModule, IGameHandler
 
             case "DoCoup":
             {
-                var err = ValidateActivePlayerAction(state, playerId);
+                var err = ValidateActivePlayerAction(state, playerId, isCoup: true);
                 if (err is not null) return err;
                 var actor = GetPlayer(state, playerId)!;
                 if (actor.Coins < 7) return "You need at least 7 coins to perform a coup.";
@@ -247,14 +247,14 @@ public class CoupModule : IGameModule, IGameHandler
         }
     }
 
-    private static string? ValidateActivePlayerAction(CoupState state, string playerId)
+    private static string? ValidateActivePlayerAction(CoupState state, string playerId, bool isCoup = false)
     {
         if (state.Phase != CoupPhase.AwaitingResponses) return "Not in an action phase.";
         if (state.Pending is not null) return "Another action is already pending.";
         var activePlayer = state.Players[state.ActivePlayerIndex];
         if (activePlayer.Id != playerId) return "It is not your turn.";
-        // Mandatory coup: must coup if 10+ coins
-        if (activePlayer.Coins >= 10) return "You must perform a coup with 10 or more coins.";
+        // Mandatory coup: must coup if 10+ coins (DoCoup itself is exempt from this block)
+        if (!isCoup && activePlayer.Coins >= 10) return "You must perform a coup with 10 or more coins.";
         return null;
     }
 

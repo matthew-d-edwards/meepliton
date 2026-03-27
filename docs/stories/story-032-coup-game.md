@@ -1,7 +1,7 @@
 ---
 id: story-032
 title: Add Coup game module
-status: backlog
+status: in-progress
 created: 2026-03-26
 ---
 
