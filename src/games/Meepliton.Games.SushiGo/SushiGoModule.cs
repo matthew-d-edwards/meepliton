@@ -52,15 +52,14 @@ public class SushiGoModule : IGameModule, IGameHandler
         // Compute hand sizes from actual hands before masking
         var handSizes = state.Hands.Select(h => h.Count).ToList();
 
-        // Reveal phase and finished are fully public
-        // During picking: mask other players' hands
+        // Mask other players' hands; strip deck entirely
         var projectedHands = state.Hands.Select((hand, i) =>
             state.Players[i].Id == playerId ? hand : new List<string>()
         ).ToList();
 
         return state with
         {
-            Deck      = [],          // never send deck to client
+            Deck      = [],
             Hands     = projectedHands,
             HandSizes = handSizes
         };
@@ -85,7 +84,6 @@ public class SushiGoModule : IGameModule, IGameHandler
             UsingChopsticks: false
         )).ToList();
 
-        // Pending picks: one null per player
         var pendingPicks = playerList.Select(_ => (string?)null).ToList();
 
         return new SushiGoState(
@@ -114,7 +112,6 @@ public class SushiGoModule : IGameModule, IGameHandler
             {
                 if (state.Phase != SushiGoPhase.Waiting)
                     return "Game has already started.";
-                // Only host (seat 0) may start
                 var host = state.Players.FirstOrDefault(p => p.SeatIndex == 0);
                 if (host?.Id != playerId)
                     return "Only the host can start the game.";
@@ -151,7 +148,6 @@ public class SushiGoModule : IGameModule, IGameHandler
                     return "UseChopsticks requires both pick and pick2.";
                 if (action.Pick == action.Pick2)
                 {
-                    // Allow two of the same card only if two copies exist
                     var sameCount = hand.Count(c => c == action.Pick);
                     if (sameCount < 2) return $"You only have one '{action.Pick}' in your hand.";
                 }
@@ -185,11 +181,11 @@ public class SushiGoModule : IGameModule, IGameHandler
     public SushiGoState Apply(SushiGoState state, SushiGoAction action, string playerId) =>
         action.Type switch
         {
-            "StartGame"    => ApplyStartGame(state),
-            "PickCard"     => ApplyPickCard(state, action, playerId),
-            "UseChopsticks"=> ApplyUseChopsticks(state, action, playerId),
-            "AdvanceRound" => ApplyAdvanceRound(state),
-            _              => state
+            "StartGame"     => ApplyStartGame(state),
+            "PickCard"      => ApplyPickCard(state, action, playerId),
+            "UseChopsticks" => ApplyUseChopsticks(state, action, playerId),
+            "AdvanceRound"  => ApplyAdvanceRound(state),
+            _               => state
         };
 
     // ── StartGame ─────────────────────────────────────────────────────────────
@@ -202,19 +198,19 @@ public class SushiGoModule : IGameModule, IGameHandler
 
         return state with
         {
-            Phase:        SushiGoPhase.Picking,
-            Round:        1,
-            Turn:         1,
-            Deck:         remainingDeck,
-            Hands:        hands,
-            PendingPicks: pendingPicks,
-            Players:      state.Players.Select(p => p with
+            Phase        = SushiGoPhase.Picking,
+            Round        = 1,
+            Turn         = 1,
+            Deck         = remainingDeck,
+            Hands        = hands,
+            PendingPicks = pendingPicks,
+            Players      = state.Players.Select(p => p with
             {
-                Tableau:         [],
-                RoundScores:     [],
-                PuddingCount:    0,
-                HasPicked:       false,
-                UsingChopsticks: false
+                Tableau         = [],
+                RoundScores     = [],
+                PuddingCount    = 0,
+                HasPicked       = false,
+                UsingChopsticks = false
             }).ToList()
         };
     }
@@ -226,7 +222,6 @@ public class SushiGoModule : IGameModule, IGameHandler
         var (playerIdx, _) = FindPlayer(state, playerId);
         var pick = action.Pick!;
 
-        // Record pending pick and mark player as having picked
         var newPendingPicks = state.PendingPicks.ToList();
         newPendingPicks[playerIdx] = pick;
 
@@ -236,7 +231,6 @@ public class SushiGoModule : IGameModule, IGameHandler
 
         var newState = state with { PendingPicks = newPendingPicks, Players = newPlayers };
 
-        // If all players have picked, resolve the turn
         if (newPlayers.All(p => p.HasPicked))
             return ResolveTurn(newState);
 
@@ -268,19 +262,19 @@ public class SushiGoModule : IGameModule, IGameHandler
     // ── ResolveTurn ───────────────────────────────────────────────────────────
 
     /// <summary>
-    /// All players have picked. Move cards to tableaux, pass hands, and either
-    /// start the next turn or move to Scoring.
+    /// All players have picked. Move cards to tableaux, pass hands left,
+    /// then either start the next turn or move to Scoring.
     /// </summary>
     private static SushiGoState ResolveTurn(SushiGoState state)
     {
         int playerCount = state.Players.Count;
-        var newHands    = state.Hands.Select(h => h.ToList()).ToList();
-        var newPlayers  = state.Players.ToList();
+        var newHands   = state.Hands.Select(h => h.ToList()).ToList();
+        var newPlayers = state.Players.ToList();
 
         for (int i = 0; i < playerCount; i++)
         {
-            var pick = state.PendingPicks[i]!;
-            var hand = newHands[i];
+            var pick    = state.PendingPicks[i]!;
+            var hand    = newHands[i];
             var tableau = newPlayers[i].Tableau.ToList();
 
             if (pick.StartsWith(SushiGoCards.ChopsticsMarkerPrefix))
@@ -290,13 +284,12 @@ public class SushiGoModule : IGameModule, IGameHandler
                 var c1 = parts[0];
                 var c2 = parts[1];
 
-                // Move both cards to tableau
                 hand.Remove(c1);
                 hand.Remove(c2);
                 tableau.Add(c1);
                 tableau.Add(c2);
 
-                // Return Chopsticks from tableau back to hand
+                // Return Chopsticks from tableau back to hand before passing
                 var chopIdx = tableau.IndexOf(SushiGoCards.Chopsticks);
                 if (chopIdx >= 0)
                 {
@@ -306,69 +299,65 @@ public class SushiGoModule : IGameModule, IGameHandler
             }
             else
             {
-                // Normal pick: move one card to tableau
                 hand.Remove(pick);
                 tableau.Add(pick);
             }
 
-            newHands[i] = hand;
+            newHands[i]   = hand;
             newPlayers[i] = newPlayers[i] with
             {
-                Tableau:         tableau,
-                HasPicked:       false,
-                UsingChopsticks: false
+                Tableau         = tableau,
+                HasPicked       = false,
+                UsingChopsticks = false
             };
         }
 
-        // Pass hands left: player i receives hand from player (i+1) % playerCount
+        // Pass hands left: player i receives the hand from player (i+1) % playerCount
         var passedHands = new List<List<string>>(playerCount);
         for (int i = 0; i < playerCount; i++)
             passedHands.Add(newHands[(i + 1) % playerCount]);
 
         var pendingPicks = newPlayers.Select(_ => (string?)null).ToList();
-
-        // Are hands now empty?
-        bool handsEmpty = passedHands.All(h => h.Count == 0);
+        bool handsEmpty  = passedHands.All(h => h.Count == 0);
 
         if (handsEmpty)
         {
-            // Score the round
             var scoredPlayers = ScoreRound(newPlayers);
-            bool gameOver = state.Round >= 3;
+            bool gameOver     = state.Round >= 3;
 
             if (gameOver)
             {
                 scoredPlayers = ApplyPuddingScoring(scoredPlayers);
-                var winnerId = DetermineWinner(scoredPlayers);
+                var winnerId  = DetermineWinner(scoredPlayers);
                 return state with
                 {
-                    Phase:        SushiGoPhase.Finished,
-                    Players:      scoredPlayers,
-                    Hands:        passedHands,
-                    PendingPicks: pendingPicks,
-                    Turn:         state.Turn + 1,
-                    Winner:       winnerId
+                    Phase        = SushiGoPhase.Finished,
+                    Players      = scoredPlayers,
+                    Hands        = passedHands,
+                    PendingPicks = pendingPicks,
+                    Turn         = state.Turn + 1,
+                    Winner       = winnerId
                 };
             }
 
             return state with
             {
-                Phase:        SushiGoPhase.Scoring,
-                Players:      scoredPlayers,
-                Hands:        passedHands,
-                PendingPicks: pendingPicks,
-                Turn:         state.Turn + 1
+                Phase        = SushiGoPhase.Scoring,
+                Players      = scoredPlayers,
+                Hands        = passedHands,
+                PendingPicks = pendingPicks,
+                Turn         = state.Turn + 1
             };
         }
 
-        // Next turn in same round
+        // Next turn in the same round
         return state with
         {
-            Phase:        SushiGoPhase.Picking,
-            Players:      newPlayers,
-            Hands:        passedHands,
-            PendingPicks: pendingPicks,
-            Turn:         state.Turn + 1
+            Phase        = SushiGoPhase.Picking,
+            Players      = newPlayers,
+            Hands        = passedHands,
+            PendingPicks = pendingPicks,
+            Turn         = state.Turn + 1
         };
     }
 
@@ -377,27 +366,27 @@ public class SushiGoModule : IGameModule, IGameHandler
     private static SushiGoState ApplyAdvanceRound(SushiGoState state)
     {
         int playerCount = state.Players.Count;
-        var deck = BuildShuffledDeck();
-        var hands = DealHands(deck, playerCount, out var remainingDeck);
+        var deck        = BuildShuffledDeck();
+        var hands       = DealHands(deck, playerCount, out var remainingDeck);
         var pendingPicks = state.Players.Select(_ => (string?)null).ToList();
 
-        // Clear tableaux but keep puddings (tracked separately in PuddingCount)
+        // Clear tableaux; pudding totals are preserved in PuddingCount
         var newPlayers = state.Players.Select(p => p with
         {
-            Tableau:         [],
-            HasPicked:       false,
-            UsingChopsticks: false
+            Tableau         = [],
+            HasPicked       = false,
+            UsingChopsticks = false
         }).ToList();
 
         return state with
         {
-            Phase:        SushiGoPhase.Picking,
-            Round:        state.Round + 1,
-            Turn:         1,
-            Deck:         remainingDeck,
-            Hands:        hands,
-            PendingPicks: pendingPicks,
-            Players:      newPlayers
+            Phase        = SushiGoPhase.Picking,
+            Round        = state.Round + 1,
+            Turn         = 1,
+            Deck         = remainingDeck,
+            Hands        = hands,
+            PendingPicks = pendingPicks,
+            Players      = newPlayers
         };
     }
 
@@ -408,7 +397,6 @@ public class SushiGoModule : IGameModule, IGameHandler
         int playerCount = players.Count;
         var roundScores = new int[playerCount];
 
-        // ── Per-player card scoring ────────────────────────────────────────────
         for (int i = 0; i < playerCount; i++)
         {
             var tableau = players[i].Tableau;
@@ -416,21 +404,19 @@ public class SushiGoModule : IGameModule, IGameHandler
             roundScores[i] += ScoreSashimi(tableau);
             roundScores[i] += ScoreDumpling(tableau);
             roundScores[i] += ScoreNigiri(tableau);
-            // Pudding: count and defer to end-of-game
+            // Pudding not scored per-round; tracked in PuddingCount
         }
 
-        // ── Maki scoring (comparative) ────────────────────────────────────────
         var makiCounts = players.Select(p => CountMaki(p.Tableau)).ToArray();
         ApplyMakiScoring(makiCounts, roundScores, playerCount);
 
-        // ── Apply scores + update pudding counts ──────────────────────────────
         return players.Select((p, i) =>
         {
             var puddingGain = p.Tableau.Count(c => c == SushiGoCards.Pudding);
             return p with
             {
-                RoundScores:  [.. p.RoundScores, roundScores[i]],
-                PuddingCount: p.PuddingCount + puddingGain
+                RoundScores  = [.. p.RoundScores, roundScores[i]],
+                PuddingCount = p.PuddingCount + puddingGain
             };
         }).ToList();
     }
@@ -462,12 +448,12 @@ public class SushiGoModule : IGameModule, IGameHandler
     }
 
     /// <summary>
-    /// Score nigiri cards. Scan tableau left-to-right; a Wasabi immediately
-    /// before a nigiri triples that nigiri's value and is consumed.
+    /// Score nigiri cards. Scan tableau left-to-right; a Wasabi that precedes
+    /// a nigiri triples its value and is then consumed.
     /// </summary>
     private static int ScoreNigiri(List<string> tableau)
     {
-        int score = 0;
+        int  score      = 0;
         bool wasabiReady = false;
 
         foreach (var card in tableau)
@@ -477,6 +463,7 @@ public class SushiGoModule : IGameModule, IGameHandler
                 case SushiGoCards.Wasabi:
                     wasabiReady = true;
                     break;
+
                 case SushiGoCards.EggNigiri:
                 {
                     int pts = 1;
@@ -484,6 +471,7 @@ public class SushiGoModule : IGameModule, IGameHandler
                     score += pts;
                     break;
                 }
+
                 case SushiGoCards.SalmonNigiri:
                 {
                     int pts = 2;
@@ -491,6 +479,7 @@ public class SushiGoModule : IGameModule, IGameHandler
                     score += pts;
                     break;
                 }
+
                 case SushiGoCards.SquidNigiri:
                 {
                     int pts = 3;
@@ -498,7 +487,7 @@ public class SushiGoModule : IGameModule, IGameHandler
                     score += pts;
                     break;
                 }
-                // All other cards don't consume wasabi and don't score here
+                // Chopsticks, Pudding, Tempura, etc. do not affect wasabi state
             }
         }
 
@@ -523,20 +512,23 @@ public class SushiGoModule : IGameModule, IGameHandler
 
     private static void ApplyMakiScoring(int[] makiCounts, int[] roundScores, int playerCount)
     {
-        int firstMax  = makiCounts.Max();
+        int firstMax = makiCounts.Max();
         if (firstMax == 0) return;
 
-        var firstWinners  = Enumerable.Range(0, playerCount).Where(i => makiCounts[i] == firstMax).ToList();
+        var firstWinners = Enumerable.Range(0, playerCount)
+            .Where(i => makiCounts[i] == firstMax).ToList();
 
-        // Award 6 pts split among first-place winners
         int firstPrize = 6 / firstWinners.Count;
         foreach (var i in firstWinners)
             roundScores[i] += firstPrize;
 
-        // In 2-player, no second-place scoring
+        // In 2-player, no second-place maki scoring
         if (playerCount == 2) return;
 
-        int secondMax = makiCounts.Where((v, i) => !firstWinners.Contains(i)).DefaultIfEmpty(0).Max();
+        int secondMax = makiCounts
+            .Where((v, i) => !firstWinners.Contains(i))
+            .DefaultIfEmpty(0)
+            .Max();
         if (secondMax == 0) return;
 
         var secondWinners = Enumerable.Range(0, playerCount)
@@ -555,23 +547,25 @@ public class SushiGoModule : IGameModule, IGameHandler
         var puddings    = players.Select(p => p.PuddingCount).ToArray();
         var bonuses     = new int[playerCount];
 
-        int maxPudding = puddings.Max();
-        var mostWinners = Enumerable.Range(0, playerCount).Where(i => puddings[i] == maxPudding).ToList();
+        int maxPudding  = puddings.Max();
+        var mostWinners = Enumerable.Range(0, playerCount)
+            .Where(i => puddings[i] == maxPudding).ToList();
         int mostBonus = 6 / mostWinners.Count;
         foreach (var i in mostWinners)
             bonuses[i] += mostBonus;
 
-        // -6 penalty for fewest — not applied in 2-player
+        // -6 penalty for fewest puddings — NOT applied in 2-player
         if (playerCount > 2)
         {
-            int minPudding = puddings.Min();
-            var fewestLosers = Enumerable.Range(0, playerCount).Where(i => puddings[i] == minPudding).ToList();
-            int fewestPenalty = 6 / fewestLosers.Count; // 6 to split evenly (rounded down)
+            int minPudding   = puddings.Min();
+            var fewestLosers = Enumerable.Range(0, playerCount)
+                .Where(i => puddings[i] == minPudding).ToList();
+            int fewestPenalty = 6 / fewestLosers.Count;
             foreach (var i in fewestLosers)
                 bonuses[i] -= fewestPenalty;
         }
 
-        // Append pudding bonus as a final round score entry
+        // Append pudding score as a final entry in RoundScores
         return players.Select((p, i) =>
             bonuses[i] != 0
                 ? p with { RoundScores = [.. p.RoundScores, bonuses[i]] }
@@ -583,7 +577,6 @@ public class SushiGoModule : IGameModule, IGameHandler
 
     private static string DetermineWinner(List<SushiGoPlayer> players)
     {
-        // Highest total score wins; tiebreak = most puddings
         return players
             .OrderByDescending(p => p.RoundScores.Sum())
             .ThenByDescending(p => p.PuddingCount)
@@ -640,7 +633,7 @@ public class SushiGoModule : IGameModule, IGameHandler
         };
 
         var hands = new List<List<string>>(playerCount);
-        int pos = 0;
+        int pos   = 0;
         for (int i = 0; i < playerCount; i++)
         {
             hands.Add(deck.Skip(pos).Take(handSize).ToList());
