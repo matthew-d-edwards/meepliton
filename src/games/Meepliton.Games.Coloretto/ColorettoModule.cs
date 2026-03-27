@@ -64,16 +64,18 @@ public class ColorettoModule : IGameModule, IGameHandler
     {
         var state = Deserialize<ColorettoState>(fullState);
         if (state is null) return null;
-        var projected = ProjectForPlayer(state);
+        var projected = new ColorettoProjectedState(
+            Phase:               state.Phase,
+            Players:             state.Players,
+            Deck:                [],
+            DeckSize:            state.Deck.Count,
+            Rows:                state.Rows,
+            CurrentPlayerIndex:  state.CurrentPlayerIndex,
+            EndGameTriggered:    state.EndGameTriggered,
+            FinalScores:         state.FinalScores,
+            Winner:              state.Winner
+        );
         return Serialize(projected);
-    }
-
-    private static ColorettoState ProjectForPlayer(ColorettoState state)
-    {
-        // Hide the deck contents — expose only the count
-        // DeckSize is communicated via the extra property by serialising a wrapper
-        var projected = state with { Deck = [] };
-        return projected;
     }
 
     // ── Initial state ─────────────────────────────────────────────────────────
@@ -90,7 +92,7 @@ public class ColorettoModule : IGameModule, IGameHandler
                 DisplayName:       p.DisplayName,
                 AvatarUrl:         p.AvatarUrl,
                 SeatIndex:         p.SeatIndex,
-                Collection:        [],
+                Collection:        new Dictionary<string, int>(),
                 HasTakenThisRound: false
             )).ToList();
 
