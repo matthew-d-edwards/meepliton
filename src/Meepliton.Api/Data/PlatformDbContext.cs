@@ -34,6 +34,10 @@ public class PlatformDbContext(DbContextOptions<PlatformDbContext> options)
             e.Property(r => r.Status)
              .HasConversion<string>()
              .HasDefaultValue(RoomStatus.Waiting);
+            // Optimistic concurrency: EF Core will include state_version in UPDATE WHERE clauses.
+            // If another request already incremented it, SaveChangesAsync throws
+            // DbUpdateConcurrencyException, which GameDispatcher catches and retries.
+            e.Property(r => r.StateVersion).IsConcurrencyToken();
             // Value converters let the InMemory provider (used in tests) handle JsonDocument.
             // Npgsql still stores the value as JSONB; it just receives/returns a JSON string.
             e.Property(r => r.GameState)

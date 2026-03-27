@@ -32,8 +32,10 @@ public class SushiGoModule : IGameModule, IGameHandler
         if (error is not null) return new GameResult(ctx.CurrentState, error);
         var newState    = Apply(state, action, ctx.PlayerId);
         var newStateDoc = Serialize(newState);
-        if (newState.Phase == SushiGoPhase.Finished && newState.Winner is not null)
-            return new GameResult(newStateDoc, Effects: [new GameOverEffect(newState.Winner)]);
+        // Emit GameOverEffect for both a winner and a true draw (Winner == null).
+        // The platform needs the signal either way to close the room.
+        if (newState.Phase == SushiGoPhase.Finished)
+            return new GameResult(newStateDoc, Effects: [new GameOverEffect(newState.Winner ?? string.Empty)]);
         return new GameResult(newStateDoc);
     }
 
@@ -370,10 +372,10 @@ public class SushiGoModule : IGameModule, IGameHandler
         var hands       = DealHands(deck, playerCount, out var remainingDeck);
         var pendingPicks = state.Players.Select(_ => (string?)null).ToList();
 
-        // Clear tableaux; pudding totals are preserved in PuddingCount
+        // Clear tableaux of all non-pudding cards; pudding cards persist across rounds per spec.
         var newPlayers = state.Players.Select(p => p with
         {
-            Tableau         = [],
+            Tableau         = p.Tableau.Where(c => c == SushiGoCards.Pudding).ToList(),
             HasPicked       = false,
             UsingChopsticks = false
         }).ToList();
@@ -575,13 +577,22 @@ public class SushiGoModule : IGameModule, IGameHandler
 
     // ── Determine winner ──────────────────────────────────────────────────────
 
-    private static string DetermineWinner(List<SushiGoPlayer> players)
+    /// <summary>
+    /// Returns the winner's ID, or null on a true tie (same total score and same pudding count).
+    /// </summary>
+    private static string? DetermineWinner(List<SushiGoPlayer> players)
     {
-        return players
-            .OrderByDescending(p => p.RoundScores.Sum())
-            .ThenByDescending(p => p.PuddingCount)
-            .First()
-            .Id;
+        int maxScore = players.Max(p => p.RoundScores.Sum());
+        var scoreLeaders = players.Where(p => p.RoundScores.Sum() == maxScore).ToList();
+
+        if (scoreLeaders.Count == 1) return scoreLeaders[0].Id;
+
+        int maxPudding = scoreLeaders.Max(p => p.PuddingCount);
+        var puddingLeaders = scoreLeaders.Where(p => p.PuddingCount == maxPudding).ToList();
+
+        // True tie — spec says it is a draw
+        if (puddingLeaders.Count > 1) return null;
+        return puddingLeaders[0].Id;
     }
 
     // ── Deck / hand helpers ───────────────────────────────────────────────────
