@@ -165,7 +165,7 @@ public static class AuthEndpoints
             if (!result.Succeeded)
                 return Results.Json(new { message = "Incorrect email or password" }, statusCode: 401);
 
-            var jwt = tokenService.GenerateToken(user);
+            var jwt = await tokenService.GenerateTokenAsync(user);
             ctx.Response.Cookies.Append(CookieName, jwt, BuildCookieOptions(env));
 
             user.LastSeenAt = DateTimeOffset.UtcNow;
@@ -196,7 +196,7 @@ public static class AuthEndpoints
             var user = await userManager.FindByIdAsync(userId);
             if (user is null) return Results.Unauthorized();
 
-            var jwt = tokenService.GenerateToken(user);
+            var jwt = await tokenService.GenerateTokenAsync(user);
             ctx.Response.Cookies.Append(CookieName, jwt, BuildCookieOptions(env));
 
             user.LastSeenAt = DateTimeOffset.UtcNow;
@@ -446,7 +446,7 @@ public static class AuthEndpoints
             user.LastSeenAt = DateTimeOffset.UtcNow;
             await userManager.UpdateAsync(user);
 
-            var jwt = tokenService.GenerateToken(user);
+            var jwt = await tokenService.GenerateTokenAsync(user);
             ctx.Response.Cookies.Append(CookieName, jwt, BuildCookieOptions(env));
 
             var frontendUrl = configuration["Frontend:BaseUrl"] ?? "https://meepliton.com";

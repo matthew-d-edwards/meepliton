@@ -100,7 +100,10 @@ if (!string.IsNullOrEmpty(googleClientId) && !string.IsNullOrEmpty(googleClientS
     });
 }
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+});
 
 // Configure JSON to serialize enums as strings so the frontend can compare status values by name
 builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(opts =>
@@ -162,6 +165,7 @@ else
 builder.Services.AddScoped<MigrationRunner>();
 builder.Services.AddScoped<GameDispatcher>();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<AdminSeeder>();
 builder.Services.AddScoped<DevSeeder>();
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
@@ -190,6 +194,11 @@ using (var scope = app.Services.CreateScope())
 
     var runner = scope.ServiceProvider.GetRequiredService<MigrationRunner>();
     await runner.RunAllAsync();
+
+    logger.LogInformation("=== STARTUP: Running AdminSeeder ===");
+    var adminSeeder = scope.ServiceProvider.GetRequiredService<AdminSeeder>();
+    await adminSeeder.SeedAsync();
+    logger.LogInformation("=== STARTUP: AdminSeeder completed ===");
 
     if (app.Environment.IsDevelopment())
     {
@@ -224,6 +233,7 @@ app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapAuthEndpoints();
 app.MapRoomEndpoints();
+app.MapAdminEndpoints();
 app.MapHub<GameHub>("/hubs/game");
 
 app.Run();
