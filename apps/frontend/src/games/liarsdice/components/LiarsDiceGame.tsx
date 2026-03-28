@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { GameContext } from '@meepliton/contracts'
 import type { LiarsDiceState, LiarsDiceAction } from '../types'
 import { DiceCup } from './DiceCup'
@@ -5,6 +6,7 @@ import { BidControls } from './BidControls'
 import { GameStatus } from './GameStatus'
 import '../liarsdice.css'
 import styles from '../styles.module.css'
+import feltUrl from '../felt-pattern.svg?url'
 
 export default function LiarsDiceGame({ state, myPlayerId, dispatch }: GameContext<LiarsDiceState>) {
   const currentPlayer = state.players[state.currentPlayerIndex]
@@ -23,14 +25,26 @@ export default function LiarsDiceGame({ state, myPlayerId, dispatch }: GameConte
     }
   }
 
+  // Render opponents first, me last
+  const opponents = state.players.filter(p => p.id !== myPlayerId)
+  const mePlayer = state.players.find(p => p.id === myPlayerId)
+  const orderedPlayers = [...opponents, ...(mePlayer ? [mePlayer] : [])]
+
   return (
     <div data-game-theme="pirates" className={styles.root}>
       {/* Game status panel */}
       <GameStatus state={state} myPlayerId={myPlayerId} />
 
       {/* Player cups area */}
-      <div className={styles.cupsGrid} data-stagger>
-        {state.players.map(player => {
+      <div
+        className={styles.cupsGrid}
+        style={{
+          '--felt-texture-url': `url(${feltUrl})`,
+          '--seat-index': 0,
+        } as CSSProperties}
+        data-stagger
+      >
+        {orderedPlayers.map(player => {
           const isMe = player.id === myPlayerId
           const revealDice = revealMap.get(player.id)
 
@@ -44,6 +58,7 @@ export default function LiarsDiceGame({ state, myPlayerId, dispatch }: GameConte
               palificoActive={state.palificoActive}
               isCurrentPlayer={player.id === currentPlayer?.id}
               revealDice={revealDice}
+              style={{ '--seat-index': player.seatIndex } as CSSProperties}
             />
           )
         })}
