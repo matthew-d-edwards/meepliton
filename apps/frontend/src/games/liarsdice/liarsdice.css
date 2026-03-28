@@ -2,6 +2,8 @@
    Scoped to [data-game-theme="pirates"] so the platform chrome is unaffected.
    Aesthetic: maritime navigation charts, weathered brass, dark ocean, lantern light. */
 
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap');
+
 [data-game-theme="pirates"] {
   /* ── Color aliases (used by styles.module.css via var(--color-*, fallback)) ── */
   --color-background:     #0d1b2a;   /* deep navy */
@@ -40,4 +42,33 @@
   /* Radius tightened — charts feel more precise than rounded */
   --radius-sm:            2px;
   --radius-md:            4px;
+
+  /* Game display font — falls back to Georgia until CSP is confirmed */
+  --font-game-display: 'IM Fell English', Georgia, 'Times New Roman', serif;
+
+  /* Candlelight and brass */
+  --pirate-candle:        #e8a430;
+  --pirate-brass:         #c8973a;
+  --pirate-brass-dim:     #8a6428;
+
+  /* Leather */
+  --pirate-leather:       #6b3518;
+  --pirate-leather-dark:  #3d1f0a;
+
+  /* Felt */
+  --pirate-felt:          #1a2e1a;
+
+  /* Parchment */
+  --pirate-parchment:     #e8dfc8;
+  --pirate-parchment-dim: #b8ab8a;
+
+  /* Die face — bone/ivory */
+  --pirate-bone-light:    #f5ead6;
+  --pirate-bone-mid:      #d4b896;
+  --pirate-bone-shadow:   #8a6a3e;
+  --pirate-ink:           #2a1506;
+
+  /* Danger */
+  --pirate-liar-red:      #c0392b;
+  --pirate-liar-glow:     rgba(192, 57, 43, 0.45);
 }

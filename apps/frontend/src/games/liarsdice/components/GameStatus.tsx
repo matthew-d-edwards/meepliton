@@ -1,10 +1,56 @@
-import type { LiarsDiceState, Bid } from '../types'
+import type { LiarsDiceState, Bid, RevealSnapshot } from '../types'
 import { DiceFace } from './DiceFace'
 import styles from '../styles.module.css'
 
 interface Props {
   state: LiarsDiceState
   myPlayerId: string
+}
+
+function RevealScoreline({ reveal, loserId, myPlayerId }: { reveal: RevealSnapshot; loserId: string; myPlayerId: string }) {
+  const face = reveal.challengedBid.face as 1 | 2 | 3 | 4 | 5 | 6
+  const bidMet = reveal.actualCount >= reveal.challengedBid.quantity
+  const iLost = loserId === myPlayerId
+  const loserName = iLost ? 'You lose a die' : undefined
+
+  return (
+    <div
+      className={styles.revealScoreline}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-label={`Found ${reveal.actualCount} dice showing ${face}, bid was ${reveal.challengedBid.quantity}. ${bidMet ? 'Bid proven.' : 'Bid failed.'}`}
+    >
+      {/* Found side */}
+      <div className={`${styles.revealSide} ${bidMet ? styles.revealSideWin : styles.revealSideLose}`}>
+        <span className={styles.revealSideLabel}>Found</span>
+        <div className={styles.revealSideCount} aria-hidden="true">
+          <span className={styles.revealQty}>{reveal.actualCount}</span>
+          <span className={styles.revealTimes} aria-hidden="true">×</span>
+          <DiceFace value={face} size="md" highlighted={bidMet} />
+        </div>
+      </div>
+
+      <span className={styles.revealVs} aria-hidden="true">vs</span>
+
+      {/* Bid side */}
+      <div className={`${styles.revealSide} ${styles.revealSideBid}`}>
+        <span className={styles.revealSideLabel}>Bid</span>
+        <div className={styles.revealSideCount} aria-hidden="true">
+          <span className={styles.revealQty}>{reveal.challengedBid.quantity}</span>
+          <span className={styles.revealTimes} aria-hidden="true">×</span>
+          <DiceFace value={face} size="md" />
+        </div>
+      </div>
+
+      {/* Loser tag */}
+      {loserName && (
+        <div className={styles.revealLoserTag} aria-live="assertive">
+          {loserName}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function BidDisplay({ bid }: { bid: Bid }) {
@@ -65,19 +111,20 @@ export function GameStatus({ state, myPlayerId }: Props) {
         </div>
       )}
 
-      {/* Reveal result */}
+      {/* Reveal result verdict */}
       {state.phase === 'Reveal' && state.lastChallengeResult && (
         <div className={styles.statusRevealResult} role="status">
           {state.lastChallengeResult}
         </div>
       )}
 
-      {/* Reveal details */}
+      {/* Reveal scoreline — found × [face] vs bid × [face] */}
       {state.phase === 'Reveal' && state.lastReveal && (
-        <div className={styles.statusRevealDetail} aria-live="polite" aria-atomic="true">
-          Actual count: <strong>{state.lastReveal.actualCount}</strong>
-          {' '}(bid was {state.lastReveal.challengedBid.quantity}×{state.lastReveal.challengedBid.face})
-        </div>
+        <RevealScoreline
+          reveal={state.lastReveal}
+          loserId={state.lastReveal.loserId}
+          myPlayerId={myPlayerId}
+        />
       )}
 
       {/* Winner */}
