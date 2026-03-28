@@ -34,11 +34,18 @@ public class GameDispatcher(
         // room queue up at the database — each sees the fully-committed state of the previous.
         // Different rooms lock different rows and never block each other.
         // This works correctly across multiple backend instances without any retry logic.
+        //
+        // NOTE: ExecuteSqlAsync is used for the lock query rather than FromSqlRaw+FirstOrDefault.
+        // EF Core wraps FromSqlRaw in a subquery to project columns, and PostgreSQL rejects
+        // FOR UPDATE inside a derived table with "FOR UPDATE is not allowed in subqueries".
+        // ExecuteSqlAsync runs the lock query directly, then a normal EF Core query loads the
+        // entity within the same transaction (so the lock is preserved).
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
-        var room = await db.Rooms
-            .FromSqlRaw("SELECT * FROM rooms WHERE id = {0} FOR UPDATE", roomId)
-            .FirstOrDefaultAsync(ct)
+        await db.Database.ExecuteSqlAsync(
+            $"SELECT 1 FROM rooms WHERE id = {roomId} FOR UPDATE", ct);
+
+        var room = await db.Rooms.FirstOrDefaultAsync(r => r.Id == roomId, ct)
             ?? throw new InvalidOperationException($"Room {roomId} not found.");
 
         var handler = handlers.FirstOrDefault(h => h.GameId == room.GameId)
@@ -66,6 +73,12 @@ public class GameDispatcher(
         room.GameState    = result.NewState;
         room.StateVersion++;
 
+        // Apply GameOverEffect status change inside the transaction so the room Status
+        // and the new game state are committed atomically.
+        var gameOverEffect = result.Effects.OfType<GameOverEffect>().FirstOrDefault();
+        if (gameOverEffect is not null)
+            room.Status = RoomStatus.Finished;
+
         db.ActionLog.Add(new ActionLog
         {
             RoomId       = roomId,
@@ -92,15 +105,13 @@ public class GameDispatcher(
                 .SendAsync("StateUpdated", result.NewState, ct);
         }
 
-        // Handle side effects
+        // Handle post-commit side effects (SignalR only — no more DB writes after commit)
         foreach (var effect in result.Effects)
         {
-            if (effect is GameOverEffect gameOver)
+            if (effect is GameOverEffect go)
             {
-                room.Status = RoomStatus.Finished;
-                await db.SaveChangesAsync(ct);
                 await hubContext.Clients.Group(roomId)
-                    .SendAsync("GameFinished", new { WinnerId = gameOver.WinnerId }, ct);
+                    .SendAsync("GameFinished", new { WinnerId = go.WinnerId }, ct);
             }
             else if (effect is NotifyEffect notify)
             {
