@@ -20,5 +20,6 @@ export interface GameContext<TState> {
 // A game module is a named React component that renders itself
 export interface GameModule<TState = unknown> {
   gameId:    string
+  theme?:    string   // CSS selector key, e.g. "pirates"
   Component: FC<GameContext<TState>>
 }

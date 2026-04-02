@@ -36,6 +36,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
   const [players, setPlayers] = useState<PlayerInfo[]>([])
   const [gameState, setGameState] = useState<unknown>(null)
   const [rejectedReason, setRejectedReason] = useState<string | null>(null)
+  const [gameTheme, setGameTheme] = useState<string | null>(null)
   const [minPlayers, setMinPlayers] = useState(2)
   const [gameName, setGameName] = useState('')
   const [debugOpen, setDebugOpen] = useState(false)
@@ -216,7 +217,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
   return (
     <>
       {subNav}
-      <div className="room-page">
+      <div className="room-page" data-game-theme={gameTheme ?? undefined}>
       {rejectedReason && (
         <ActionRejectedToast
           reason={rejectedReason}
@@ -271,7 +272,7 @@ export default function RoomPage({ join }: { join?: boolean }) {
           )}
         </div>
       )}
-      <GameLoader load={loadGame} ctx={ctx} />
+      <GameLoader load={loadGame} ctx={ctx} onThemeLoaded={setGameTheme} />
       </div>
     </>
   )
@@ -280,14 +281,21 @@ export default function RoomPage({ join }: { join?: boolean }) {
 function GameLoader({
   load,
   ctx,
+  onThemeLoaded,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   load: () => Promise<{ default: import('@meepliton/contracts').GameModule<any> }>
   ctx: GameContext<unknown>
+  onThemeLoaded: (theme: string | null) => void
 }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [mod, setMod] = useState<import('@meepliton/contracts').GameModule<any> | null>(null)
-  useEffect(() => { load().then(m => setMod(m.default)) }, [load])
+  useEffect(() => {
+    load().then(m => {
+      setMod(m.default)
+      onThemeLoaded(m.default.theme ?? null)
+    })
+  }, [load])
   if (!mod) return <RoomLoadingScreen label="Loading game…" />
   const { Component } = mod
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

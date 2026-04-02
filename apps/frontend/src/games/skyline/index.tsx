@@ -4,6 +4,7 @@ import Game from './components/Game'
 
 const skyline: GameModule<SkylineState> = {
   gameId: 'skyline',
+  theme: 'skyline',
   Component: Game,
 }
 

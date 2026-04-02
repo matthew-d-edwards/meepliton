@@ -4,6 +4,7 @@ import LiarsDiceGame from './components/LiarsDiceGame'
 
 const liarsdice: GameModule<LiarsDiceState> = {
   gameId: 'liarsdice',
+  theme: 'pirates',
   Component: LiarsDiceGame,
 }
 
