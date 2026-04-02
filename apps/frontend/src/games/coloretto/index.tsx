@@ -4,6 +4,7 @@ import ColorettoGame from './components/ColorettoGame'
 
 const coloretto: GameModule<ColorettoState> = {
   gameId: 'coloretto',
+  theme: 'chameleon-market',
   Component: ColorettoGame,
 }
 

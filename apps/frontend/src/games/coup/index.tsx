@@ -4,6 +4,7 @@ import CoupGame from './components/CoupGame'
 
 const coup: GameModule<CoupState> = {
   gameId: 'coup',
+  theme: 'inner-circle',
   Component: CoupGame,
 }
 

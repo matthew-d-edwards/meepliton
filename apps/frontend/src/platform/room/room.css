@@ -1,3 +1,10 @@
+/* ── ROOM PAGE ── */
+
+.room-page {
+  background: var(--surface-base);
+  min-height: calc(100vh - var(--header-h) - 40px);
+}
+
 /* ── ROOM SUB-NAV ── */
 
 .room-subnav {
