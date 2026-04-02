@@ -236,22 +236,33 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  background: var(--color-surface, var(--surface-raised));
+  background:
+    linear-gradient(
+      160deg,
+      var(--pirate-leather-dark, var(--color-surface, var(--surface-raised))) 0%,
+      var(--color-surface, var(--surface-raised)) 55%
+    );
   border: 1px solid var(--color-border, var(--edge-subtle));
   border-radius: var(--radius-md);
   padding: var(--space-3);
-  transition: border-color 200ms;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pirate-brass, var(--color-primary, var(--accent))) 8%, transparent);
+  transition: border-color 200ms, box-shadow 200ms;
 }
 
 .cupActive {
   border-color: var(--color-primary, var(--accent));
-  box-shadow: 0 0 12px color-mix(in srgb, var(--color-primary, var(--accent)) 25%, transparent);
+  border-width: 2px;
+  box-shadow:
+    0 0 16px color-mix(in srgb, var(--color-primary, var(--accent)) 35%, transparent),
+    0 0 4px  color-mix(in srgb, var(--color-primary, var(--accent)) 60%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--pirate-brass, var(--color-primary, var(--accent))) 20%, transparent);
 }
 
 .cupEliminated {
   /* Raised from 0.45 to avoid collapsing text contrast below WCAG AA (4.5:1).
      The dimmed appearance is preserved while keeping content legible. */
   opacity: 0.6;
+  filter: grayscale(40%);
 }
 
 .cupHeader {
@@ -263,8 +274,8 @@
 }
 
 .cupPlayerName {
-  font-family: var(--font-body);
-  font-size: 0.82rem;
+  font-family: var(--font-game-display, var(--font-body));
+  font-size: 0.88rem;
   font-weight: 600;
   color: var(--color-text, var(--text-primary));
   white-space: nowrap;
@@ -273,9 +284,10 @@
 }
 
 .cupMeTag {
-  font-size: 0.7rem;
-  color: var(--color-text-muted, var(--text-muted));
-  font-weight: 400;
+  font-size: 0.72rem;
+  color: var(--color-primary, var(--accent));
+  font-weight: 600;
+  font-style: italic;
 }
 
 .cupEliminatedTag {
@@ -283,8 +295,8 @@
   font-size: 0.6rem;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--color-text-muted, var(--text-muted));
-  border: 1px solid var(--color-border, var(--edge-subtle));
+  color: var(--pirate-liar-red, var(--color-text-muted, var(--text-muted)));
+  border: 1px solid color-mix(in srgb, var(--pirate-liar-red, var(--color-text-muted, var(--text-muted))) 50%, transparent);
   border-radius: var(--radius-pill);
   padding: 1px 6px;
 }
@@ -296,6 +308,7 @@
   text-transform: uppercase;
   color: var(--color-primary, var(--accent));
   border: 1px solid var(--color-primary, var(--accent));
+  background: color-mix(in srgb, var(--color-primary, var(--accent)) 12%, transparent);
   border-radius: var(--radius-pill);
   padding: 1px 6px;
 }

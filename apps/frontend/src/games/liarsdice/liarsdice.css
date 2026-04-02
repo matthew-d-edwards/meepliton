@@ -71,4 +71,12 @@
   /* Danger */
   --pirate-liar-red:      #c0392b;
   --pirate-liar-glow:     rgba(192, 57, 43, 0.45);
+
+  /* Ocean depth gradient tokens */
+  --bg-ocean-surface:  #0e2035;
+  --bg-ocean-mid:      #0d1b2a;
+  --bg-ocean-deep:     #060e18;
+
+  /* Tension escalation — border bleeds toward danger as bid rises */
+  --tension-border-high: #8a3a1a;
 }

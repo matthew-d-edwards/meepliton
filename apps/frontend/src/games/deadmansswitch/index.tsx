@@ -4,6 +4,7 @@ import DeadMansSwitchGame from './components/DeadMansSwitchGame'
 
 const deadmansswitch: GameModule<DeadMansSwitchState> = {
   gameId: 'deadmansswitch',
+  theme: 'deadmansswitch',
   Component: DeadMansSwitchGame,
 }
 

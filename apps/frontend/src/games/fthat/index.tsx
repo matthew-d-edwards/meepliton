@@ -4,6 +4,7 @@ import FThatGame from './components/FThatGame'
 
 const fthat: GameModule<FThatView> = {
   gameId: 'fthat',
+  theme: 'fthat',
   Component: FThatGame,
 }
 

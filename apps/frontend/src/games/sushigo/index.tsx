@@ -4,6 +4,7 @@ import SushiGoGame from './components/SushiGoGame'
 
 const sushigo: GameModule<SushiGoState> = {
   gameId: 'sushigo',
+  theme: 'sushi-train',
   Component: SushiGoGame,
 }
 
