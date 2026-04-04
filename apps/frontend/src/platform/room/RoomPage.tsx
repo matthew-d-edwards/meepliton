@@ -134,6 +134,10 @@ export default function RoomPage({ join }: { join?: boolean }) {
       if (isCurrent) setRoom(r => r ? { ...r, hostId: newHostId } : r)
     })
 
+    hub.onreconnected(() => {
+      if (isCurrent) hub.invoke('JoinRoom', roomId).catch(() => { /* ignore — will retry on next reconnect */ })
+    })
+
     hub.start().then(() => { if (isCurrent) hub.invoke('JoinRoom', roomId) })
     hubRef.current = hub
 

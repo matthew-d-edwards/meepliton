@@ -66,7 +66,7 @@ public class GameHub(GameDispatcher dispatcher, PlatformDbContext db, ILogger<Ga
 
         if (result.RejectionReason is not null)
         {
-            await Clients.Caller.SendAsync("ActionRejected", new { Reason = result.RejectionReason });
+            await Clients.Caller.SendAsync("ActionRejected", new { reason = result.RejectionReason });
         }
     }
 
