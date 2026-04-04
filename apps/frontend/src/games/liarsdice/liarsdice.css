@@ -56,7 +56,15 @@
   --pirate-leather-dark:  #3d1f0a;
 
   /* Felt */
-  --pirate-felt:          #1a2e1a;
+  --pirate-felt:          #152e35;
+
+  /* Wood */
+  --pirate-wood-dark:     #1a0d03;
+  --pirate-wood-mid:      #2c1506;
+  --pirate-wood-light:    #5a3010;
+
+  /* Rope */
+  --pirate-rope:          #8a6428;
 
   /* Parchment */
   --pirate-parchment:     #e8dfc8;
