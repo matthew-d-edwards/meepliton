@@ -156,36 +156,12 @@ export default function CoupGame({ state, myPlayerId, dispatch }: GameContext<Co
       {/* Header */}
       <div className={styles.header}>
         <span className={styles.headerTitle}>The Inner Circle</span>
-        {state.phase !== 'Waiting' && activePlayer && (
+        {activePlayer && (
           <span className={styles.headerTurn}>
             {isMyTurn ? 'Your turn' : `${activePlayer.displayName}'s turn`}
           </span>
         )}
       </div>
-
-      {/* ── Waiting ── */}
-      {state.phase === 'Waiting' && (
-        <div className={styles.waitingArea}>
-          <div className={styles.waitingTitle}>Waiting for players…</div>
-          <div className={styles.waitingSubtitle}>
-            {state.players.length} player{state.players.length !== 1 ? 's' : ''} in room
-          </div>
-          {isHost && (
-            <div className={styles.actionRow}>
-              <button
-                type="button"
-                className={`${styles.btn} ${styles.btnPrimary}`}
-                onClick={() => send({ type: 'StartGame' })}
-              >
-                Start Game
-              </button>
-            </div>
-          )}
-          {!isHost && (
-            <div className={styles.waitingSubtitle}>Waiting for the host to start…</div>
-          )}
-        </div>
-      )}
 
       {/* ── Finished ── */}
       {state.phase === 'Finished' && state.winner !== null && (
@@ -197,19 +173,17 @@ export default function CoupGame({ state, myPlayerId, dispatch }: GameContext<Co
         </div>
       )}
 
-      {/* Players grid — always shown during play */}
-      {state.phase !== 'Waiting' && (
-        <div className={styles.playersGrid}>
-          {state.players.map(player => (
-            <PlayerCard
-              key={player.id}
-              player={player}
-              isMe={player.id === myPlayerId}
-              isActiveTurn={player.id === activePlayer?.id}
-            />
-          ))}
-        </div>
-      )}
+      {/* Players grid */}
+      <div className={styles.playersGrid}>
+        {state.players.map(player => (
+          <PlayerCard
+            key={player.id}
+            player={player}
+            isMe={player.id === myPlayerId}
+            isActiveTurn={player.id === activePlayer?.id}
+          />
+        ))}
+      </div>
 
       {/* ── Pending action description ── */}
       {state.pending !== null && (

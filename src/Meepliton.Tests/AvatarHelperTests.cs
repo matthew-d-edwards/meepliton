@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Meepliton.Api.Helpers;
+using Xunit;
 
 namespace Meepliton.Tests;
 

@@ -219,33 +219,11 @@ export default function ColorettoGame({ state, myPlayerId, dispatch }: GameConte
       {/* Header */}
       <div className={styles.header}>
         <span className={styles.headerTitle}>Chameleon Market</span>
-        {state.phase !== 'Waiting' && (
-          <span className={styles.headerInfo}>
-            {state.deckSize} cards left
-            {state.endGameTriggered && ' · Final round!'}
-          </span>
-        )}
+        <span className={styles.headerInfo}>
+          {state.deckSize} cards left
+          {state.endGameTriggered && ' · Final round!'}
+        </span>
       </div>
-
-      {/* ── Waiting ── */}
-      {state.phase === 'Waiting' && (
-        <div className={styles.waitingArea}>
-          <div className={styles.waitingTitle}>Waiting for players…</div>
-          <div className={styles.waitingSubtitle}>
-            {state.players.length} player{state.players.length !== 1 ? 's' : ''} in room
-          </div>
-          {isHost ? (
-            <div className={styles.actionRow}>
-              <button type="button" className={`${styles.btn} ${styles.btnPrimary}`}
-                onClick={() => send({ type: 'StartGame' })}>
-                Start Game
-              </button>
-            </div>
-          ) : (
-            <div className={styles.waitingSubtitle}>Waiting for the host to start…</div>
-          )}
-        </div>
-      )}
 
       {/* ── End game banner ── */}
       {state.phase === 'Playing' && state.endGameTriggered && (
@@ -284,41 +262,39 @@ export default function ColorettoGame({ state, myPlayerId, dispatch }: GameConte
       )}
 
       {/* ── Players ── */}
-      {state.phase !== 'Waiting' && (
-        <div className={styles.playersSection}>
-          <div className={styles.playersSectionTitle}>Collections</div>
-          <div className={styles.playersGrid}>
-            {state.players.map(player => {
-              const isMe = player.id === myPlayerId
-              const isCurrentTurn = player.id === currentPlayer?.id && !player.hasTakenThisRound
-              return (
-                <div
-                  key={player.id}
-                  className={[
-                    styles.playerCard,
-                    isMe ? styles.playerCardMe : '',
-                    isCurrentTurn ? styles.playerCardCurrentTurn : '',
-                    player.hasTakenThisRound ? styles.playerCardTaken : '',
-                  ].filter(Boolean).join(' ')}
-                >
-                  <div className={styles.playerCardHeader}>
-                    <span className={styles.playerName}>
-                      {player.displayName}{isMe ? ' (you)' : ''}
-                    </span>
-                    {player.hasTakenThisRound && (
-                      <span className={styles.takenTag}>Done</span>
-                    )}
-                  </div>
-                  <CollectionDisplay
-                    collection={player.collection}
-                    topColors={[]}
-                  />
+      <div className={styles.playersSection}>
+        <div className={styles.playersSectionTitle}>Collections</div>
+        <div className={styles.playersGrid}>
+          {state.players.map(player => {
+            const isMe = player.id === myPlayerId
+            const isCurrentTurn = player.id === currentPlayer?.id && !player.hasTakenThisRound
+            return (
+              <div
+                key={player.id}
+                className={[
+                  styles.playerCard,
+                  isMe ? styles.playerCardMe : '',
+                  isCurrentTurn ? styles.playerCardCurrentTurn : '',
+                  player.hasTakenThisRound ? styles.playerCardTaken : '',
+                ].filter(Boolean).join(' ')}
+              >
+                <div className={styles.playerCardHeader}>
+                  <span className={styles.playerName}>
+                    {player.displayName}{isMe ? ' (you)' : ''}
+                  </span>
+                  {player.hasTakenThisRound && (
+                    <span className={styles.takenTag}>Done</span>
+                  )}
                 </div>
-              )
-            })}
-          </div>
+                <CollectionDisplay
+                  collection={player.collection}
+                  topColors={[]}
+                />
+              </div>
+            )
+          })}
         </div>
-      )}
+      </div>
 
       {/* ── Finished ── */}
       {state.phase === 'Finished' && state.finalScores && (

@@ -22,10 +22,14 @@ const FACE_VALUES = [1, 2, 3, 4, 5, 6] as const
 export function BidControls({ currentBid, players, me, dispatch }: Props) {
   const totalActiveDice = players.filter(p => p.active).reduce((sum, p) => sum + p.diceCount, 0)
 
-  // Default to a bid just above current
-  const defaultQuantity = currentBid?.quantity ?? 1
+  // Default to a bid strictly above current.
+  // If face < 6: same quantity, face + 1.
+  // If face === 6: quantity + 1, face wraps back to 1 (must increase quantity).
+  const defaultQuantity = currentBid !== null
+    ? (currentBid.face < 6 ? currentBid.quantity : currentBid.quantity + 1)
+    : 1
   const defaultFace = currentBid !== null
-    ? (currentBid.face < 6 ? currentBid.face + 1 : currentBid.face)
+    ? (currentBid.face < 6 ? currentBid.face + 1 : 1)
     : 1
 
   const [quantity, setQuantity] = useState<number>(defaultQuantity)
