@@ -27,6 +27,8 @@ builder.AddViteApp("frontend", "../../apps/frontend")
     .WithHttpEndpoint(port: 5173, name: "frontend")
     // Disable the DCP reverse proxy so the browser connects to Vite directly on 5173.
     // Without this, Aspire picks a random proxy port on each restart.
-    .WithEndpoint("frontend", e => e.IsProxied = false);
+    .WithEndpoint("frontend", e => {
+        e.Port = 5022;
+     });
 
 builder.Build().Run();
