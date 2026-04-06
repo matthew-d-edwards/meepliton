@@ -25,28 +25,36 @@ export default function LiarsDiceGame({ state, myPlayerId, dispatch }: GameConte
 
   return (
     <div data-game-theme="pirates" className={styles.root}>
+      {/* Carved wood title banner */}
+      <div className={styles.gameTitle} aria-hidden="true">
+        <span className={styles.gameTitleMain}>Liar's Dice</span>
+        <span className={styles.gameTitleSub}>The Pirate's Grog</span>
+      </div>
+
       {/* Game status panel */}
       <GameStatus state={state} myPlayerId={myPlayerId} />
 
-      {/* Player cups area */}
-      <div className={styles.cupsGrid} data-stagger>
-        {state.players.map(player => {
-          const isMe = player.id === myPlayerId
-          const revealDice = revealMap.get(player.id)
+      {/* Oval felt table wrapping player cups */}
+      <div className={styles.tableArea}>
+        <div className={styles.cupsGrid} data-stagger>
+          {state.players.map(player => {
+            const isMe = player.id === myPlayerId
+            const revealDice = revealMap.get(player.id)
 
-          return (
-            <DiceCup
-              key={player.id}
-              player={player}
-              isMe={isMe}
-              phase={state.phase}
-              currentBid={state.currentBid}
-              palificoActive={state.palificoActive}
-              isCurrentPlayer={player.id === currentPlayer?.id}
-              revealDice={revealDice}
-            />
-          )
-        })}
+            return (
+              <DiceCup
+                key={player.id}
+                player={player}
+                isMe={isMe}
+                phase={state.phase}
+                currentBid={state.currentBid}
+                palificoActive={state.palificoActive}
+                isCurrentPlayer={player.id === currentPlayer?.id}
+                revealDice={revealDice}
+              />
+            )
+          })}
+        </div>
       </div>
 
       {/* Bid controls — only shown when it is the local player's turn during Bidding */}

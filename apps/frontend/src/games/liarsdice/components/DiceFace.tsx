@@ -111,6 +111,15 @@ export function DiceFace({ value, size = 'md', highlighted = false, wild = false
           <stop offset="70%" stopColor="#5c3010" />
           <stop offset="100%" stopColor="transparent" />
         </radialGradient>
+        {highlighted && (
+          <filter id={`${uid}-glow`}>
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        )}
       </defs>
 
       {/* Die body */}
@@ -137,6 +146,7 @@ export function DiceFace({ value, size = 'md', highlighted = false, wild = false
           ry={cornerR}
           fill="none"
           className={styles.diceFaceHighlightBorder}
+          filter={`url(#${uid}-glow)`}
         />
       )}
 
