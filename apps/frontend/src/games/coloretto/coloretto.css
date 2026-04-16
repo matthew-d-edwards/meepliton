@@ -36,6 +36,18 @@
   --radius-sm:             0px;
   --radius-md:             0px;
 
+  /* Motion */
+  --duration-quick:        150ms;
+  --duration-standard:     200ms;
+  --duration-panel:        320ms;
+  --ease-standard:         ease;
+  --ease-panel:            cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Chip geometry */
+  --chip-lift-y:           -2px;
+  --chip-size:             36px;
+  --chip-border-width:     2px;
+
   /* ── Card colour tokens ── */
   --card-brown:   #8B4513;
   --card-blue:    #1565C0;

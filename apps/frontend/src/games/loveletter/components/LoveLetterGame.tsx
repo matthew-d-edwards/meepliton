@@ -55,7 +55,7 @@ function PlayerCard({ player, isMe, isCurrentTurn, tokenTarget }: PlayerCardProp
           {player.displayName}
           {isMe && <span className={styles.playerMeTag}> (you)</span>}
         </span>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className={styles.playerTagGroup}>
           {isCurrentTurn && player.active && <span className={styles.playerTurnTag}>Turn</span>}
           {!player.active && <span className={styles.playerEliminatedTag}>Out</span>}
           {player.handmaid && <span className={styles.playerHandmaidTag}>Protected</span>}
@@ -157,7 +157,7 @@ export default function LoveLetterGame({ state, myPlayerId, dispatch }: GameCont
     : null
 
   return (
-    <div data-game-theme="affairs-of-the-court" className={styles.root}>
+    <div data-game-theme="affairs-of-the-court" className={state.faceUpSetAside.length > 0 ? styles.rootWithSetAside : styles.root}>
 
       {/* Priest reveal modal */}
       {priestReveal && (
@@ -165,7 +165,7 @@ export default function LoveLetterGame({ state, myPlayerId, dispatch }: GameCont
           <div className={styles.priestModalBox}>
             <div className={styles.priestModalTitle}>You looked at their card</div>
             <div className={styles.priestModalCard}>{priestReveal.card}</div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+            <p className={styles.priestModalDesc}>
               {state.players.find(p => p.id === priestReveal.targetId)?.displayName} holds the {priestReveal.card}.
             </p>
             <div className={styles.actionRow}>
@@ -182,11 +182,12 @@ export default function LoveLetterGame({ state, myPlayerId, dispatch }: GameCont
       )}
 
       {/* Header */}
-      <div className={styles.header}>
-        <span className={styles.headerTitle}>Affairs of the Court</span>
-        <span className={styles.headerInfo}>
-          Round {state.round} · {state.deckSize} cards left
-        </span>
+      <div className={styles.gameTitle}>
+        <span className={styles.gameTitleMain}>Affairs of the Court</span>
+        <span className={styles.gameTitleSub}>Love Letter</span>
+      </div>
+      <div className={styles.headerInfo}>
+        Round {state.round} · {state.deckSize} cards left
       </div>
 
       {/* ── Game Over ── */}
@@ -199,32 +200,80 @@ export default function LoveLetterGame({ state, myPlayerId, dispatch }: GameCont
         </div>
       )}
 
-      {/* Players grid */}
-      <div className={styles.playersGrid}>
-        {state.players.map(player => (
-          <PlayerCard
-            key={player.id}
-            player={player}
-            isMe={player.id === myPlayerId}
-            isCurrentTurn={player.id === currentPlayer?.id}
-            tokenTarget={tokenTarget}
-          />
-        ))}
-      </div>
+      {/* Column-1 content (players, set-aside, action, status) */}
+      <div className={styles.contentColumn}>
 
-      {/* 2-player face-up set aside cards */}
-      {state.phase === 'Playing' && state.faceUpSetAside.length > 0 && (
-        <div className={styles.setAsideSection}>
-          <div className={styles.setAsideLabel}>Removed from play (known)</div>
-          <div className={styles.setAsideCards}>
-            {state.faceUpSetAside.map((c, i) => (
-              <span key={i} className={styles.discardChip}>{c}</span>
-            ))}
-          </div>
+        {/* Players grid */}
+        <div className={styles.playersGrid}>
+          {state.players.map(player => (
+            <PlayerCard
+              key={player.id}
+              player={player}
+              isMe={player.id === myPlayerId}
+              isCurrentTurn={player.id === currentPlayer?.id}
+              tokenTarget={tokenTarget}
+            />
+          ))}
         </div>
-      )}
 
-      {/* ── My turn — play a card ── */}
+        {/* 2-player face-up set aside cards */}
+        {state.phase === 'Playing' && state.faceUpSetAside.length > 0 && (
+          <div className={styles.setAsideSection}>
+            <div className={styles.setAsideLabel}>Removed from play (known)</div>
+            <div className={styles.setAsideCards}>
+              {state.faceUpSetAside.map((c, i) => (
+                <span key={i} className={styles.discardChip}>{c}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Waiting for others ── */}
+        {state.phase === 'Playing' && !isMyTurn && (
+          <div className={styles.statusBanner}>
+            {currentPlayer?.displayName}'s turn…
+          </div>
+        )}
+
+        {/* ── Round End ── */}
+        {state.phase === 'RoundEnd' && state.lastRoundResult && (
+          <div className={styles.roundEndPanel}>
+            <div className={styles.roundEndTitle}>
+              Round {state.round} ended — {state.lastRoundResult.reason === 'LastStanding' ? 'last standing' : 'highest card'}
+            </div>
+            <div className={styles.roundEndWinners}>
+              {state.lastRoundResult.winnerIds
+                .map(id => state.players.find(p => p.id === id)?.displayName ?? id)
+                .join(' & ')} {state.lastRoundResult.winnerIds.length === 1 ? 'wins' : 'win'} the round!
+            </div>
+
+            {state.lastRoundResult.reveals.map(r => {
+              const p = state.players.find(p => p.id === r.playerId)
+              const isWinner = state.lastRoundResult!.winnerIds.includes(r.playerId)
+              return (
+                <div key={r.playerId} className={[styles.revealRow, isWinner ? styles.revealRowWinner : ''].filter(Boolean).join(' ')}>
+                  <span className={styles.revealRowName}>{p?.displayName ?? r.playerId}</span>
+                  {r.card && <span className={styles.revealRowCard}>{r.card} ({CARD_VALUE[r.card] ?? '?'})</span>}
+                </div>
+              )
+            })}
+
+            {isHost ? (
+              <div className={styles.actionRow}>
+                <button type="button" className={`${styles.btn} ${styles.btnPrimary}`}
+                  onClick={() => send({ type: 'StartNextRound' })}>
+                  Next Round →
+                </button>
+              </div>
+            ) : (
+              <div className={styles.statusBanner}>Waiting for host to start next round…</div>
+            )}
+          </div>
+        )}
+
+      </div>{/* end contentColumn */}
+
+      {/* ── My turn — play a card (action panel, column 2) ── */}
       {state.phase === 'Playing' && isMyTurn && me?.active && !priestReveal && (
         <div className={styles.actionPanel}>
           <div className={styles.actionPanelTitle}>Your turn — play a card</div>
@@ -238,7 +287,7 @@ export default function LoveLetterGame({ state, myPlayerId, dispatch }: GameCont
               >
                 <span className={styles.cardOptionValue}>{CARD_VALUE[myCard] ?? '?'}</span>
                 <span className={styles.cardOptionName}>{myCard}</span>
-                <span style={{ fontSize: '0.62rem', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 2 }}>
+                <span className={styles.cardOptionDesc}>
                   {CARD_DESC[myCard] ?? ''}
                 </span>
               </button>
@@ -257,7 +306,7 @@ export default function LoveLetterGame({ state, myPlayerId, dispatch }: GameCont
                 ))}
               </select>
               {targets.length === 0 && (
-                <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+                <span className={styles.noTargetsNote}>
                   All other players are protected by Handmaid — no valid targets.
                 </span>
               )}
@@ -285,49 +334,6 @@ export default function LoveLetterGame({ state, myPlayerId, dispatch }: GameCont
               Play {selectedCard ?? '…'}
             </button>
           </div>
-        </div>
-      )}
-
-      {/* ── Waiting for others ── */}
-      {state.phase === 'Playing' && !isMyTurn && (
-        <div className={styles.statusBanner}>
-          {currentPlayer?.displayName}'s turn…
-        </div>
-      )}
-
-      {/* ── Round End ── */}
-      {state.phase === 'RoundEnd' && state.lastRoundResult && (
-        <div className={styles.roundEndPanel}>
-          <div className={styles.roundEndTitle}>
-            Round {state.round} ended — {state.lastRoundResult.reason === 'LastStanding' ? 'last standing' : 'highest card'}
-          </div>
-          <div className={styles.roundEndWinners}>
-            {state.lastRoundResult.winnerIds
-              .map(id => state.players.find(p => p.id === id)?.displayName ?? id)
-              .join(' & ')} {state.lastRoundResult.winnerIds.length === 1 ? 'wins' : 'win'} the round!
-          </div>
-
-          {state.lastRoundResult.reveals.map(r => {
-            const p = state.players.find(p => p.id === r.playerId)
-            const isWinner = state.lastRoundResult!.winnerIds.includes(r.playerId)
-            return (
-              <div key={r.playerId} className={[styles.revealRow, isWinner ? styles.revealRowWinner : ''].filter(Boolean).join(' ')}>
-                <span className={styles.revealRowName}>{p?.displayName ?? r.playerId}</span>
-                {r.card && <span className={styles.revealRowCard}>{r.card} ({CARD_VALUE[r.card] ?? '?'})</span>}
-              </div>
-            )
-          })}
-
-          {isHost ? (
-            <div className={styles.actionRow}>
-              <button type="button" className={`${styles.btn} ${styles.btnPrimary}`}
-                onClick={() => send({ type: 'StartNextRound' })}>
-                Next Round →
-              </button>
-            </div>
-          ) : (
-            <div className={styles.statusBanner}>Waiting for host to start next round…</div>
-          )}
         </div>
       )}
     </div>

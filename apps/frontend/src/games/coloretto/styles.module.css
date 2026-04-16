@@ -56,6 +56,7 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--color-text-muted, var(--text-muted));
+  transition: border-color 200ms ease, background-color 200ms ease, color 200ms ease;
 }
 
 .statusBannerEndGame {
@@ -78,12 +79,19 @@
   background: var(--color-surface, var(--surface-float));
   border: 2px solid var(--color-border, var(--edge-strong));
   padding: var(--space-3);
-  transition: border-color 150ms;
+  position: relative;
+  transition: border-color var(--duration-standard, 200ms) var(--ease-standard, ease);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent));
+  outline-offset: 2px;
 }
 
 .rowSelected {
   border-color: var(--color-primary, var(--accent));
   box-shadow: inset 0 0 0 1px var(--color-primary, var(--accent));
+  transition: box-shadow 200ms ease;
 }
 
 .rowCards {
@@ -91,6 +99,11 @@
   gap: var(--space-2);
   align-items: center;
   flex-wrap: wrap;
+  position: relative;
+}
+
+.rowCardLanding {
+  animation: row-card-land 400ms ease;
 }
 
 .rowEmptySlot {
@@ -118,6 +131,48 @@
   border-top: 1px solid var(--color-border, var(--edge-strong));
 }
 
+/* ── Chip ── */
+.chip {
+  border: var(--chip-border-width, 2px) solid var(--color-border, #1a1a1a);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: default;
+  transition: transform var(--duration-standard, 200ms) var(--ease-standard, ease),
+              filter var(--duration-standard, 200ms) var(--ease-standard, ease);
+}
+
+.chip:hover {
+  transform: scale(1.08);
+  filter: brightness(1.15);
+}
+
+.chipArriving {
+  border: var(--chip-border-width, 2px) solid var(--color-border, #1a1a1a);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: default;
+  transition: transform var(--duration-standard, 200ms) var(--ease-standard, ease),
+              filter var(--duration-standard, 200ms) var(--ease-standard, ease);
+  animation: chip-arrive 240ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.chipArriving:hover {
+  transform: scale(1.08);
+  filter: brightness(1.15);
+}
+
 /* ── Buttons ── */
 .btn {
   display: inline-flex;
@@ -131,7 +186,10 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 150ms;
+  transition: background var(--duration-standard, 200ms) var(--ease-standard, ease),
+              border-color var(--duration-standard, 200ms) var(--ease-standard, ease),
+              transform var(--duration-standard, 200ms) var(--ease-standard, ease),
+              filter var(--duration-standard, 200ms) var(--ease-standard, ease);
   min-height: 44px;
 }
 
@@ -144,7 +202,14 @@
   border-color: var(--color-primary, var(--accent));
 }
 
-.btnPrimary:hover:not(:disabled) { filter: brightness(0.9); }
+.btnPrimary:hover:not(:disabled) {
+  filter: brightness(0.9);
+  transform: translateY(-1px);
+}
+
+.btnPrimary:active:not(:disabled) {
+  transform: translateY(0);
+}
 
 .btnSecondary {
   background: transparent;
@@ -152,7 +217,10 @@
   border-color: var(--color-border, var(--edge-strong));
 }
 
-.btnSecondary:hover:not(:disabled) { background: var(--color-surface-hover, var(--surface-overlay)); }
+.btnSecondary:hover:not(:disabled) {
+  background: var(--color-surface-hover, var(--surface-overlay));
+  transform: translateY(-1px);
+}
 
 .actionRow {
   display: flex;
@@ -198,8 +266,15 @@
 }
 
 .playerCardMe { border-color: var(--color-primary, var(--accent)); }
-.playerCardCurrentTurn { box-shadow: 0 0 0 2px var(--color-primary, var(--accent)); }
-.playerCardTaken { opacity: 0.65; }
+
+.playerCardCurrentTurn {
+  animation: turn-pulse 1800ms ease-in-out infinite;
+}
+
+.playerCardTaken {
+  opacity: 0.65;
+  transition: opacity var(--duration-panel, 320ms) var(--ease-panel, cubic-bezier(0.4, 0, 0.2, 1));
+}
 
 .playerCardHeader {
   display: flex;
@@ -241,6 +316,12 @@
   display: flex;
   align-items: center;
   gap: 3px;
+}
+
+.collectionEntry .chip:hover,
+.collectionEntry .chipArriving:hover {
+  transform: scale(1.15);
+  transition: transform 150ms ease;
 }
 
 .collectionCount {
@@ -293,7 +374,12 @@
 }
 
 .scoreRowMe { border-width: 2px; }
-.scoreRowWinner { background: color-mix(in srgb, var(--card-green, #2E7D32) 8%, transparent); }
+
+.scoreRowWinner {
+  background: color-mix(in srgb, var(--card-green, #2E7D32) 8%, transparent);
+  animation: winner-arrive 280ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation-delay: calc(var(--row-index, 0) * 80ms);
+}
 
 .scoreRowName {
   font-family: var(--font-body);
@@ -362,4 +448,96 @@
   font-family: var(--font-body);
   font-size: 0.9rem;
   color: var(--color-text-muted, var(--text-muted));
+}
+
+/* ── Keyframes ── */
+
+@keyframes chip-arrive {
+  0%   { transform: translateY(-8px); opacity: 0; }
+  60%  { transform: translateY(2px);  opacity: 1; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes turn-pulse {
+  0%   { box-shadow: 0 0 0 2px var(--color-primary, #1a1a1a); }
+  50%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary, #1a1a1a) 30%, transparent); }
+  100% { box-shadow: 0 0 0 2px var(--color-primary, #1a1a1a); }
+}
+
+@keyframes winner-arrive {
+  0%   { transform: translateX(-12px); opacity: 0; }
+  100% { transform: translateX(0);     opacity: 1; }
+}
+
+@keyframes row-card-land {
+  0%   { border-color: var(--color-primary, #1a1a1a); }
+  60%  { border-color: var(--color-primary, #1a1a1a); }
+  100% { border-color: var(--color-border, #1a1a1a); }
+}
+
+/* ── 768px row layout ── */
+
+@media (min-width: 768px) {
+  .row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .rowActions {
+    border-top: none;
+    padding-top: 0;
+    border-left: 1px solid var(--color-border, var(--edge-strong));
+    padding-left: var(--space-3);
+  }
+
+  .rowFullBadge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: color-mix(in srgb, var(--color-surface, #ffffff) 85%, transparent);
+    z-index: 1;
+  }
+}
+
+/* ── 1100px two-column grid layout ── */
+
+@media (min-width: 1100px) {
+  .root {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    grid-template-areas:
+      "header         header"
+      "statusBanner   statusBanner"
+      "rows           playersSection"
+      "actionRow      playersSection"
+      "scoresPanel    scoresPanel"
+      "winnerBanner   winnerBanner";
+  }
+
+  .header         { grid-area: header; }
+  .statusBanner   { grid-area: statusBanner; }
+  .rows           { grid-area: rows; }
+  .actionRow      { grid-area: actionRow; }
+  .playersSection { grid-area: playersSection; }
+  .scoresPanel    { grid-area: scoresPanel; }
+  .winnerBanner   { grid-area: winnerBanner; }
+}
+
+/* ── Reduced motion ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .chipArriving,
+  .rowCardLanding,
+  .playerCardCurrentTurn,
+  .scoreRowWinner,
+  .playerCardTaken {
+    animation: none;
+    transition: none;
+  }
+
+  .chip:hover,
+  .btn:hover {
+    transform: none;
+  }
 }
