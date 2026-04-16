@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { GameContext } from '@meepliton/contracts'
 import type { ColorettoState, ColorettoAction, ColorettoRow, PlayerScore } from '../types'
 import '../coloretto.css'
@@ -37,33 +37,29 @@ function scoreForCount(n: number): number {
 // ── Card chip ─────────────────────────────────────────────────────────────
 
 interface CardChipProps {
-  card:  string
-  small?: boolean
+  card:      string
+  small?:    boolean
+  className?: string
+  onAnimationEnd?: () => void
 }
 
-function CardChip({ card, small }: CardChipProps) {
+function CardChip({ card, small, className, onAnimationEnd }: CardChipProps) {
   const bg   = cardColor(card)
   const fg   = cardTextColor(card)
   const size = small ? 24 : 36
   return (
     <div
+      className={className ?? styles.chip}
       style={{
         width: size,
         height: size,
         background: bg,
         color: fg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
         fontSize: small ? '0.55rem' : '0.62rem',
-        fontWeight: 700,
-        fontFamily: 'var(--font-mono)',
-        letterSpacing: '-0.3px',
-        flexShrink: 0,
-        border: '2px solid var(--color-border, #1a1a1a)',
       }}
       title={card}
       aria-label={card}
+      onAnimationEnd={onAnimationEnd}
     >
       {card === 'EndGame' ? '⚑' : card === 'Joker' ? '★' : card.slice(0, 2)}
     </div>
@@ -74,6 +70,7 @@ function CardChip({ card, small }: CardChipProps) {
 
 interface RowDisplayProps {
   row:              ColorettoRow
+  rowIndex:         number
   isCurrentPlayer:  boolean
   hasTaken:         boolean
   onDraw:           (rowIndex: number) => void
@@ -82,20 +79,77 @@ interface RowDisplayProps {
   onSelectRow:      (rowIndex: number) => void
 }
 
-function RowDisplay({ row, isCurrentPlayer, hasTaken, onDraw, onTake, selectedRow, onSelectRow }: RowDisplayProps) {
+function RowDisplay({ row, rowIndex, isCurrentPlayer, hasTaken, onDraw, onTake, selectedRow, onSelectRow }: RowDisplayProps) {
   const isFull = row.cards.length >= 3
   const isSelected = selectedRow === row.rowIndex
   const isEmpty = row.cards.length === 0
 
+  // Track new arriving chips
+  const prevCardsRef = useRef<string[]>([])
+  const [arrivingKeys, setArrivingKeys] = useState<Set<number>>(new Set())
+  const [isLanding, setIsLanding] = useState(false)
+
+  const prev = prevCardsRef.current
+  if (prev.length < row.cards.length) {
+    // New cards arrived — find new positions
+    const newKeys: number[] = []
+    for (let i = prev.length; i < row.cards.length; i++) {
+      newKeys.push(i)
+    }
+    if (newKeys.length > 0) {
+      setArrivingKeys(k => {
+        const next = new Set(k)
+        newKeys.forEach(key => next.add(key))
+        return next
+      })
+      setIsLanding(true)
+    }
+  }
+  prevCardsRef.current = row.cards
+
+  const isInteractive = isCurrentPlayer && !hasTaken
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelectRow(row.rowIndex)
+    }
+  }
+
+  const cardCount = row.cards.length
+  const ariaLabel = `Row ${rowIndex + 1}, ${cardCount} card${cardCount !== 1 ? 's' : ''}`
+
   return (
     <div
-      className={[styles.row, isSelected && isCurrentPlayer ? styles.rowSelected : ''].filter(Boolean).join(' ')}
-      onClick={() => isCurrentPlayer && !hasTaken && onSelectRow(row.rowIndex)}
-      style={{ cursor: isCurrentPlayer && !hasTaken ? 'pointer' : 'default' }}
+      className={[styles.row, isSelected && isCurrentPlayer ? styles.rowSelected : '', isLanding ? styles.rowCardLanding : ''].filter(Boolean).join(' ')}
+      onClick={() => isInteractive && onSelectRow(row.rowIndex)}
+      style={{ cursor: isInteractive ? 'pointer' : 'default' }}
+      {...(isInteractive ? {
+        role: 'button',
+        tabIndex: 0,
+        onKeyDown: handleKeyDown,
+        'aria-label': ariaLabel,
+      } : {})}
+      onAnimationEnd={e => {
+        if (e.animationName === 'row-card-land') setIsLanding(false)
+      }}
     >
       {/* Card slots */}
       <div className={styles.rowCards}>
-        {row.cards.map((card, i) => <CardChip key={i} card={card} />)}
+        {row.cards.map((card, i) => (
+          <CardChip
+            key={i}
+            card={card}
+            className={arrivingKeys.has(i) ? styles.chipArriving : styles.chip}
+            onAnimationEnd={arrivingKeys.has(i) ? () => {
+              setArrivingKeys(k => {
+                const next = new Set(k)
+                next.delete(i)
+                return next
+              })
+            } : undefined}
+          />
+        ))}
         {Array.from({ length: 3 - row.cards.length }).map((_, i) => (
           <div key={`empty-${i}`} className={styles.rowEmptySlot} />
         ))}
@@ -165,16 +219,20 @@ function CollectionDisplay({ collection, topColors, showScore }: CollectionDispl
 // ── Score row ─────────────────────────────────────────────────────────────
 
 interface ScoreRowProps {
-  score:   PlayerScore
-  players: ColorettoState['players']
-  isMe:    boolean
+  score:    PlayerScore
+  players:  ColorettoState['players']
+  isMe:     boolean
   isWinner: boolean
+  rowIndex: number
 }
 
-function ScoreRow({ score, players, isMe, isWinner }: ScoreRowProps) {
+function ScoreRow({ score, players, isMe, isWinner, rowIndex }: ScoreRowProps) {
   const player = players.find(p => p.id === score.playerId)
   return (
-    <div className={[styles.scoreRow, isMe ? styles.scoreRowMe : '', isWinner ? styles.scoreRowWinner : ''].filter(Boolean).join(' ')}>
+    <div
+      className={[styles.scoreRow, isMe ? styles.scoreRowMe : '', isWinner ? styles.scoreRowWinner : ''].filter(Boolean).join(' ')}
+      style={isWinner ? ({ '--row-index': rowIndex } as React.CSSProperties) : undefined}
+    >
       <span className={styles.scoreRowName}>
         {player?.displayName ?? score.playerId}{isMe ? ' (you)' : ''}
         {isWinner && ' 🏆'}
@@ -213,6 +271,12 @@ export default function ColorettoGame({ state, myPlayerId, dispatch }: GameConte
     ? Math.max(...state.finalScores.scores.map(s => s.total))
     : null
 
+  const statusText = isMyTurn
+    ? '🎴 Your turn — click a row'
+    : me?.hasTakenThisRound
+      ? '✓ You have taken this round — waiting for others'
+      : `${currentPlayer?.displayName}'s turn`
+
   return (
     <div data-game-theme="chameleon-market" className={styles.root}>
 
@@ -225,31 +289,23 @@ export default function ColorettoGame({ state, myPlayerId, dispatch }: GameConte
         </span>
       </div>
 
-      {/* ── End game banner ── */}
-      {state.phase === 'Playing' && state.endGameTriggered && (
-        <div className={`${styles.statusBanner} ${styles.statusBannerEndGame}`}>
-          ⚑ Final round in progress — game ends when everyone has taken a row
-        </div>
-      )}
-
-      {/* ── Turn indicator ── */}
-      {state.phase === 'Playing' && !state.endGameTriggered && (
-        <div className={styles.statusBanner}>
-          {isMyTurn
-            ? '🎴 Your turn — click a row'
-            : me?.hasTakenThisRound
-              ? '✓ You have taken this round — waiting for others'
-              : `${currentPlayer?.displayName}'s turn`}
+      {/* ── Status banner — single persistent element ── */}
+      {state.phase === 'Playing' && (
+        <div className={[styles.statusBanner, state.endGameTriggered ? styles.statusBannerEndGame : ''].filter(Boolean).join(' ')}>
+          {state.endGameTriggered
+            ? '⚑ Final round in progress — game ends when everyone has taken a row'
+            : statusText}
         </div>
       )}
 
       {/* ── Rows ── */}
       {state.phase === 'Playing' && (
         <div className={styles.rows}>
-          {state.rows.map(row => (
+          {state.rows.map((row, rowIdx) => (
             <RowDisplay
               key={row.rowIndex}
               row={row}
+              rowIndex={rowIdx}
               isCurrentPlayer={isMyTurn}
               hasTaken={me?.hasTakenThisRound ?? false}
               onDraw={handleDraw}
@@ -302,13 +358,14 @@ export default function ColorettoGame({ state, myPlayerId, dispatch }: GameConte
           <div className={styles.scoresPanelTitle}>Final Scores</div>
           {state.finalScores.scores
             .sort((a, b) => b.total - a.total)
-            .map(score => (
+            .map((score, index) => (
               <ScoreRow
                 key={score.playerId}
                 score={score}
                 players={state.players}
                 isMe={score.playerId === myPlayerId}
                 isWinner={score.total === bestScores}
+                rowIndex={index}
               />
             ))}
         </div>
