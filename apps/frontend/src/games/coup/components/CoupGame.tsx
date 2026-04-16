@@ -56,7 +56,7 @@ function PlayerCard({ player, isMe, isActiveTurn }: PlayerCardProps) {
         )}
       </div>
 
-      <div className={styles.playerCoins}>💰 {player.coins} coins</div>
+      <div className={styles.playerCoins}><span role="img" aria-label="coins">💰</span> {player.coins} coins</div>
 
       <div className={styles.influenceSlots}>
         {player.influence.map((card, i) => {
@@ -154,14 +154,14 @@ export default function CoupGame({ state, myPlayerId, dispatch }: GameContext<Co
     <div data-game-theme="inner-circle" className={styles.root}>
 
       {/* Header */}
-      <div className={styles.header}>
-        <span className={styles.headerTitle}>The Inner Circle</span>
-        {activePlayer && (
-          <span className={styles.headerTurn}>
-            {isMyTurn ? 'Your turn' : `${activePlayer.displayName}'s turn`}
-          </span>
-        )}
+      <div className={styles.gameTitle}>
+        <span className={styles.gameTitleMain}>The Inner Circle</span>
       </div>
+      {activePlayer && (
+        <div className={styles.headerInfo}>
+          {isMyTurn ? 'Your turn' : `${activePlayer.displayName}'s turn`}
+        </div>
+      )}
 
       {/* ── Finished ── */}
       {state.phase === 'Finished' && state.winner !== null && (
