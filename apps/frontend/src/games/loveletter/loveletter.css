@@ -2,6 +2,8 @@
    Scoped to [data-game-theme="affairs-of-the-court"] so the platform chrome is unaffected.
    Aesthetic: candlelit halls, aged parchment, deep crimson velvet, gold leaf. */
 
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
+
 [data-game-theme="affairs-of-the-court"] {
   /* ── Color aliases (used by styles.module.css via var(--color-*, fallback)) ── */
   --color-background:     #1a0812;   /* deep plum night */
@@ -41,4 +43,44 @@
   /* Radius tightened — engraved court formality */
   --radius-sm:            3px;
   --radius-md:            6px;
+
+  /* ── Game display font — Cormorant Garamond for court elegance ── */
+  --font-game-display:    'Cormorant Garamond', 'Georgia', serif;
+
+  /* ── Candle light ── */
+  --court-candle:         #e8b84b;
+  --court-candle-dim:     #a07820;
+
+  /* ── Velvet surfaces ── */
+  --court-velvet:         #3d1030;
+  --court-velvet-dark:    #1a0812;
+  --court-velvet-light:   #5a1840;
+
+  /* ── Crimson ── */
+  --court-crimson:        #c0406a;
+  --court-crimson-glow:   rgba(192, 64, 106, 0.35);
+
+  /* ── Wax seal ── */
+  --court-wax:            #8b1a2a;
+  --court-wax-glow:       rgba(139, 26, 42, 0.4);
+
+  /* ── Gold glow ── */
+  --court-gold-glow:      rgba(212, 168, 67, 0.45);
+  --court-gold-glow-sm:   rgba(212, 168, 67, 0.25);
+
+  /* ── Parchment ── */
+  --court-parchment:      #f5ecd8;
+  --court-parchment-dim:  #c8a878;
+
+  /* ── Depth shadows ── */
+  --court-shadow-deep:    rgba(0, 0, 0, 0.7);
+  --court-shadow-mid:     rgba(0, 0, 0, 0.45);
+
+  /* ── Background stops ── */
+  --bg-chamber-surface:   #2a0e1c;
+  --bg-chamber-mid:       #1a0812;
+  --bg-chamber-deep:      #0d0408;
+
+  /* ── Handmaid — lightened from hardcoded #a0c8a0 for WCAG AA (#b4d4b4 = 6.3:1 on dark bg) ── */
+  --court-handmaid:       #b4d4b4;
 }
