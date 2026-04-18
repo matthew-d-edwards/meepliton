@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { GameContext } from '@meepliton/contracts'
 import type { CoupState, CoupAction, CoupPlayer } from '../types'
 import '../coup.css'
@@ -7,6 +8,14 @@ import styles from '../styles.module.css'
 // ── Character helpers ─────────────────────────────────────────────────────
 
 const CHARACTERS = ['Duke', 'Assassin', 'Captain', 'Ambassador', 'Contessa']
+
+const CHAR_DATA: Record<string, { symbol: string; bg: string; color: string; abbr: string }> = {
+  Duke:       { symbol: '♛', bg: 'rgba(74,29,122,0.45)',   color: '#c49de8', abbr: 'D'  },
+  Assassin:   { symbol: '☽', bg: 'rgba(130,20,20,0.45)',   color: '#e87e7e', abbr: 'A'  },
+  Captain:    { symbol: '⚓', bg: 'rgba(20,58,130,0.45)',   color: '#7eaee8', abbr: 'C'  },
+  Ambassador: { symbol: '⚜', bg: 'rgba(20,106,40,0.45)',   color: '#7ee89e', abbr: 'Am' },
+  Contessa:   { symbol: '♥', bg: 'rgba(130,20,90,0.45)',   color: '#e87ec8', abbr: 'Co' },
+}
 
 // Which characters can block which actions
 const BLOCK_MAP: Record<string, string[]> = {
@@ -56,24 +65,42 @@ function PlayerCard({ player, isMe, isActiveTurn }: PlayerCardProps) {
         )}
       </div>
 
-      <div className={styles.playerCoins}><span role="img" aria-label="coins">💰</span> {player.coins} coins</div>
+      <div className={styles.playerCoins}><span className={styles.coinIcon} aria-hidden="true">◈</span>{player.coins}</div>
 
       <div className={styles.influenceSlots}>
         {player.influence.map((card, i) => {
           const isHidden = !card.revealed && card.character === null
+          const charData = card.character ? CHAR_DATA[card.character] : null
           const cls2 = [
             styles.influenceCard,
             card.revealed ? styles.influenceCardRevealed : '',
             !card.revealed && !isHidden ? styles.influenceCardOwn : '',
             isHidden ? styles.influenceCardHidden : '',
           ].filter(Boolean).join(' ')
+          const inlineStyle = charData && !card.revealed && !isHidden
+            ? ({ '--char-bg': charData.bg, '--char-color': charData.color } as CSSProperties)
+            : undefined
           return (
-            <div key={i} className={cls2}>
-              {card.revealed
-                ? card.character
-                : isHidden
-                  ? '?'
-                  : card.character}
+            <div key={i} className={cls2} style={inlineStyle}>
+              {isHidden ? (
+                <div className={styles.cardBack}>
+                  <div className={styles.cardBackInner} />
+                </div>
+              ) : card.revealed ? (
+                <>
+                  <span className={styles.cardCornerTL}>{charData?.abbr ?? '?'}</span>
+                  <span className={styles.cardSymbol}>{charData?.symbol ?? '☽'}</span>
+                  <span className={styles.cardCharName}>{card.character}</span>
+                  <span className={styles.cardCornerBR}>{charData?.abbr ?? '?'}</span>
+                </>
+              ) : (
+                <>
+                  <span className={styles.cardCornerTL}>{charData?.abbr}</span>
+                  <span className={styles.cardSymbol}>{charData?.symbol}</span>
+                  <span className={styles.cardCharName}>{card.character}</span>
+                  <span className={styles.cardCornerBR}>{charData?.abbr}</span>
+                </>
+              )}
             </div>
           )
         })}
