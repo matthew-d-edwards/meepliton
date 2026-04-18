@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { GameContext } from '@meepliton/contracts'
 import type { CoupState, CoupAction, CoupPlayer } from '../types'
 import '../coup.css'
@@ -8,11 +9,29 @@ import styles from '../styles.module.css'
 
 const CHARACTERS = ['Duke', 'Assassin', 'Captain', 'Ambassador', 'Contessa']
 
+const CHAR_DATA: Record<string, { symbol: string; bg: string; color: string; abbr: string }> = {
+  Duke:       { symbol: '♛', bg: 'rgba(74,29,122,0.45)',   color: '#c49de8', abbr: 'D'  },
+  Assassin:   { symbol: '☽', bg: 'rgba(130,20,20,0.45)',   color: '#e87e7e', abbr: 'A'  },
+  Captain:    { symbol: '⚓', bg: 'rgba(20,58,130,0.45)',   color: '#7eaee8', abbr: 'C'  },
+  Ambassador: { symbol: '⚜', bg: 'rgba(20,106,40,0.45)',   color: '#7ee89e', abbr: 'Am' },
+  Contessa:   { symbol: '♥', bg: 'rgba(130,20,90,0.45)',   color: '#e87ec8', abbr: 'Co' },
+}
+
 // Which characters can block which actions
 const BLOCK_MAP: Record<string, string[]> = {
   TakeForeignAid: ['Duke'],
   Assassinate:    ['Contessa'],
   Steal:          ['Captain', 'Ambassador'],
+}
+
+const ACTION_META = {
+  TakeIncome:    { label: 'Income',      claimLabel: 'Income',            symbol: null,  charColor: null,        charBg: null,                   cost: 0, gainCoins: 1, targetRequired: false, consequence: 'Take 1 coin. Cannot be blocked or challenged.', tier: 'basic'     as const },
+  TakeForeignAid:{ label: 'Foreign Aid', claimLabel: 'Foreign Aid',       symbol: null,  charColor: null,        charBg: null,                   cost: 0, gainCoins: 2, targetRequired: false, consequence: 'Take 2 coins. Blockable by Duke.',               tier: 'basic'     as const },
+  TakeTax:       { label: 'Tax +3',      claimLabel: 'Claim Duke',        symbol: '♛',   charColor: '#c49de8',   charBg: 'rgba(74,29,122,0.5)',   cost: 0, gainCoins: 3, targetRequired: false, consequence: 'Take 3 coins. Claim Duke. Blockable by Duke.',   tier: 'character' as const },
+  Assassinate:   { label: 'Assassinate', claimLabel: 'Claim Assassin',    symbol: '☽',   charColor: '#e87e7e',   charBg: 'rgba(130,20,20,0.5)',   cost: 3, gainCoins: 0, targetRequired: true,  consequence: 'Pay 3 coins. Target loses influence. Blockable by Contessa.', tier: 'character' as const },
+  Steal:         { label: 'Steal',       claimLabel: 'Claim Captain',     symbol: '⚓',   charColor: '#7eaee8',   charBg: 'rgba(20,58,130,0.5)',   cost: 0, gainCoins: 2, targetRequired: true,  consequence: 'Take 2 coins from target. Blockable by Captain or Ambassador.', tier: 'character' as const },
+  Exchange:      { label: 'Exchange',    claimLabel: 'Claim Ambassador',  symbol: '⚜',   charColor: '#7ee89e',   charBg: 'rgba(20,106,40,0.5)',   cost: 0, gainCoins: 0, targetRequired: false, consequence: 'Draw 2 cards from court deck, keep 2, return rest.', tier: 'character' as const },
+  DoCoup:        { label: 'Coup',        claimLabel: 'Coup',              symbol: '☠',   charColor: '#e87e7e',   charBg: 'rgba(155,35,53,0.6)',   cost: 7, gainCoins: 0, targetRequired: true,  consequence: 'Pay 7 coins. Target loses influence. Cannot be blocked.', tier: 'coup' as const },
 }
 
 function actionLabel(actionType: string): string {
@@ -34,18 +53,30 @@ interface PlayerCardProps {
   player:        CoupPlayer
   isMe:          boolean
   isActiveTurn:  boolean
+  isTargetable?: boolean
+  isSelected?:   boolean
+  onSelect?:     () => void
 }
 
-function PlayerCard({ player, isMe, isActiveTurn }: PlayerCardProps) {
+function PlayerCard({ player, isMe, isActiveTurn, isTargetable, isSelected, onSelect }: PlayerCardProps) {
   const cls = [
     styles.playerCard,
-    isMe ? styles.playerCardMe : '',
-    isActiveTurn ? styles.playerCardActive : '',
-    !player.active ? styles.playerCardEliminated : '',
+    isMe            ? styles.playerCardMe         : '',
+    isActiveTurn    ? styles.playerCardActive      : '',
+    !player.active  ? styles.playerCardEliminated  : '',
+    isTargetable    ? styles.playerCardTargetable  : '',
+    isSelected      ? styles.playerCardSelected    : '',
   ].filter(Boolean).join(' ')
 
   return (
-    <div className={cls} aria-label={`${player.displayName}${isMe ? ' (you)' : ''}${!player.active ? ' — eliminated' : ''}`}>
+    <div
+      className={cls}
+      aria-label={`${player.displayName}${isMe ? ' (you)' : ''}${!player.active ? ' — eliminated' : ''}${isTargetable ? ' — click to target' : ''}`}
+      role={isTargetable ? 'button' : undefined}
+      tabIndex={isTargetable ? 0 : undefined}
+      onClick={isTargetable ? onSelect : undefined}
+      onKeyDown={isTargetable ? (e) => { if (e.key === 'Enter' || e.key === ' ') onSelect?.() } : undefined}
+    >
       <div className={styles.playerCardHeader}>
         <span className={styles.playerName}>
           {player.displayName}
@@ -56,24 +87,42 @@ function PlayerCard({ player, isMe, isActiveTurn }: PlayerCardProps) {
         )}
       </div>
 
-      <div className={styles.playerCoins}><span role="img" aria-label="coins">💰</span> {player.coins} coins</div>
+      <div className={styles.playerCoins}><span className={styles.coinIcon} aria-hidden="true">◈</span>{player.coins}</div>
 
       <div className={styles.influenceSlots}>
         {player.influence.map((card, i) => {
           const isHidden = !card.revealed && card.character === null
+          const charData = card.character ? CHAR_DATA[card.character] : null
           const cls2 = [
             styles.influenceCard,
             card.revealed ? styles.influenceCardRevealed : '',
             !card.revealed && !isHidden ? styles.influenceCardOwn : '',
             isHidden ? styles.influenceCardHidden : '',
           ].filter(Boolean).join(' ')
+          const inlineStyle = charData && !card.revealed && !isHidden
+            ? ({ '--char-bg': charData.bg, '--char-color': charData.color } as CSSProperties)
+            : undefined
           return (
-            <div key={i} className={cls2}>
-              {card.revealed
-                ? card.character
-                : isHidden
-                  ? '?'
-                  : card.character}
+            <div key={i} className={cls2} style={inlineStyle}>
+              {isHidden ? (
+                <div className={styles.cardBack}>
+                  <div className={styles.cardBackInner} />
+                </div>
+              ) : card.revealed ? (
+                <>
+                  <span className={styles.cardCornerTL}>{charData?.abbr ?? '?'}</span>
+                  <span className={styles.cardSymbol}>{charData?.symbol ?? '☽'}</span>
+                  <span className={styles.cardCharName}>{card.character}</span>
+                  <span className={styles.cardCornerBR}>{charData?.abbr ?? '?'}</span>
+                </>
+              ) : (
+                <>
+                  <span className={styles.cardCornerTL}>{charData?.abbr}</span>
+                  <span className={styles.cardSymbol}>{charData?.symbol}</span>
+                  <span className={styles.cardCharName}>{card.character}</span>
+                  <span className={styles.cardCornerBR}>{charData?.abbr}</span>
+                </>
+              )}
             </div>
           )
         })}
@@ -87,10 +136,63 @@ function PlayerCard({ player, isMe, isActiveTurn }: PlayerCardProps) {
   )
 }
 
+// ── Action card ───────────────────────────────────────────────────────────
+
+interface ActionCardProps {
+  actionType: keyof typeof ACTION_META
+  playerCoins: number
+  onActivate: () => void
+  disabled?: boolean
+}
+
+function ActionCard({ actionType, playerCoins, onActivate, disabled }: ActionCardProps) {
+  const meta = ACTION_META[actionType]
+  const canAfford = playerCoins >= meta.cost
+  const isDisabled = disabled || !canAfford
+
+  const inlineStyle = meta.charColor
+    ? ({ '--action-color': meta.charColor, '--action-bg': meta.charBg } as CSSProperties)
+    : undefined
+
+  const cardCls = [
+    styles.actionCard,
+    meta.tier === 'basic'     ? styles.actionCardBasic     : '',
+    meta.tier === 'character' ? styles.actionCardCharacter : '',
+    meta.tier === 'coup'      ? styles.actionCardCoup      : '',
+    isDisabled                ? styles.actionCardDisabled  : '',
+  ].filter(Boolean).join(' ')
+
+  return (
+    <button
+      type="button"
+      className={cardCls}
+      style={inlineStyle}
+      disabled={isDisabled}
+      onClick={onActivate}
+      aria-label={`${meta.claimLabel}${meta.cost > 0 ? `, costs ${meta.cost} coins` : ''}: ${meta.consequence}`}
+    >
+      {meta.symbol && <span className={styles.actionCardSymbol} aria-hidden="true">{meta.symbol}</span>}
+      <span className={styles.actionCardLabel}>{meta.claimLabel}</span>
+      {meta.tier !== 'basic' && (
+        <span className={styles.actionCardSub}>{meta.label}{meta.gainCoins > 0 ? ` +${meta.gainCoins}` : ''}</span>
+      )}
+      {meta.cost > 0 && (
+        <div className={styles.coinPips} aria-label={`Costs ${meta.cost} coins`}>
+          {Array.from({ length: meta.cost }).map((_, i) => (
+            <span key={i} className={`${styles.coinPip} ${canAfford ? styles.coinPipAfford : styles.coinPipCant}`} aria-hidden="true">◈</span>
+          ))}
+        </div>
+      )}
+      <span className={styles.actionCardConsequence}>{meta.consequence}</span>
+    </button>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────
 
 export default function CoupGame({ state, myPlayerId, dispatch }: GameContext<CoupState>) {
   const [targetId, setTargetId] = useState<string>('')
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
   const [keepCards, setKeepCards] = useState<string[]>([])
 
   const me = state.players.find(p => p.id === myPlayerId)
@@ -102,7 +204,6 @@ export default function CoupGame({ state, myPlayerId, dispatch }: GameContext<Co
     dispatch(action)
   }
 
-  const activePlayers = state.players.filter(p => p.active && p.id !== myPlayerId)
   const allOtherActive = state.players.filter(p => p.active && p.id !== myPlayerId)
 
   // Has my player already passed in response window?
@@ -181,6 +282,9 @@ export default function CoupGame({ state, myPlayerId, dispatch }: GameContext<Co
             player={player}
             isMe={player.id === myPlayerId}
             isActiveTurn={player.id === activePlayer?.id}
+            isTargetable={!!pendingAction && player.active && player.id !== myPlayerId}
+            isSelected={player.id === targetId}
+            onSelect={() => setTargetId(player.id)}
           />
         ))}
       </div>
@@ -199,72 +303,74 @@ export default function CoupGame({ state, myPlayerId, dispatch }: GameContext<Co
       {/* ── My turn: action panel ── */}
       {state.phase === 'AwaitingResponses' && isMyTurn && state.pending === null && me?.active && (
         <div className={styles.actionPanel}>
-          <div className={styles.actionPanelTitle}>Your turn — choose an action</div>
-
-          {me.coins >= 10 && (
-            <div className={styles.coupWarning}>
-              You have {me.coins} coins — you must perform a Coup.
+          {pendingAction ? (
+            <div className={styles.targetSelectMode}>
+              <div className={styles.actionPanelTitle}>
+                Select a target for {ACTION_META[pendingAction as keyof typeof ACTION_META]?.label}
+              </div>
+              <p className={styles.targetSelectHint}>Click a player card above to select your target.</p>
+              <div className={styles.targetConfirmRow}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`}
+                  onClick={() => { setPendingAction(null); setTargetId('') }}>
+                  ← Cancel
+                </button>
+                {targetId && (
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnPrimary}`}
+                    onClick={() => {
+                      if (pendingAction === 'DoCoup')     send({ type: 'DoCoup',       targetId })
+                      else if (pendingAction === 'Steal') send({ type: 'Steal',        targetId })
+                      else if (pendingAction === 'Assassinate') send({ type: 'Assassinate', targetId })
+                      setPendingAction(null)
+                      setTargetId('')
+                    }}
+                  >
+                    Confirm {ACTION_META[pendingAction as keyof typeof ACTION_META]?.label} → {state.players.find(p => p.id === targetId)?.displayName}
+                  </button>
+                )}
+              </div>
             </div>
-          )}
+          ) : (
+            <>
+              <div className={styles.actionPanelTitle}>Your turn — choose an action</div>
 
-          {/* Target selector for targeted actions */}
-          {activePlayers.length > 0 && (
-            <div className={styles.targetSection}>
-              <label htmlFor="target-select" className={styles.targetLabel}>Target player</label>
-              <select
-                id="target-select"
-                className={styles.targetSelect}
-                value={targetId}
-                onChange={e => setTargetId(e.target.value)}
-              >
-                <option value="">— select target —</option>
-                {allOtherActive.map(p => (
-                  <option key={p.id} value={p.id}>{p.displayName}</option>
-                ))}
-              </select>
-            </div>
-          )}
+              {me.coins >= 10 && (
+                <div className={styles.coupWarning}>
+                  You have {me.coins} coins — you must perform a Coup.
+                </div>
+              )}
 
-          <div className={styles.actionButtons}>
-            {me.coins < 10 && (
-              <>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`}
-                  onClick={() => send({ type: 'TakeIncome' })}>
-                  Income (+1)
-                </button>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`}
-                  onClick={() => send({ type: 'TakeForeignAid' })}>
-                  Foreign Aid (+2)
-                </button>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`}
-                  onClick={() => send({ type: 'TakeTax' })}>
-                  Tax — Duke (+3)
-                </button>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`}
-                  onClick={() => send({ type: 'Exchange' })}>
-                  Exchange — Ambassador
-                </button>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`}
-                  disabled={!targetId || me.coins < 3}
-                  onClick={() => targetId && send({ type: 'Assassinate', targetId })}>
-                  Assassinate — Assassin (3)
-                </button>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`}
-                  disabled={!targetId}
-                  onClick={() => targetId && send({ type: 'Steal', targetId })}>
-                  Steal — Captain
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              className={`${styles.btn} ${styles.btnPrimary}`}
-              disabled={!targetId || me.coins < 7}
-              onClick={() => targetId && send({ type: 'DoCoup', targetId })}
-            >
-              Coup (7 coins){me.coins >= 10 ? ' ← required' : ''}
-            </button>
-          </div>
+              {me.coins < 10 && (
+                <div className={styles.actionGrid}>
+                  <ActionCard actionType="TakeTax"    playerCoins={me.coins} onActivate={() => send({ type: 'TakeTax' })} />
+                  <ActionCard actionType="Exchange"   playerCoins={me.coins} onActivate={() => send({ type: 'Exchange' })} />
+                  <ActionCard actionType="Steal"      playerCoins={me.coins} onActivate={() => setPendingAction('Steal')}      disabled={allOtherActive.length === 0} />
+                  <ActionCard actionType="Assassinate" playerCoins={me.coins} onActivate={() => setPendingAction('Assassinate')} disabled={allOtherActive.length === 0} />
+                </div>
+              )}
+
+              {me.coins < 10 && (
+                <div className={styles.basicActionsRow}>
+                  <ActionCard actionType="TakeIncome"     playerCoins={me.coins} onActivate={() => send({ type: 'TakeIncome' })} />
+                  <ActionCard actionType="TakeForeignAid" playerCoins={me.coins} onActivate={() => send({ type: 'TakeForeignAid' })} />
+                </div>
+              )}
+
+              <div className={[
+                styles.coupZone,
+                me.coins >= 7  ? styles.coupZoneReady    : '',
+                me.coins >= 10 ? styles.coupZoneRequired : '',
+              ].filter(Boolean).join(' ')}>
+                <ActionCard
+                  actionType="DoCoup"
+                  playerCoins={me.coins}
+                  onActivate={() => setPendingAction('DoCoup')}
+                  disabled={allOtherActive.length === 0}
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
 
