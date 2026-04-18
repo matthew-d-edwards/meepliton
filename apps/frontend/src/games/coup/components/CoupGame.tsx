@@ -7,8 +7,6 @@ import styles from '../styles.module.css'
 
 // ── Character helpers ─────────────────────────────────────────────────────
 
-const CHARACTERS = ['Duke', 'Assassin', 'Captain', 'Ambassador', 'Contessa']
-
 const CHAR_DATA: Record<string, { symbol: string; bg: string; color: string; abbr: string }> = {
   Duke:       { symbol: '♛', bg: 'rgba(74,29,122,0.45)',   color: '#c49de8', abbr: 'D'  },
   Assassin:   { symbol: '☽', bg: 'rgba(130,20,20,0.45)',   color: '#e87e7e', abbr: 'A'  },
@@ -45,95 +43,6 @@ function actionLabel(actionType: string): string {
     case 'Exchange':      return 'Exchange — Ambassador'
     default:              return actionType
   }
-}
-
-// ── Player card ───────────────────────────────────────────────────────────
-
-interface PlayerCardProps {
-  player:        CoupPlayer
-  isMe:          boolean
-  isActiveTurn:  boolean
-  isTargetable?: boolean
-  isSelected?:   boolean
-  onSelect?:     () => void
-}
-
-function PlayerCard({ player, isMe, isActiveTurn, isTargetable, isSelected, onSelect }: PlayerCardProps) {
-  const cls = [
-    styles.playerCard,
-    isMe            ? styles.playerCardMe         : '',
-    isActiveTurn    ? styles.playerCardActive      : '',
-    !player.active  ? styles.playerCardEliminated  : '',
-    isTargetable    ? styles.playerCardTargetable  : '',
-    isSelected      ? styles.playerCardSelected    : '',
-  ].filter(Boolean).join(' ')
-
-  return (
-    <div
-      className={cls}
-      aria-label={`${player.displayName}${isMe ? ' (you)' : ''}${!player.active ? ' — eliminated' : ''}${isTargetable ? ' — click to target' : ''}`}
-      role={isTargetable ? 'button' : undefined}
-      tabIndex={isTargetable ? 0 : undefined}
-      onClick={isTargetable ? onSelect : undefined}
-      onKeyDown={isTargetable ? (e) => { if (e.key === 'Enter' || e.key === ' ') onSelect?.() } : undefined}
-    >
-      <div className={styles.playerCardHeader}>
-        <span className={styles.playerName}>
-          {player.displayName}
-          {isMe && <span className={styles.playerMeTag}> (you)</span>}
-        </span>
-        {isActiveTurn && player.active && (
-          <span className={styles.playerTurnTag}>Turn</span>
-        )}
-      </div>
-
-      <div className={styles.playerCoins}><span className={styles.coinIcon} aria-hidden="true">◈</span>{player.coins}</div>
-
-      <div className={styles.influenceSlots}>
-        {player.influence.map((card, i) => {
-          const isHidden = !card.revealed && card.character === null
-          const charData = card.character ? CHAR_DATA[card.character] : null
-          const cls2 = [
-            styles.influenceCard,
-            card.revealed ? styles.influenceCardRevealed : '',
-            !card.revealed && !isHidden ? styles.influenceCardOwn : '',
-            isHidden ? styles.influenceCardHidden : '',
-          ].filter(Boolean).join(' ')
-          const inlineStyle = charData && !card.revealed && !isHidden
-            ? ({ '--char-bg': charData.bg, '--char-color': charData.color } as CSSProperties)
-            : undefined
-          return (
-            <div key={i} className={cls2} style={inlineStyle}>
-              {isHidden ? (
-                <div className={styles.cardBack}>
-                  <div className={styles.cardBackInner} />
-                </div>
-              ) : card.revealed ? (
-                <>
-                  <span className={styles.cardCornerTL}>{charData?.abbr ?? '?'}</span>
-                  <span className={styles.cardSymbol}>{charData?.symbol ?? '☽'}</span>
-                  <span className={styles.cardCharName}>{card.character}</span>
-                  <span className={styles.cardCornerBR}>{charData?.abbr ?? '?'}</span>
-                </>
-              ) : (
-                <>
-                  <span className={styles.cardCornerTL}>{charData?.abbr}</span>
-                  <span className={styles.cardSymbol}>{charData?.symbol}</span>
-                  <span className={styles.cardCharName}>{card.character}</span>
-                  <span className={styles.cardCornerBR}>{charData?.abbr}</span>
-                </>
-              )}
-            </div>
-          )
-        })}
-        {player.influence.length === 0 && (
-          <div className={`${styles.influenceCard} ${styles.influenceCardRevealed}`}>
-            Eliminated
-          </div>
-        )}
-      </div>
-    </div>
-  )
 }
 
 // ── Opponent card (compact — top of table) ────────────────────────────────
