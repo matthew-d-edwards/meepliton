@@ -5,22 +5,30 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
-  padding: var(--space-6);
-  min-height: 100%;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  height: calc(100dvh - var(--header-h, 58px) - 40px);
+  min-height: 0;
+  overflow: hidden;
   background:
-    repeating-linear-gradient(
-      97deg,
-      transparent 0px, transparent 7px,
-      var(--coup-marble-vein, rgba(180,160,120,0.06)) 7px, var(--coup-marble-vein, rgba(180,160,120,0.06)) 8px,
-      transparent 8px, transparent 20px,
-      rgba(0,0,0,0.05) 20px, rgba(0,0,0,0.05) 21px,
-      transparent 21px
+    radial-gradient(ellipse 140% 100% at 50% 50%,
+      transparent 38%,
+      rgba(0,0,0,0.52) 100%
     ),
-    radial-gradient(ellipse 130% 90% at 50% 0%,
-      var(--coup-wood-mid, #1a130a) 0%,
-      var(--coup-wood-dark, #100c07) 45%,
-      #0a0808 100%);
+    radial-gradient(ellipse 70% 45% at 50% 48%,
+      rgba(120,88,28,0.13) 0%,
+      transparent 100%
+    ),
+    linear-gradient(180deg,
+      #050402 0%,
+      #09070400 10%,
+      #0e0a06 28%,
+      #18120a 50%,
+      #15100a 68%,
+      #110d08 84%,
+      #0a0805 100%
+    );
   color: var(--color-text, var(--text-primary));
   font-family: var(--font-body);
 }
@@ -37,7 +45,7 @@
 /* ── Game Title Banner ── */
 .gameTitle {
   text-align: center;
-  padding: var(--space-3) var(--space-8);
+  padding: var(--space-2) var(--space-8);
   background:
     repeating-linear-gradient(
       90deg,
@@ -386,6 +394,7 @@
 
 /* ── Opponents zone (top of table) ── */
 .opponentsZone {
+  flex-shrink: 0;
   display: flex;
   justify-content: center;
   gap: var(--space-3);
@@ -478,15 +487,18 @@
 
 /* ── Table middle ── */
 .tableMiddle {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  min-height: 60px;
   justify-content: center;
 }
 
 /* ── My zone (bottom of table) ── */
 .myZone {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -1161,6 +1173,27 @@
 @keyframes winner-shimmer {
   0%   { background-position: -200% center; }
   100% { background-position:  200% center; }
+}
+
+@media (max-height: 600px) {
+  .root {
+    gap: var(--space-2);
+    padding: var(--space-2);
+  }
+
+  .myInfluenceCard {
+    min-height: 120px;
+    min-width: 85px;
+  }
+
+  .myZone {
+    padding: var(--space-2);
+    gap: var(--space-2);
+  }
+
+  .gameTitle {
+    padding: var(--space-2) var(--space-6);
+  }
 }
 
 /* ── Reduced motion ── */
