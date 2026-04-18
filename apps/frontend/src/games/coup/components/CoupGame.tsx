@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { GameContext } from '@meepliton/contracts'
 import type { CoupState, CoupAction, CoupPlayer } from '../types'
@@ -6,8 +6,6 @@ import '../coup.css'
 import styles from '../styles.module.css'
 
 // ── Character helpers ─────────────────────────────────────────────────────
-
-const CHARACTERS = ['Duke', 'Assassin', 'Captain', 'Ambassador', 'Contessa']
 
 const CHAR_DATA: Record<string, { symbol: string; bg: string; color: string; abbr: string }> = {
   Duke:       { symbol: '♛', bg: 'rgba(74,29,122,0.45)',   color: '#c49de8', abbr: 'D'  },
@@ -47,89 +45,62 @@ function actionLabel(actionType: string): string {
   }
 }
 
-// ── Player card ───────────────────────────────────────────────────────────
+// ── Opponent card (compact — top of table) ────────────────────────────────
 
-interface PlayerCardProps {
-  player:        CoupPlayer
-  isMe:          boolean
-  isActiveTurn:  boolean
-  isTargetable?: boolean
-  isSelected?:   boolean
-  onSelect?:     () => void
+interface OpponentCardProps {
+  player:       CoupPlayer
+  isActiveTurn: boolean
+  isTargetable: boolean
+  isSelected:   boolean
+  onSelect:     () => void
 }
 
-function PlayerCard({ player, isMe, isActiveTurn, isTargetable, isSelected, onSelect }: PlayerCardProps) {
+function OpponentCard({ player, isActiveTurn, isTargetable, isSelected, onSelect }: OpponentCardProps) {
   const cls = [
-    styles.playerCard,
-    isMe            ? styles.playerCardMe         : '',
-    isActiveTurn    ? styles.playerCardActive      : '',
-    !player.active  ? styles.playerCardEliminated  : '',
-    isTargetable    ? styles.playerCardTargetable  : '',
-    isSelected      ? styles.playerCardSelected    : '',
+    styles.opponentCard,
+    isActiveTurn           ? styles.opponentCardActive      : '',
+    !player.active         ? styles.opponentCardEliminated  : '',
+    isTargetable           ? styles.playerCardTargetable    : '',
+    isSelected             ? styles.playerCardSelected      : '',
   ].filter(Boolean).join(' ')
 
   return (
     <div
       className={cls}
-      aria-label={`${player.displayName}${isMe ? ' (you)' : ''}${!player.active ? ' — eliminated' : ''}${isTargetable ? ' — click to target' : ''}`}
       role={isTargetable ? 'button' : undefined}
       tabIndex={isTargetable ? 0 : undefined}
       onClick={isTargetable ? onSelect : undefined}
-      onKeyDown={isTargetable ? (e) => { if (e.key === 'Enter' || e.key === ' ') onSelect?.() } : undefined}
+      onKeyDown={isTargetable ? (e) => { if (e.key === 'Enter' || e.key === ' ') onSelect() } : undefined}
+      aria-label={`${player.displayName}${!player.active ? ' — eliminated' : ''}${isTargetable ? ' — click to target' : ''}`}
     >
-      <div className={styles.playerCardHeader}>
-        <span className={styles.playerName}>
-          {player.displayName}
-          {isMe && <span className={styles.playerMeTag}> (you)</span>}
+      <div className={styles.opponentHeader}>
+        <span className={styles.playerName}>{player.displayName}</span>
+        {isActiveTurn && player.active && <span className={styles.playerTurnTag}>Turn</span>}
+        <span className={styles.playerCoins}>
+          <span className={styles.coinIcon} aria-hidden="true">◈</span>{player.coins}
         </span>
-        {isActiveTurn && player.active && (
-          <span className={styles.playerTurnTag}>Turn</span>
-        )}
       </div>
-
-      <div className={styles.playerCoins}><span className={styles.coinIcon} aria-hidden="true">◈</span>{player.coins}</div>
-
-      <div className={styles.influenceSlots}>
+      <div className={styles.opponentInfluenceRow}>
         {player.influence.map((card, i) => {
           const isHidden = !card.revealed && card.character === null
           const charData = card.character ? CHAR_DATA[card.character] : null
-          const cls2 = [
-            styles.influenceCard,
-            card.revealed ? styles.influenceCardRevealed : '',
-            !card.revealed && !isHidden ? styles.influenceCardOwn : '',
-            isHidden ? styles.influenceCardHidden : '',
+          const pillCls = [
+            styles.opponentInfluencePill,
+            card.revealed                    ? styles.opponentInfluencePillRevealed : '',
+            !card.revealed && !isHidden      ? styles.opponentInfluencePillKnown    : '',
           ].filter(Boolean).join(' ')
-          const inlineStyle = charData && !card.revealed && !isHidden
-            ? ({ '--char-bg': charData.bg, '--char-color': charData.color } as CSSProperties)
+          const pillStyle = charData && !card.revealed && !isHidden
+            ? ({ '--char-color': charData.color } as React.CSSProperties)
             : undefined
           return (
-            <div key={i} className={cls2} style={inlineStyle}>
-              {isHidden ? (
-                <div className={styles.cardBack}>
-                  <div className={styles.cardBackInner} />
-                </div>
-              ) : card.revealed ? (
-                <>
-                  <span className={styles.cardCornerTL}>{charData?.abbr ?? '?'}</span>
-                  <span className={styles.cardSymbol}>{charData?.symbol ?? '☽'}</span>
-                  <span className={styles.cardCharName}>{card.character}</span>
-                  <span className={styles.cardCornerBR}>{charData?.abbr ?? '?'}</span>
-                </>
-              ) : (
-                <>
-                  <span className={styles.cardCornerTL}>{charData?.abbr}</span>
-                  <span className={styles.cardSymbol}>{charData?.symbol}</span>
-                  <span className={styles.cardCharName}>{card.character}</span>
-                  <span className={styles.cardCornerBR}>{charData?.abbr}</span>
-                </>
-              )}
+            <div key={i} className={pillCls} style={pillStyle}
+              aria-label={card.revealed ? (card.character ?? 'revealed') : 'hidden'}>
+              {card.revealed ? (charData?.symbol ?? '?') : '?'}
             </div>
           )
         })}
         {player.influence.length === 0 && (
-          <div className={`${styles.influenceCard} ${styles.influenceCardRevealed}`}>
-            Eliminated
-          </div>
+          <span className={styles.eliminatedTag}>Eliminated</span>
         )}
       </div>
     </div>
@@ -196,6 +167,7 @@ export default function CoupGame({ state, myPlayerId, dispatch }: GameContext<Co
   const [keepCards, setKeepCards] = useState<string[]>([])
 
   const me = state.players.find(p => p.id === myPlayerId)
+  const opponents = state.players.filter(p => p.id !== myPlayerId)
   const isHost = state.players.some(p => p.id === myPlayerId && p.seatIndex === 0)
   const activePlayer = state.players[state.activePlayerIndex]
   const isMyTurn = activePlayer?.id === myPlayerId
@@ -254,17 +226,12 @@ export default function CoupGame({ state, myPlayerId, dispatch }: GameContext<Co
   return (
     <div data-game-theme="inner-circle" className={styles.root}>
 
-      {/* Header */}
+      {/* Title */}
       <div className={styles.gameTitle}>
         <span className={styles.gameTitleMain}>The Inner Circle</span>
       </div>
-      {activePlayer && (
-        <div className={styles.headerInfo}>
-          {isMyTurn ? 'Your turn' : `${activePlayer.displayName}'s turn`}
-        </div>
-      )}
 
-      {/* ── Finished ── */}
+      {/* Winner */}
       {state.phase === 'Finished' && state.winner !== null && (
         <div className={styles.winnerBanner}>
           <span className={styles.winnerTitle}>The winner</span>
@@ -274,13 +241,12 @@ export default function CoupGame({ state, myPlayerId, dispatch }: GameContext<Co
         </div>
       )}
 
-      {/* Players grid */}
-      <div className={styles.playersGrid}>
-        {state.players.map(player => (
-          <PlayerCard
+      {/* ── Opponents zone — top of table ── */}
+      <div className={styles.opponentsZone}>
+        {opponents.map(player => (
+          <OpponentCard
             key={player.id}
             player={player}
-            isMe={player.id === myPlayerId}
             isActiveTurn={player.id === activePlayer?.id}
             isTargetable={!!pendingAction && player.active && player.id !== myPlayerId}
             isSelected={player.id === targetId}
@@ -289,187 +255,236 @@ export default function CoupGame({ state, myPlayerId, dispatch }: GameContext<Co
         ))}
       </div>
 
-      {/* ── Pending action description ── */}
-      {state.pending !== null && (
-        <div className={styles.statusBanner}>
-          {state.pending.blockerId
-            ? `${state.players.find(p => p.id === state.pending!.blockerId)?.displayName} is blocking with ${state.pending.actionType === 'Assassinate' ? 'Contessa' : '…'}`
-            : `${state.players.find(p => p.id === state.pending!.actorId)?.displayName}: ${actionLabel(state.pending.actionType)}`
-          }
-          {state.pending.targetId && ` → ${state.players.find(p => p.id === state.pending!.targetId)?.displayName}`}
-        </div>
-      )}
+      {/* ── Table middle — drama / responses ── */}
+      <div className={styles.tableMiddle}>
 
-      {/* ── My turn: action panel ── */}
-      {state.phase === 'AwaitingResponses' && isMyTurn && state.pending === null && me?.active && (
-        <div className={styles.actionPanel}>
-          {pendingAction ? (
-            <div className={styles.targetSelectMode}>
-              <div className={styles.actionPanelTitle}>
-                Select a target for {ACTION_META[pendingAction as keyof typeof ACTION_META]?.label}
-              </div>
-              <p className={styles.targetSelectHint}>Click a player card above to select your target.</p>
-              <div className={styles.targetConfirmRow}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`}
-                  onClick={() => { setPendingAction(null); setTargetId('') }}>
-                  ← Cancel
+        {state.pending !== null && (
+          <div className={styles.statusBanner}>
+            {state.pending.blockerId
+              ? `${state.players.find(p => p.id === state.pending!.blockerId)?.displayName} is blocking`
+              : `${state.players.find(p => p.id === state.pending!.actorId)?.displayName}: ${actionLabel(state.pending.actionType)}`
+            }
+            {state.pending.targetId && ` → ${state.players.find(p => p.id === state.pending!.targetId)?.displayName}`}
+          </div>
+        )}
+
+        {/* Response panel */}
+        {state.phase === 'AwaitingResponses' && !isMyTurn && state.pending !== null && me?.active && !iHavePassed && !iAmBlocker && (
+          <div className={styles.responsePanel}>
+            <div className={styles.responsePanelTitle}>Respond</div>
+            <div className={styles.responsePendingDesc}>
+              {state.players.find(p => p.id === state.pending!.actorId)?.displayName}{' '}
+              {state.pending.step === 'BlockResponses'
+                ? `is blocking with ${blockableChars[0] ?? 'a character'}`
+                : `is claiming ${actionLabel(state.pending.actionType)}`}
+            </div>
+            <div className={styles.responseButtons}>
+              {canChallenge && (
+                <button type="button" className={`${styles.btn} ${styles.btnDanger}`}
+                  onClick={() => send({ type: 'Challenge' })}>Challenge</button>
+              )}
+              {canBlock && blockableChars.map(char => (
+                <button key={char} type="button" className={`${styles.btn} ${styles.btnSecondary}`}
+                  onClick={() => send({ type: 'Block', character: char })}>
+                  Block with {char}
                 </button>
-                {targetId && (
-                  <button
-                    type="button"
-                    className={`${styles.btn} ${styles.btnPrimary}`}
-                    onClick={() => {
-                      if (pendingAction === 'DoCoup')     send({ type: 'DoCoup',       targetId })
-                      else if (pendingAction === 'Steal') send({ type: 'Steal',        targetId })
-                      else if (pendingAction === 'Assassinate') send({ type: 'Assassinate', targetId })
-                      setPendingAction(null)
-                      setTargetId('')
-                    }}
-                  >
-                    Confirm {ACTION_META[pendingAction as keyof typeof ACTION_META]?.label} → {state.players.find(p => p.id === targetId)?.displayName}
-                  </button>
+              ))}
+              {canPass && (
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`}
+                  onClick={() => send({ type: 'Pass' })}>Pass</button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {iHavePassed && state.phase === 'AwaitingResponses' && (
+          <div className={styles.statusBanner}>You passed — waiting for others…</div>
+        )}
+
+        {/* Influence loss */}
+        {myInfluenceLoss && (
+          <div className={styles.influenceLossPanel}>
+            <div className={styles.influenceLossTitle}>Choose a card to reveal (lose influence)</div>
+            <div className={styles.influenceLossCards}>
+              {myUnrevealedCards.map((card, i) => (
+                <button key={i} type="button" className={`${styles.btn} ${styles.btnDanger}`}
+                  onClick={() => card.character && send({ type: 'LoseInfluence', influenceToLose: card.character })}>
+                  Reveal {card.character}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Exchange */}
+        {myExchange && state.pending?.exchangeOptions && (
+          <div className={styles.exchangePanel}>
+            <div className={styles.exchangeTitle}>Choose 2 cards to keep</div>
+            <div className={styles.exchangeCards}>
+              {state.pending.exchangeOptions.map((card, i) => (
+                <div key={i}
+                  role="checkbox" aria-checked={keepCards.includes(card)} tabIndex={0}
+                  className={[styles.exchangeCard, keepCards.includes(card) ? styles.exchangeCardSelected : ''].filter(Boolean).join(' ')}
+                  onClick={() => toggleExchangeCard(card)}
+                  onKeyDown={e => e.key === 'Enter' && toggleExchangeCard(card)}>
+                  {card}
+                </div>
+              ))}
+            </div>
+            <div className={styles.actionRow}>
+              <button type="button" className={`${styles.btn} ${styles.btnPrimary}`}
+                disabled={keepCards.length !== 2}
+                onClick={() => send({ type: 'ChooseExchange', keepCards })}>
+                Keep selected ({keepCards.length}/2)
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── My zone — bottom of table ── */}
+      <div className={styles.myZone}>
+        <div className={styles.myZoneHeader}>
+          <div className={styles.myZoneIdentity}>
+            <span className={styles.playerName}>{me?.displayName ?? 'You'}</span>
+            {isMyTurn && me?.active && <span className={styles.playerTurnTag}>Your Turn</span>}
+          </div>
+          <div className={styles.playerCoins}>
+            <span className={styles.coinIcon} aria-hidden="true">◈</span>
+            {me?.coins ?? 0}
+          </div>
+        </div>
+
+        {/* My large influence cards */}
+        <div className={styles.myCards}>
+          {(me?.influence ?? []).map((card, i) => {
+            const isHidden = !card.revealed && card.character === null
+            const charData = card.character ? CHAR_DATA[card.character] : null
+            const cardCls = [
+              styles.influenceCard,
+              styles.myInfluenceCard,
+              card.revealed           ? styles.influenceCardRevealed : '',
+              !card.revealed && !isHidden ? styles.influenceCardOwn : '',
+              isHidden                ? styles.influenceCardHidden   : '',
+            ].filter(Boolean).join(' ')
+            const cardStyle = charData && !card.revealed && !isHidden
+              ? ({ '--char-bg': charData.bg, '--char-color': charData.color } as React.CSSProperties)
+              : undefined
+            return (
+              <div key={i} className={cardCls} style={cardStyle}>
+                {isHidden ? (
+                  <div className={styles.cardBack}><div className={styles.cardBackInner} /></div>
+                ) : card.revealed ? (
+                  <>
+                    <span className={styles.cardCornerTL}>{charData?.abbr ?? '?'}</span>
+                    <span className={styles.cardSymbol}>{charData?.symbol ?? '☽'}</span>
+                    <span className={styles.cardCharName}>{card.character}</span>
+                    <span className={styles.cardCornerBR}>{charData?.abbr ?? '?'}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className={styles.cardCornerTL}>{charData?.abbr}</span>
+                    <span className={styles.cardSymbol}>{charData?.symbol}</span>
+                    <span className={styles.cardCharName}>{card.character}</span>
+                    <span className={styles.cardCornerBR}>{charData?.abbr}</span>
+                  </>
                 )}
               </div>
+            )
+          })}
+          {me?.influence.length === 0 && (
+            <div className={`${styles.influenceCard} ${styles.myInfluenceCard} ${styles.influenceCardRevealed}`}>
+              Eliminated
             </div>
-          ) : (
-            <>
-              <div className={styles.actionPanelTitle}>Your turn — choose an action</div>
-
-              {me.coins >= 10 && (
-                <div className={styles.coupWarning}>
-                  You have {me.coins} coins — you must perform a Coup.
-                </div>
-              )}
-
-              {me.coins < 10 && (
-                <div className={styles.actionGrid}>
-                  <ActionCard actionType="TakeTax"    playerCoins={me.coins} onActivate={() => send({ type: 'TakeTax' })} />
-                  <ActionCard actionType="Exchange"   playerCoins={me.coins} onActivate={() => send({ type: 'Exchange' })} />
-                  <ActionCard actionType="Steal"      playerCoins={me.coins} onActivate={() => setPendingAction('Steal')}      disabled={allOtherActive.length === 0} />
-                  <ActionCard actionType="Assassinate" playerCoins={me.coins} onActivate={() => setPendingAction('Assassinate')} disabled={allOtherActive.length === 0} />
-                </div>
-              )}
-
-              {me.coins < 10 && (
-                <div className={styles.basicActionsRow}>
-                  <ActionCard actionType="TakeIncome"     playerCoins={me.coins} onActivate={() => send({ type: 'TakeIncome' })} />
-                  <ActionCard actionType="TakeForeignAid" playerCoins={me.coins} onActivate={() => send({ type: 'TakeForeignAid' })} />
-                </div>
-              )}
-
-              <div className={[
-                styles.coupZone,
-                me.coins >= 7  ? styles.coupZoneReady    : '',
-                me.coins >= 10 ? styles.coupZoneRequired : '',
-              ].filter(Boolean).join(' ')}>
-                <ActionCard
-                  actionType="DoCoup"
-                  playerCoins={me.coins}
-                  onActivate={() => setPendingAction('DoCoup')}
-                  disabled={allOtherActive.length === 0}
-                />
-              </div>
-            </>
           )}
         </div>
-      )}
 
-      {/* ── Waiting (my turn, action already declared) ── */}
-      {state.phase === 'AwaitingResponses' && isMyTurn && state.pending !== null && (
-        <div className={`${styles.statusBanner} ${styles.statusBannerActive}`}>
-          Waiting for other players to respond…
-        </div>
-      )}
-
-      {/* ── Response panel (other players' turn) ── */}
-      {state.phase === 'AwaitingResponses' && !isMyTurn && state.pending !== null && me?.active && !iHavePassed && !iAmBlocker && (
-        <div className={styles.responsePanel}>
-          <div className={styles.responsePanelTitle}>Respond</div>
-          <div className={styles.responsePendingDesc}>
-            {state.players.find(p => p.id === state.pending!.actorId)?.displayName}{' '}
-            {state.pending.step === 'BlockResponses'
-              ? `is blocking with ${blockableChars[0] ?? 'a character'}`
-              : `is claiming ${actionLabel(state.pending.actionType)}`}
-          </div>
-          <div className={styles.responseButtons}>
-            {canChallenge && (
-              <button type="button" className={`${styles.btn} ${styles.btnDanger}`}
-                onClick={() => send({ type: 'Challenge' })}>
-                Challenge
-              </button>
-            )}
-            {canBlock && blockableChars.map(char => (
-              <button key={char} type="button" className={`${styles.btn} ${styles.btnSecondary}`}
-                onClick={() => send({ type: 'Block', character: char })}>
-                Block with {char}
-              </button>
-            ))}
-            {canPass && (
-              <button type="button" className={`${styles.btn} ${styles.btnSecondary}`}
-                onClick={() => send({ type: 'Pass' })}>
-                Pass
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {iHavePassed && state.phase === 'AwaitingResponses' && (
-        <div className={styles.statusBanner}>
-          You passed — waiting for others…
-        </div>
-      )}
-
-      {/* ── Influence loss ── */}
-      {myInfluenceLoss && (
-        <div className={styles.influenceLossPanel}>
-          <div className={styles.influenceLossTitle}>Choose a card to reveal (lose influence)</div>
-          <div className={styles.influenceLossCards}>
-            {myUnrevealedCards.map((card, i) => (
-              <button
-                key={i}
-                type="button"
-                className={`${styles.btn} ${styles.btnDanger}`}
-                onClick={() => card.character && send({ type: 'LoseInfluence', influenceToLose: card.character })}
-              >
-                Reveal {card.character}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Ambassador exchange ── */}
-      {myExchange && state.pending?.exchangeOptions && (
-        <div className={styles.exchangePanel}>
-          <div className={styles.exchangeTitle}>Choose 2 cards to keep</div>
-          <div className={styles.exchangeCards}>
-            {state.pending.exchangeOptions.map((card, i) => (
-              <div
-                key={i}
-                role="checkbox"
-                aria-checked={keepCards.includes(card)}
-                tabIndex={0}
-                className={[styles.exchangeCard, keepCards.includes(card) ? styles.exchangeCardSelected : ''].filter(Boolean).join(' ')}
-                onClick={() => toggleExchangeCard(card)}
-                onKeyDown={e => e.key === 'Enter' && toggleExchangeCard(card)}
-              >
-                {card}
+        {/* My action area */}
+        {state.phase === 'AwaitingResponses' && isMyTurn && state.pending === null && me?.active && (
+          <div className={styles.myActionArea}>
+            {pendingAction ? (
+              <div className={styles.targetSelectMode}>
+                <div className={styles.actionPanelTitle}>
+                  Select a target for {ACTION_META[pendingAction as keyof typeof ACTION_META]?.label}
+                </div>
+                <p className={styles.targetSelectHint}>Click an opponent above to select your target.</p>
+                <div className={styles.targetConfirmRow}>
+                  <button type="button" className={`${styles.btn} ${styles.btnSecondary}`}
+                    onClick={() => { setPendingAction(null); setTargetId('') }}>
+                    ← Cancel
+                  </button>
+                  {targetId && (
+                    <button type="button" className={`${styles.btn} ${styles.btnPrimary}`}
+                      onClick={() => {
+                        if (pendingAction === 'DoCoup')          send({ type: 'DoCoup',       targetId })
+                        else if (pendingAction === 'Steal')      send({ type: 'Steal',        targetId })
+                        else if (pendingAction === 'Assassinate') send({ type: 'Assassinate', targetId })
+                        setPendingAction(null); setTargetId('')
+                      }}>
+                      Confirm {ACTION_META[pendingAction as keyof typeof ACTION_META]?.label} → {state.players.find(p => p.id === targetId)?.displayName}
+                    </button>
+                  )}
+                </div>
               </div>
-            ))}
+            ) : (
+              <>
+                <div className={styles.actionPanelTitle}>Your turn — choose an action</div>
+                {me.coins >= 10 && (
+                  <div className={styles.coupWarning}>
+                    You have {me.coins} coins — you must perform a Coup.
+                  </div>
+                )}
+                {me.coins < 10 && (
+                  <div className={styles.actionGrid}>
+                    <ActionCard actionType="TakeTax"     playerCoins={me.coins} onActivate={() => send({ type: 'TakeTax' })} />
+                    <ActionCard actionType="Exchange"    playerCoins={me.coins} onActivate={() => send({ type: 'Exchange' })} />
+                    <ActionCard actionType="Steal"       playerCoins={me.coins} onActivate={() => setPendingAction('Steal')}       disabled={allOtherActive.length === 0} />
+                    <ActionCard actionType="Assassinate" playerCoins={me.coins} onActivate={() => setPendingAction('Assassinate')} disabled={allOtherActive.length === 0} />
+                  </div>
+                )}
+                {me.coins < 10 && (
+                  <div className={styles.basicActionsRow}>
+                    <ActionCard actionType="TakeIncome"      playerCoins={me.coins} onActivate={() => send({ type: 'TakeIncome' })} />
+                    <ActionCard actionType="TakeForeignAid"  playerCoins={me.coins} onActivate={() => send({ type: 'TakeForeignAid' })} />
+                  </div>
+                )}
+                <div className={[
+                  styles.coupZone,
+                  me.coins >= 7  ? styles.coupZoneReady    : '',
+                  me.coins >= 10 ? styles.coupZoneRequired : '',
+                ].filter(Boolean).join(' ')}>
+                  <ActionCard actionType="DoCoup" playerCoins={me.coins}
+                    onActivate={() => setPendingAction('DoCoup')} disabled={allOtherActive.length === 0} />
+                </div>
+              </>
+            )}
           </div>
-          <div className={styles.actionRow}>
-            <button
-              type="button"
-              className={`${styles.btn} ${styles.btnPrimary}`}
-              disabled={keepCards.length !== 2}
-              onClick={() => send({ type: 'ChooseExchange', keepCards })}
-            >
-              Keep selected ({keepCards.length}/2)
+        )}
+
+        {state.phase === 'AwaitingResponses' && isMyTurn && state.pending !== null && (
+          <div className={`${styles.statusBanner} ${styles.statusBannerActive}`}>
+            Waiting for other players to respond…
+          </div>
+        )}
+      </div>
+
+      {/* Waiting for game to start */}
+      {state.phase === 'Waiting' && (
+        <div className={styles.waitingArea}>
+          <div className={styles.waitingTitle}>Waiting for players…</div>
+          {isHost && (
+            <button type="button" className={`${styles.btn} ${styles.btnPrimary}`}
+              disabled={state.players.length < 2}
+              onClick={() => send({ type: 'StartGame' })}>
+              Start Game
             </button>
+          )}
+          <div className={styles.waitingSubtitle}>
+            {state.players.length} player{state.players.length !== 1 ? 's' : ''} in room
           </div>
         </div>
       )}
+
     </div>
   )
 }
