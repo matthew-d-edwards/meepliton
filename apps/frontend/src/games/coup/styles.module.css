@@ -412,10 +412,247 @@
   color: var(--color-text-muted, var(--text-muted));
 }
 
-.actionButtons {
+/* ── Action grid (character actions) ── */
+.actionGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+/* ── Basic actions row ── */
+.basicActionsRow {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* ── Action cards ── */
+.actionCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: var(--space-3);
+  border-radius: 6px;
+  border: 1.5px solid var(--action-color, var(--color-border, var(--edge-strong)));
+  background: linear-gradient(160deg,
+    var(--action-bg, rgba(255,255,255,0.02)) 0%,
+    var(--color-surface, #18181f) 100%
+  );
+  color: var(--action-color, var(--color-text, var(--text-primary)));
+  cursor: pointer;
+  transition: transform 150ms cubic-bezier(0.2,0,0,1), box-shadow 150ms, background 150ms;
+  text-align: left;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  min-height: 44px;
+}
+
+.actionCard:focus-visible {
+  outline: 2px solid var(--action-color, var(--color-primary, var(--accent)));
+  outline-offset: 2px;
+}
+
+.actionCard:hover:not(:disabled):not(.actionCardDisabled) {
+  transform: translateY(-3px);
+  box-shadow:
+    0 0 22px color-mix(in srgb, var(--action-color, #b8973a) 40%, transparent),
+    0 6px 16px rgba(0,0,0,0.5);
+  background: linear-gradient(160deg,
+    color-mix(in srgb, var(--action-bg, rgba(255,255,255,0.03)) 120%, transparent) 0%,
+    color-mix(in srgb, var(--color-surface, #18181f) 90%, var(--action-color, #b8973a)) 100%
+  );
+}
+
+.actionCard:active:not(:disabled):not(.actionCardDisabled) {
+  transform: translateY(-1px) scale(0.975);
+  transition-duration: 60ms;
+}
+
+.actionCardBasic {
+  flex-direction: row;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-color: var(--color-border, var(--edge-strong));
+  color: var(--color-text-muted, var(--text-muted));
+  background: transparent;
+  flex: 1;
+}
+
+.actionCardBasic:hover:not(:disabled):not(.actionCardDisabled) {
+  border-color: var(--coup-gold-base, #b8973a);
+  color: var(--coup-gold-bright, #d4a83a);
+  transform: translateY(-2px);
+  box-shadow: 0 0 12px rgba(184,151,58,0.25), 0 4px 10px rgba(0,0,0,0.4);
+  background: rgba(184,151,58,0.04);
+}
+
+.actionCardCharacter {
+  /* inherits .actionCard with character colors via CSS vars */
+}
+
+.actionCardCoup {
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  border-color: var(--coup-blood, #9b2335);
+  background: color-mix(in srgb, var(--coup-blood, #9b2335) 10%, transparent);
+  color: color-mix(in srgb, var(--coup-blood, #9b2335) 250%, white);
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+}
+
+.actionCardCoup:hover:not(:disabled):not(.actionCardDisabled) {
+  background: color-mix(in srgb, var(--coup-blood, #9b2335) 22%, transparent);
+  box-shadow: 0 0 32px var(--coup-blood-glow, rgba(155,35,53,0.45)), 0 4px 12px rgba(0,0,0,0.5);
+  transform: none;
+}
+
+.actionCardDisabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.actionCardSymbol {
+  font-size: 1.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 5px currentColor);
+}
+
+.actionCardLabel {
+  font-family: var(--font-game-display, 'Cinzel', Georgia, serif);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.actionCardSub {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.5px;
+  opacity: 0.65;
+  line-height: 1;
+}
+
+.actionCardConsequence {
+  font-family: var(--font-body);
+  font-size: 0.63rem;
+  color: var(--color-text-muted, var(--text-muted));
+  line-height: 1.4;
+  margin-top: 2px;
+  display: none;
+}
+
+.actionCard:hover .actionCardConsequence,
+.actionCard:focus-visible .actionCardConsequence {
+  display: block;
+}
+
+/* ── Coin pips ── */
+.coinPips {
+  display: flex;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.coinPip {
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.coinPipAfford {
+  color: var(--coup-gold-bright, #d4a83a);
+  text-shadow: 0 0 5px rgba(212,168,58,0.7);
+}
+
+.coinPipCant {
+  color: var(--color-text-muted, var(--text-muted));
+  opacity: 0.35;
+}
+
+/* ── Coup zone ── */
+.coupZone {
+  width: 100%;
+  border-radius: 6px;
+  padding: 0;
+  transition: padding 200ms;
+}
+
+.coupZoneReady .actionCardCoup {
+  border-width: 2px;
+  animation: coup-pulse 2.2s ease-in-out infinite;
+}
+
+.coupZoneRequired .actionCardCoup {
+  border-width: 2px;
+  animation: coup-must 1.8s ease-in-out infinite;
+}
+
+@keyframes coup-pulse {
+  0%, 100% { box-shadow: 0 0 8px var(--coup-blood-glow, rgba(155,35,53,0.25)); }
+  50%       { box-shadow: 0 0 24px var(--coup-blood-glow, rgba(155,35,53,0.5)); }
+}
+
+/* ── Target select mode ── */
+.targetSelectMode {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.targetSelectHint {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.5px;
+  color: var(--coup-gold-base, #b8973a);
+  margin: 0;
+}
+
+.targetConfirmRow {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ── Targetable / selected player cards ── */
+.playerCardTargetable {
+  cursor: pointer;
+  border-color: var(--coup-gold-base, #b8973a) !important;
+  animation: inner-circle-pulse 1.4s ease-in-out infinite !important;
+}
+
+.playerCardTargetable:hover {
+  border-color: var(--coup-gold-bright, #d4a83a) !important;
+  transform: scale(1.03);
+  box-shadow:
+    0 0 28px var(--coup-gold-glow, rgba(184,151,58,0.4)),
+    0 8px 20px rgba(0,0,0,0.6) !important;
+}
+
+.playerCardSelected {
+  border-color: var(--coup-gold-bright, #d4a83a) !important;
+  box-shadow:
+    0 0 32px var(--coup-gold-glow, rgba(184,151,58,0.5)),
+    0 0 10px rgba(184,151,58,0.7),
+    inset 0 1px 0 rgba(184,151,58,0.25),
+    0 6px 18px rgba(0,0,0,0.6) !important;
+  animation: none !important;
+}
+
+/* ── Mobile ── */
+@media (max-width: 480px) {
+  .actionGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .basicActionsRow {
+    flex-direction: column;
+  }
 }
 
 .coupWarning {
@@ -767,4 +1004,7 @@
   .coupWarning        { animation: none; }
   .influenceLossPanel { animation: none; }
   .winnerName         { animation: none; background: none; -webkit-text-fill-color: var(--coup-gold-bright, #d4a83a); }
+  .playerCardTargetable { animation: none !important; }
+  .coupZoneReady .actionCardCoup    { animation: none; }
+  .coupZoneRequired .actionCardCoup { animation: none; }
 }
