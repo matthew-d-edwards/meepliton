@@ -9,7 +9,9 @@
       "Bash(dotnet *)",
       "Bash(npm *)",
       "Bash(pwsh *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(baton *)",
+      "mcp__baton__*"
     ],
     "deny": [
       "Bash(git push origin main*)",
@@ -26,10 +28,28 @@
     ],
     "PostToolUse": [
       {
-        "matcher": { "tool": "Bash", "pattern": "git (commit|add|push|reset|checkout|merge|rebase)" },
+        "matcher": {
+          "tool": "Bash",
+          "pattern": "git (commit|add|push|reset|checkout|merge|rebase)"
+        },
         "type": "command",
         "command": "echo '--- git state ---' && git status --short && git log --oneline -3"
       }
     ]
-  }
+  },
+  "extraKnownMarketplaces": {
+    "baton": {
+      "source": {
+        "source": "github",
+        "repo": "matthew-d-edwards/baton"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "baton-pm@baton": true,
+    "baton-dev@baton": true
+  },
+  "enabledMcpjsonServers": [
+    "baton"
+  ]
 }
