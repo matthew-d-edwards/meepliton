@@ -23,7 +23,7 @@ public class DeadMansSwitchModuleTests
 
     // ── Action helpers ────────────────────────────────────────────────────────
 
-    private static DeadMansSwitchAction PlaceDisc()                      => new("PlaceDisc");
+    private static DeadMansSwitchAction PlaceDisc(DiscType t = DiscType.Rose) => new("PlaceDisc", DiscType: t);
     private static DeadMansSwitchAction StartBid(int target)             => new("StartBid",  TargetCount: target);
     private static DeadMansSwitchAction RaiseBid(int newBid)             => new("RaiseBid",  NewBid: newBid);
     private static DeadMansSwitchAction Pass()                           => new("Pass");
