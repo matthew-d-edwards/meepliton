@@ -12,6 +12,25 @@ _Nothing urgent yet._
 
 - [ ] **2026-06-16** Hex Escape v2 ships with a known limitation: a disconnected player's seat stalls the round indefinitely (no auto-skip, no turn timer). This is acceptable for the current friend-group context but must be fixed before the game is opened to a broader audience. A follow-up story must add auto-skip or a per-seat turn timer. A `[Fact(Skip=...)]` test in `HexEscapeModuleTests.cs` documents the gap. Do not mark the hexescape game as publicly available until this is resolved. — blocks public launch of hexescape. (analyst)
 
+## Round-3 playtest follow-ups (Hex Escape)
+
+Found by a 4-agent round-3 playtest (tester/architect/ux/backend) against the implemented code. The crash in MoveCharacter, the qualifying-actions softlock, and the wrong direction labels were FIXED in-branch. The rest are deferred:
+
+- [ ] **2026-06-16 — PLATFORM (devops):** malformed action JSON (e.g. `{"type":"NotARealAction"}` or missing `type`) throws an unhandled `JsonException` out of `IGameHandler.Handle` — the dispatcher does not catch it, so it surfaces as a 500 and (with the retrying execution strategy) retries the poison action. This affects EVERY game module (LoveLetter etc. deserialize the action the same way), so the right fix is a try/catch around `handler.Handle(ctx)` in `GameDispatcher` that converts deserialization/handler exceptions into a clean rejection. Remotely triggerable. (backend/chaos-monkey)
+- [ ] **2026-06-16 — backend (low):** Phase-2 break-out can target the same spawn cell twice in one pass (the frozen-occupancy set excludes live same-pass spawns), producing two stacked zombies on one cell. Stacking is legal so it's not a crash, just off from spec intent. Also an O(Z²) rebuild of that set inside the loop (negligible at realistic zombie counts). Fix together: build the set once outside the loop and add live spawns to it. (backend)
+- [ ] **2026-06-16 — backend (low):** `SpawnZombieAt` is `static` with no logger, so hitting `MaxZombies` via `PlaceZombieTile` skips the spawn silently (no WARNING), unlike the D1/horde paths. Observability gap only. (tester)
+- [ ] **2026-06-16 — backend (fragility):** deck-band math has no guard if constants are ever retuned such that `zombieTileCount > middleBandSize` (would overflow the deck length). Safe for all current player-count constants. Add a defensive assert. (tester/backend)
+
+## Round-3 UX follow-ups (Hex Escape) — for a polish story
+
+A round-3 UX playtest found the first-game experience has high friction. Highest-impact items, in priority order:
+
+- [ ] **2026-06-16 — ux/frontend:** tile rotation has no visual preview — the ActionPicker shows "Rotation: 2" as a number. Render the actual pipe-edge SVG at the chosen rotation. Flagged as the single highest-impact change: it makes the core puzzle visual and teaches the connection rule implicitly. (ux)
+- [ ] **2026-06-16 — ux/frontend:** the exit reveal has no ceremony for sighted players (only a screen-reader alert). Add a board/overlay banner + highlight when `exitRevealed` flips true — it's the game's first-act climax. (ux)
+- [ ] **2026-06-16 — ux/frontend:** no onboarding. A first-time player faces a coordinate-labelled grid with no goal/turn explanation. Add a dismissible "how to play" card or a turn-1 contextual coach (goal, your reserved spawn cell, the ≥2-actions rule, what zombies do). (ux)
+- [ ] **2026-06-16 — ux/frontend:** the dev-only axial coordinate labels (e.g. "-4,0") render on every cell in production — visual noise for players. Hide behind a debug flag or remove. (ux)
+- [ ] **2026-06-16 — ux/frontend (minor):** zombie movement shows positions instantly under a text log rather than animating movement on the board; the threat ramp (deck bands) is invisible; the game-over "Exit reach" stat reads as a cryptic number; one inline style remains in `PlayerRow`. (ux)
+
 ## Needs your decision
 
 - [x] **2026-03-26** Admin portal — OQ-ADMIN-01: the request said "force reset a user". This spec interprets that as sending an admin-triggered password reset email. If you meant **account deletion** (hard delete or anonymisation), story-031b needs to be redesigned before backend work begins. Confirm: password reset email, or account deletion? — **Resolved 2026-03-26: "Force reset" means password reset email. Account deletion is separately supported via `DELETE /api/admin/users/{userId}`.** (analyst)

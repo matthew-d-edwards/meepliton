@@ -947,6 +947,11 @@ public class HexEscapeModule : IGameModule, IGameHandler
         if (toCoord is null)
             return Reject(ctx, "Invalid action.");
 
+        // Guard against malformed coords before ParseCoord (consistent with
+        // PlaceTile/RotateTile, which validate board membership first).
+        if (!state.Cells.Contains(toCoord))
+            return Reject(ctx, "That cell is not on the board.");
+
         var character = state.Characters.FirstOrDefault(c => c.PlayerId == actor.Id);
 
         // AC-v2-28: character must be placed
@@ -1036,13 +1041,15 @@ public class HexEscapeModule : IGameModule, IGameHandler
 
     private int CountAvailableQualifyingActions(HexEscapeState state, PlayerSlot actor)
     {
-        // Short-circuit: if deck non-empty OR hand non-full, DrawTile is available
         var hand = state.Hands[actor.Id];
-        if (state.Deck.Count > 0 || hand.Count < HexEscapeConstants.HandSize)
-            return HexEscapeConstants.MinActionsPerTurn;  // at least 1; return threshold to skip further checking
-
-        // Otherwise enumerate:
         int count = 0;
+
+        // DrawTile available? Requires cards in the deck AND room in the hand.
+        // (Counting this — not a flawed short-circuit — is what makes the
+        // min(MinActionsPerTurn, available) escape hatch correct when DrawTile is
+        // the only remaining qualifying action.)
+        if (state.Deck.Count > 0 && hand.Count < HexEscapeConstants.HandSize)
+            count++;
 
         // PlaceTile available?
         var character = state.Characters.FirstOrDefault(c => c.PlayerId == actor.Id);

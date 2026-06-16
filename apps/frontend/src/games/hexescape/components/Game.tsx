@@ -747,7 +747,7 @@ interface ZombieRollOverlayProps {
   onFocusChange: (focused: boolean) => void
 }
 
-const DIR_NAMES = ['E', 'NE', 'NW', 'W', 'SW', 'SE']
+const DIR_NAMES = ['E', 'NE', 'N', 'W', 'SW', 'S']
 
 function ZombieRollOverlay({ rolls, onDone, onFocusChange }: ZombieRollOverlayProps) {
   const cardRef = useRef<HTMLDivElement>(null)
