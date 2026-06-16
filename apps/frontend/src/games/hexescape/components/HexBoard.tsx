@@ -337,34 +337,68 @@ export interface TileLinesProps {
   fixed: boolean
 }
 
-export function TileLines({ cx, cy, tileType, rotation, fixed }: TileLinesProps) {
-  const edges = openEdges(tileType, rotation)
-  const pathClass = fixed ? styles.tilePathFixed : styles.tilePath
+// ── Road tile renderer ──────────────────────────────────────────────────────
+// Tiles render as city streets: a wide asphalt band with lighter curbs and a
+// dashed centre lane line, all meeting at a central intersection. Each open edge
+// is one road segment running from the cell centre to that edge's midpoint, so
+// roads on connected tiles meet exactly at the shared edge.
+
+const ROAD_CASING_W = 17       // curb/sidewalk band width
+const ROAD_SURFACE_W = 12.5    // asphalt width
+const ROAD_HUB_CASING_R = 8.5  // intersection curb radius
+const ROAD_HUB_SURFACE_R = 6.25 // intersection asphalt radius
+const LANE_START_T = 0.34      // lane dashes start this far out from centre…
+const LANE_END_T = 0.94        // …and stop just short of the edge
+
+export interface RoadTileProps {
+  cx: number
+  cy: number
+  /** Edge midpoints (one per open edge) the roads run to. */
+  ends: { x: number; y: number }[]
+  fixed: boolean
+}
+
+/** Draws a hex tile as a set of city streets meeting at a central intersection. */
+export function RoadTile({ cx, cy, ends, fixed }: RoadTileProps) {
+  const casingClass = fixed ? styles.roadCasingFixed : styles.roadCasing
+  const surfaceClass = fixed ? styles.roadSurfaceFixed : styles.roadSurface
+  const hubCasingClass = fixed ? styles.roadHubCasingFixed : styles.roadHubCasing
+  const hubClass = fixed ? styles.roadHubFixed : styles.roadHub
 
   return (
     <>
-      {edges.map(dir => {
-        const mid = edgeMidpoint(cx, cy, dir)
+      {/* Curb / sidewalk casing (widest, painted first) */}
+      {ends.map((end, i) => (
+        <line key={`c${i}`} x1={cx} y1={cy} x2={end.x.toFixed(2)} y2={end.y.toFixed(2)}
+              className={casingClass} strokeWidth={ROAD_CASING_W} />
+      ))}
+      <circle cx={cx} cy={cy} r={ROAD_HUB_CASING_R} className={hubCasingClass} />
+
+      {/* Asphalt surface */}
+      {ends.map((end, i) => (
+        <line key={`s${i}`} x1={cx} y1={cy} x2={end.x.toFixed(2)} y2={end.y.toFixed(2)}
+              className={surfaceClass} strokeWidth={ROAD_SURFACE_W} />
+      ))}
+      <circle cx={cx} cy={cy} r={ROAD_HUB_SURFACE_R} className={hubClass} />
+
+      {/* Dashed centre lane markings (skip the cluttered intersection itself) */}
+      {ends.map((end, i) => {
+        const sx = cx + (end.x - cx) * LANE_START_T
+        const sy = cy + (end.y - cy) * LANE_START_T
+        const ex = cx + (end.x - cx) * LANE_END_T
+        const ey = cy + (end.y - cy) * LANE_END_T
         return (
-          <line
-            key={dir}
-            x1={cx.toFixed(2)}
-            y1={cy.toFixed(2)}
-            x2={mid.x.toFixed(2)}
-            y2={mid.y.toFixed(2)}
-            className={pathClass}
-          />
+          <line key={`l${i}`} x1={sx.toFixed(2)} y1={sy.toFixed(2)} x2={ex.toFixed(2)} y2={ey.toFixed(2)}
+                className={styles.roadLane} />
         )
       })}
-      <circle
-        cx={cx}
-        cy={cy}
-        r={3}
-        fill="var(--neon-cyan)"
-        opacity={fixed ? 0.9 : 0.7}
-      />
     </>
   )
+}
+
+export function TileLines({ cx, cy, tileType, rotation, fixed }: TileLinesProps) {
+  const ends = openEdges(tileType, rotation).map(dir => edgeMidpoint(cx, cy, dir))
+  return <RoadTile cx={cx} cy={cy} ends={ends} fixed={fixed} />
 }
 
 // ── Aria label helper ─────────────────────────────────────────────────────────

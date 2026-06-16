@@ -9,7 +9,7 @@ import type {
   CharacterState,
   PlayerSlot,
 } from '../types'
-import { HexBoard, openEdges } from './HexBoard'
+import { HexBoard, openEdges, RoadTile } from './HexBoard'
 import '../hexescape.css'
 import styles from '../styles.module.css'
 
@@ -679,28 +679,12 @@ function TilePreview({ tileType, rotation }: TilePreviewProps) {
     >
       <polygon points={corners} className={styles.tilePreviewHex} />
       {tileType && (
-        <>
-          {openEdges(tileType, rotation).map(dir => {
-            const mid = previewEdgeMidpoint(cx, cy, dir)
-            return (
-              <line
-                key={dir}
-                x1={cx.toFixed(2)}
-                y1={cy.toFixed(2)}
-                x2={mid.x.toFixed(2)}
-                y2={mid.y.toFixed(2)}
-                className={styles.tilePreviewPath}
-              />
-            )
-          })}
-          <circle
-            cx={cx}
-            cy={cy}
-            r={PREVIEW_HEX_SIZE * 0.1}
-            fill="var(--neon-cyan)"
-            opacity={0.7}
-          />
-        </>
+        <RoadTile
+          cx={cx}
+          cy={cy}
+          ends={openEdges(tileType, rotation).map(dir => previewEdgeMidpoint(cx, cy, dir))}
+          fixed={false}
+        />
       )}
     </svg>
   )

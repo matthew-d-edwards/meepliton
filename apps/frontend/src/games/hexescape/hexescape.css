@@ -1,9 +1,62 @@
-/* Hex Escape (Outbreak) — global theme overrides scoped to [data-game-theme="hexescape"]
-   Extends platform tokens; does not redefine them.
-   All values via design tokens or WCAG-safe local overrides. */
+/* Hex Escape (Outbreak) — game theme: APOCALYPTIC CITY.
+   The Meepliton platform default is the "Blade Runner night city" neon palette
+   (packages/ui/src/styles/tokens.css). Each game may re-skin itself by overriding
+   those tokens within its own [data-game-theme] scope — this file does exactly that,
+   trading neon for the ash, rust, sodium-lamp amber, and biohazard green of a city
+   overrun by the outbreak. All overrides are scoped, so the platform chrome is
+   untouched. styles.module.css references the tokens below, so re-skinning here
+   re-skins the whole game without touching component CSS. */
 
 [data-game-theme="hexescape"] {
-  /* Boost grid border visibility slightly for hex cells */
-  --hex-stroke: var(--edge-strong);
+  /* ── Surfaces — ash and soot, warmer and grimier than the platform night-blue ── */
+  --surface-base:    #0c0a07;
+  --surface-raised:  #14110c;
+  --surface-float:   #1b1610;
+  --surface-overlay: #241d14;
+
+  /* ── Edges — rusted metal / dried grime ── */
+  --edge-subtle:  #2a2117;
+  --edge-strong:  #3f3120;
+
+  /* ── Text — bleached, dusty ── */
+  --text-muted:   #6f6555;
+  --text-primary: #cabfa6;
+  --text-bright:  #f1e7d1;
+
+  /* ── Accent — hazard amber / sodium street lamp ── */
+  --accent:       #d99a3c;
+  --accent-dim:   #d99a3c1c;
+  --accent-glow:  #d99a3c44;
+
+  /* ── Re-map the platform "neon" roles to apocalyptic equivalents.
+        styles.module.css uses these names throughout; remapping them here re-skins
+        every rule at once. ──
+        cyan    → primary interactive / active turn / info  → ember amber
+        magenta → danger / zombies / elimination            → biohazard toxic green
+        orange  → exit zone / hazard warning                → rust */
+  --neon-cyan:    #e08a2c;
+  --neon-magenta: #8fae3b;
+  --neon-orange:  #c2671f;
+
+  /* Active hex outline picks up the ember accent */
+  --hex-stroke:        var(--edge-strong);
   --hex-stroke-active: var(--neon-cyan);
+
+  /* ── Dampen the neon bloom — grimy, not glowing ── */
+  --glow-sm: 0 0 4px;
+  --glow-md: 0 0 9px;
+
+  /* ── Status colours retuned for the setting ── */
+  --status-success: #5a9a4a;  /* survivor green */
+  --status-warning: #d9a441;  /* hazard amber */
+  --status-error:   #b53a2f;  /* blood red */
+  --status-info:    #e08a2c;  /* ember */
+
+  /* ── City-street tile palette — cracked asphalt, worn concrete curbs, faded lines.
+        Tuned to read clearly on the dark ash board ground. ── */
+  --road-asphalt: #3f3a33;        /* cracked road surface */
+  --road-curb: #6b6253;           /* worn concrete curb / sidewalk */
+  --road-lane: #c9a94e;           /* faded, weathered lane line */
+  --road-asphalt-fixed: #443b2c;  /* pre-placed (fixed) road — warmer, packed-earth tint */
+  --road-curb-fixed: color-mix(in srgb, var(--accent) 35%, #6b6253);
 }
