@@ -172,7 +172,7 @@ All per-count arrays are indexed by player count (1-based index = player count).
 
 - [ ] **AC-v2-18 — Exit tile in deck:** The deck contains exactly one entry with `isExitTile: true`. Its tileType is `cross` at rotation 0 (all six edges open, reachable from any direction — C3). Before it is drawn, `exitRevealed` is `false` and `exitCell` is `null`. The exit tile is placed at a random position within the last `ExitBandFraction[playerCount]` of the deck during deck construction (AC-v2-1b).
 
-- [ ] **AC-v2-19 — Server places exit tile deterministically:** When a player's `DrawTile` action draws the exit tile from the deck, the server immediately and deterministically places it on an exit-zone cell. Placement algorithm: (1) collect all exit-zone cells currently empty (no tile placed there yet); (2) select the empty exit-zone cell whose axial distance to the board centre is smallest — board centre = axial centroid of all in-grid cells; tie-break: lowest q, then for equal q, lowest r (H6 numeric ordering); (3) place the exit tile there as `tileType = cross, rotation = 0, fixed = true` (non-rotatable by players); (4) set `exitCell` to that coord and `exitRevealed` to `true`; (5) remove the exit tile from the deck draw result (it does not enter the player's hand). The player's hand is unchanged; no forced-placement obligation is created. The draw costs 1 AP (normal draw cost) and increments `actionsThisTurn`.
+- [ ] **AC-v2-19 — Server places exit tile deterministically:** When a player's `DrawTile` action draws the exit tile from the deck, the server immediately and deterministically places it on an exit-zone cell. Placement algorithm: (1) collect all exit-zone cells currently empty (no tile placed there yet); (2) select the empty exit-zone cell whose axial distance to the board centre is smallest — board centre = axial centroid of all in-grid cells; tie-break: lowest q, then for equal q, lowest r (H6 numeric ordering); (3) place the exit tile there as `tileType = cross, rotation = 0, fixed = true` (non-rotatable by players); (4) set `exitCell` to that coord and `exitRevealed` to `true`; (5) remove the exit tile from the deck draw result (it does not enter the player's hand). The player's hand is unchanged; no forced-placement obligation is created. The draw costs 1 AP (normal draw cost) and increments `qualifyingActionsThisTurn` (DrawTile is a qualifying action).
 
 - [ ] **AC-v2-20 — Win check after server exit placement:** Immediately after the server places the exit tile (AC-v2-19), win check runs. If all non-eliminated, placed characters are already on `exitCell`, win fires immediately.
 
@@ -180,17 +180,17 @@ All per-count arrays are indexed by player count (1-based index = player count).
 
 ### Tile placement and rotation
 
-- [ ] **AC-v2-22 — PlaceTile valid:** Given `activeSeat` dispatches `PlaceTile { coord, tileType, rotation }`, the player has already placed their first tile (character exists), the coord exists in the level grid and is not in `exitZoneCells` and is not another player's reserved-but-unused spawn cell, the cell is unoccupied (has no tile — zombie tokens do NOT block tile placement; H6/M), the player's hand contains that tile type with `isZombieTile: false` and `isExitTile: false`, and rotation is in 0–5, then: the cell is populated; the tile is removed from hand; `exitConnectedCount` is recomputed (if `exitRevealed`); `actionPointsRemaining` decremented by 1; `actionsThisTurn` incremented by 1. Win check runs immediately (if `exitRevealed`).
+- [ ] **AC-v2-22 — PlaceTile valid:** Given `activeSeat` dispatches `PlaceTile { coord, tileType, rotation }`, the player has already placed their first tile (character exists), the coord exists in the level grid and is not in `exitZoneCells` and is not another player's reserved-but-unused spawn cell, the cell is unoccupied (has no tile — zombie tokens do NOT block tile placement; H6/M), the player's hand contains that tile type with `isZombieTile: false` and `isExitTile: false`, and rotation is in 0–5, then: the cell is populated; the tile is removed from hand; `exitConnectedCount` is recomputed (if `exitRevealed`); `actionPointsRemaining` decremented by 1; `qualifyingActionsThisTurn` incremented by 1 (PlaceTile is a qualifying action). Win check runs immediately (if `exitRevealed`).
 
-- [ ] **AC-v2-23 — PlaceZombieTile valid:** Given `activeSeat` holds a zombie tile and dispatches `PlaceZombieTile { coord }`, the coord is an in-grid cell WITH A PLACED TILE (not tile-less), NOT in `exitZoneCells`, and NOT currently zombie-occupied (C4 unified spawn rule), and the forced zombie-tile obligation is active (player must place zombie tile before other non-forced actions), then: the cell is populated with the zombie tile; the tile is removed from hand; a new zombie token is spawned at coord with a stable generated id; co-location elimination check runs (if any character is at coord, eliminate it); `actionPointsRemaining` decremented by 1; `actionsThisTurn` incremented by 1. Win check runs immediately (if `exitRevealed`). Note: the zombie tile has a normal `tileType` drawn from the standard set, placed at rotation 0, fixed (non-rotatable by players — but rotatable by D1 break-out, see AD-OB-5). The zombie tile placement obligation takes precedence over all other actions on that player's turn and counts toward `MinActionsPerTurn`.
+- [ ] **AC-v2-23 — PlaceZombieTile valid:** Given `activeSeat` holds a zombie tile and dispatches `PlaceZombieTile { coord }`, the coord is an in-grid cell WITH A PLACED TILE (not tile-less), NOT in `exitZoneCells`, and NOT currently zombie-occupied (C4 unified spawn rule), and the forced zombie-tile obligation is active (player must place zombie tile before other non-forced actions), then: the cell is populated with the zombie tile; the tile is removed from hand; a new zombie token is spawned at coord with a stable generated id; co-location elimination check runs (if any character is at coord, eliminate it); `actionPointsRemaining` decremented by 1; `qualifyingActionsThisTurn` incremented by 1 (PlaceZombieTile is a qualifying action). Win check runs immediately (if `exitRevealed`). Note: the zombie tile has a normal `tileType` drawn from the standard set, placed at rotation 0, fixed (non-rotatable by players — but rotatable by D1 break-out, see AD-OB-5). The zombie tile placement obligation takes precedence over all other actions on that player's turn and counts toward the minimum qualifying-actions requirement.
 
 - [ ] **AC-v2-24 — PlaceZombieTile on occupied cell rejected:** Rejected with `"Cell is already occupied."`. State unchanged. Obligation remains.
 
-- [ ] **AC-v2-25 — PlaceZombieTile with no legal in-grid tiled cell:** Given a player holds a zombie tile but every in-grid tiled non-exit-zone cell is either zombie-occupied or otherwise unavailable, the zombie tile is appended to `discardPile` (no spawn); `actionPointsRemaining` decremented by 1; `actionsThisTurn` incremented by 1. The forced discard costs 1 AP. Win check runs immediately (if `exitRevealed`).
+- [ ] **AC-v2-25 — PlaceZombieTile with no legal in-grid tiled cell:** Given a player holds a zombie tile but every in-grid tiled non-exit-zone cell is either zombie-occupied or otherwise unavailable, the zombie tile is appended to `discardPile` (no spawn); `actionPointsRemaining` decremented by 1; `qualifyingActionsThisTurn` incremented by 1 (PlaceZombieTile/forced-discard is a qualifying action). The forced discard costs 1 AP. Win check runs immediately (if `exitRevealed`).
 
-- [ ] **AC-v2-26 — RotateTile valid:** Given `activeSeat` dispatches `RotateTile { coord, rotation }`, rotation is in 0–5, the cell contains a player-placed non-zombie tile AND the tile is not a pre-placed level tile AND not the exit tile (those are fixed against player rotation), then: the rotation is updated; `exitConnectedCount` recomputed (if `exitRevealed`); `actionPointsRemaining` decremented by 1; `actionsThisTurn` incremented by 1. Same-rotation RotateTile is accepted and costs 1 AP. Win check runs immediately (if `exitRevealed`). The active player may rotate ANY player-placed non-zombie, non-level, non-exit tile regardless of who originally placed it (co-op shared board).
+- [ ] **AC-v2-26 — RotateTile valid:** Given `activeSeat` dispatches `RotateTile { coord, rotation }`, rotation is in 0–5, the cell contains a player-placed non-zombie tile AND the tile is not a pre-placed level tile AND not the exit tile (those are fixed against player rotation), then: the rotation is updated; `exitConnectedCount` recomputed (if `exitRevealed`); `actionPointsRemaining` decremented by 1. `qualifyingActionsThisTurn` is NOT incremented (RotateTile is not a qualifying action — F1). Same-rotation RotateTile is accepted and costs 1 AP. Win check runs immediately (if `exitRevealed`). The active player may rotate ANY player-placed non-zombie, non-level, non-exit tile regardless of who originally placed it (co-op shared board).
 
-- [ ] **AC-v2-27 — MoveCharacter valid:** Given `activeSeat` dispatches `MoveCharacter { toCoord }`, the player's character exists, is non-eliminated, and the connection rule is satisfied in both directions between the character's current cell and `toCoord`, then: character `pos` is updated; `actionPointsRemaining` decremented by 1; `actionsThisTurn` incremented by 1. Co-location elimination check runs BEFORE win check — if `toCoord` contains a zombie, the character is eliminated and win check is NOT run for that character. Win check runs immediately after (if `exitRevealed`).
+- [ ] **AC-v2-27 — MoveCharacter valid:** Given `activeSeat` dispatches `MoveCharacter { toCoord }`, the player's character exists, is non-eliminated, and the connection rule is satisfied in both directions between the character's current cell and `toCoord`, then: character `pos` is updated; `actionPointsRemaining` decremented by 1; `qualifyingActionsThisTurn` incremented by 1 (MoveCharacter is a qualifying action). Co-location elimination check runs BEFORE win check — if `toCoord` contains a zombie, the character is eliminated and win check is NOT run for that character. Win check runs immediately after (if `exitRevealed`).
 
 - [ ] **AC-v2-28 — MoveCharacter before first tile placed rejected:** If a player has not yet placed their first tile (character has no position), `MoveCharacter` is rejected with `"Your character has not been placed yet."`.
 
@@ -238,11 +238,11 @@ All per-count arrays are indexed by player count (1-based index = player count).
 
   Non-contained zombies receive no break-out or spawn.
 
-- [ ] **AC-v2-32d — Phase 3 — per-zombie d6 roll and move:** For each zombie (in stable id order): roll `Random.Shared.Next(1, 7)` (1–6), map die face to direction (die face mod 6). Check the full connection rule: if the zombie's tile has an open edge in that direction AND the neighbour exists in the grid AND the neighbour's tile has an open edge in the opposite direction, move the zombie to the neighbour. Otherwise zombie stays. Store `{ zombieId, dieFace, direction, moved }` in `lastZombieRolls`. Co-location elimination check runs after each zombie move (AC-v2-31b). Phase 3 reads the LIVE post-Phase-2 grid — break-out rotations applied in Phase 2 ARE visible to Phase 3.
+- [ ] **AC-v2-32d — Phase 3 — per-zombie d6 roll and move (F4):** Phase 3 iterates ALL zombies alive at the START of Phase 3, in stable id order. This includes zombies spawned during Phase 2 (break-out spawns) — they are alive at the start of Phase 3 and therefore receive a d6 roll. (Phase 2's frozen-id-list applies only to Phase 2 containment evaluation; it does not exclude Phase-2-spawned zombies from Phase 3.) For each zombie in this list: roll `Random.Shared.Next(1, 7)` (1–6), map die face to direction (die face mod 6). Check the full connection rule: if the zombie's tile has an open edge in that direction AND the neighbour exists in the grid AND the neighbour's tile has an open edge in the opposite direction, move the zombie to the neighbour. Otherwise zombie stays. Store `{ zombieId, dieFace, direction, moved }` in `lastZombieRolls`. Co-location elimination check runs after each zombie move (AC-v2-31b). Phase 3 reads the LIVE post-Phase-2 grid — break-out rotations applied in Phase 2 ARE visible to Phase 3 (SF-5 two-snapshot rule: Phase 2 containment uses frozen pre-phase snapshot; Phase 3 reads live post-Phase-2 state).
 
 - [ ] **AC-v2-32e — Phase 4 — horde spawn (D2b) (MF-3):** Spawn `HordeRatePerRound[playerCount]` new zombie(s) from `hordeOriginCells`. Deterministic pick: for each zombie to spawn, select the first `hordeOriginCells` entry (lowest index = lowest q, then lowest r — H6 numeric ordering) that is an in-grid cell NOT occupied by a zombie AND NOT in `exitZoneCells` AND HAS A PLACED TILE (C4 unified spawn rule); spawn there. If that cell is zombie-occupied, tile-less, or in the exit zone, try the next entry; if all are unavailable, skip the spawn for this round. Co-location elimination check runs for each horde-spawned zombie (AC-v2-31c). MaxZombies cap applies before each spawn. Note: `hordeOriginCells ∩ exitZoneCells = ∅` is asserted by catalogue validation (AC-v2-5), so the exit-zone guard is a defensive invariant.
 
-- [ ] **AC-v2-32f — Phase 5 — loss check and round advance:** Loss check runs. If loss condition met (AC-v2-30a), game ends. Otherwise: `roundNumber`++; `seatsActedThisRound` → `[]`; `activeSeat` → `null`; `actionPointsRemaining` → 0; `actionsThisTurn` → 0; `phase` → `Actions`.
+- [ ] **AC-v2-32f — Phase 5 — loss check and round advance:** Loss check runs. If loss condition met (AC-v2-30a), game ends. Otherwise: `roundNumber`++; `seatsActedThisRound` → `[]`; `activeSeat` → `null`; `actionPointsRemaining` → 0; `qualifyingActionsThisTurn` → 0; `phase` → `Actions`.
 
 - [ ] **AC-v2-33 — Zombie movement once per round:** Zombies move exactly once per round, at the round boundary. Zombie movement is NOT triggered by individual AP actions.
 
@@ -272,9 +272,9 @@ All per-count arrays are indexed by player count (1-based index = player count).
 
 - [ ] **AC-v2-45 — MoveCharacter by eliminated character:** Rejected with `"Your character has been eliminated."`.
 
-- [ ] **AC-v2-46 — Forced zombie tile action ordering:** While a player holds a zombie tile (and has not yet placed it), dispatching any action other than `PlaceZombieTile` (or the no-legal-cell forced discard path) is rejected with `"You must place your zombie tile first."`.
+- [ ] **AC-v2-46 — Forced zombie tile action ordering (F5):** While a player holds a zombie tile (and has not yet placed it), dispatching any action other than `PlaceZombieTile` (or the no-legal-cell forced discard path) is rejected with `"You must place your zombie tile first."` This includes `EndTurn` — the zombie-tile obligation takes precedence over everything else on that player's turn, including the qualifying-actions check (see AC-v2-9 which enforces this ordering). There is no mechanism by which a player can skip or defer the zombie-tile obligation to a subsequent turn.
 
-- [ ] **AC-v2-47 — EndTurn rejected before minimum actions (DD1):** If `activeSeat` dispatches `EndTurn` and `actionsThisTurn < MinActionsPerTurn` and the escape hatch (AC-v2-10) does not apply, the action is rejected with `"You must take at least {MinActionsPerTurn} actions this turn."`.
+- [ ] **AC-v2-47 — EndTurn rejected before minimum qualifying actions (DD1, F1):** If `activeSeat` dispatches `EndTurn` and `qualifyingActionsThisTurn < min(MinActionsPerTurn, numberOfQualifyingActionsAvailableThisTurn)` (per AC-v2-10), the action is rejected with `"You must take at least {MinActionsPerTurn} actions this turn."` Note: RotateTile does not increment `qualifyingActionsThisTurn`, so a player who used all AP on rotations but had qualifying actions available is still subject to this rejection.
 
 - [ ] **AC-v2-48 — PlaceTile targeting reserved spawn cell rejected:** See AC-v2-13b. Rejected with `"That cell is reserved for another player's spawn."`.
 
@@ -285,6 +285,12 @@ All per-count arrays are indexed by player count (1-based index = player count).
 - [ ] **AC-v2-50 — Projection hides other players' hands:** Given `HasStateProjection = true` and `ProjectStateForPlayer` is called for player P, then: P's own hand is returned in full (including any forced tile flags); every other player's hand is returned as an empty list; `handSizes: { playerId → int }` exposes each player's true tile count; `deck` is returned as an empty list; `deckSize: int` exposes the true deck count. Board, zombies, characters, phase, roundNumber, lastZombieRolls, exitRevealed, exitCell (once revealed), exitConnectedCount, discard count, `activeSeat`, `actionPointsRemaining`, and `reservedSpawnCells` are all returned unmasked.
 
 - [ ] **AC-v2-51 — Projection is pure:** `ProjectStateForPlayer` never mutates the input state.
+
+- [ ] **AC-v2-52 — Phase-3 zombie iteration includes Phase-2 spawns (F4):** A unit test crafts a state with a contained zombie that breaks out and spawns a new zombie during Phase 2. Assert that Phase 3 iterates both the original zombie AND the newly spawned zombie (i.e., `lastZombieRolls` contains entries for both). This confirms that Phase 2's frozen-id-list applies only within Phase 2 and that Phase-2-spawned zombies receive a d6 roll in Phase 3.
+
+- [ ] **AC-v2-53 — qualifyingActionsThisTurn in state (F1):** The state field previously named `actionsThisTurn` is renamed to `qualifyingActionsThisTurn`. It counts only qualifying actions (DrawTile, PlaceTile, PlaceZombieTile, MoveCharacter). RotateTile never increments it. The field is reset to 0 at seat claiming and turn-end. TypeScript `types.ts` must mirror this rename (`qualifyingActionsThisTurn: number`). The frontend EndTurn-disabled tooltip must compare `qualifyingActionsThisTurn` (not the old `actionsThisTurn`) against `MinActionsPerTurn`.
+
+- [ ] **AC-v2-54 — Eliminated player qualifying-actions escape (F1):** A unit test confirms that an eliminated player whose deck is empty, hand is full (HandSize tiles in hand), and has no legal PlaceTile target (all in-grid non-exit-zone cells occupied) and cannot MoveCharacter (character eliminated) has 0 qualifying actions available and may dispatch `EndTurn` immediately without taking any qualifying actions (escape hatch fires, required minimum = 0).
 
 ---
 
@@ -326,7 +332,7 @@ Top-level fields:
 - `seatsActedThisRound: int[]` — distinct list, not `HashSet<int>` (clean JSON round-trip).
 - `activeSeat: int?` — the seat index currently taking its turn; null between turns and before the first turn is claimed each round.
 - `actionPointsRemaining: int` — AP remaining for `activeSeat`. 0 when `activeSeat` is null.
-- `actionsThisTurn: int` — count of real AP actions taken by `activeSeat` this turn; reset to 0 at seat claiming and turn-end. Used to enforce `MinActionsPerTurn`.
+- `qualifyingActionsThisTurn: int` — count of qualifying actions (DrawTile, PlaceTile, PlaceZombieTile, MoveCharacter) taken by `activeSeat` this turn; reset to 0 at seat claiming and turn-end. RotateTile does NOT increment this counter. Used to enforce `MinActionsPerTurn` per AC-v2-10 (F1).
 - `exitConnectedCount: int` — derived BFS count from exit cell outward; broadcast as a UI hint only. 0 when `exitRevealed == false`. Does NOT gate the win condition.
 - `exitRevealed: bool` — false until the exit tile is drawn and server-placed.
 - `exitCell: string?` — null until `exitRevealed` becomes true; set to `"q,r"` by the server when the exit tile is drawn.
@@ -362,7 +368,7 @@ Containment is checked per-zombie in stable id order before the d6 roll phase. Z
 
 Two mechanisms enforce continuous pressure:
 
-**(a) Minimum actions per turn (DD1 — replaces mandatory draw):** On each turn, a player must spend at least `MinActionsPerTurn` (= 2) AP on real actions before `EndTurn` is legal. See AC-v2-10 for the escape hatch. This replaces the old mandatory-draw rule (single draw was the only requirement). The new rule is stronger: players must take meaningful action each turn, but are not locked into drawing if drawing is not their best move. The old AC-v2-10 wording ("You must draw a tile this turn.") is removed; the new AC-v2-10 and AC-v2-47 encode the min-actions rule.
+**(a) Minimum qualifying actions per turn (DD1, F1 — replaces mandatory draw):** On each turn, a player must take at least `min(MinActionsPerTurn, numberOfQualifyingActionsAvailableThisTurn)` **qualifying actions** (DrawTile, PlaceTile, PlaceZombieTile, MoveCharacter) before `EndTurn` is legal. RotateTile always costs AP but never counts toward the minimum and never blocks EndTurn. This resolves rotate-spam griefing and eliminated-player busy-work simultaneously. If 0 qualifying actions are available, EndTurn is accepted immediately. See AC-v2-10 for the full escape-hatch logic and short-circuit guidance. This replaces both the old mandatory-draw rule and the old broader "real actions" wording. The counter tracking this is `qualifyingActionsThisTurn` (renamed from `actionsThisTurn`). AC-v2-10 and AC-v2-47 encode the updated rule.
 
 **(b) Escalating horde (scales by player count — DD2):** At each round boundary (after all zombie d6 moves, before loss check), `HordeRatePerRound[playerCount]` new zombie(s) spawn from `hordeOriginCells`. See Tunable Constants for the per-count table. Deterministic pick per AC-v2-32e. Co-location elimination runs immediately on horde spawn.
 
@@ -383,15 +389,15 @@ No zombie may ever be spawned onto an exit-zone cell, by any mechanism.
 
 **Numeric ordering for tie-breaks (H6):** In all placement algorithms and tiebreakers throughout this spec, "lowest lexicographic key" is replaced with numeric ordering: lowest q first; for equal q, lowest r. This applies to: MF-1 forced placement, server exit placement (AC-v2-19), D1 spawn (AC-v2-32c), horde spawn (AC-v2-32e), and any other deterministic selection.
 
-When the exit tile is drawn, the SERVER places it deterministically (per AC-v2-19). The player who drew the exit tile does NOT choose placement. The exit tile does NOT enter the player's hand. No forced-placement obligation is created. The draw costs 1 AP and increments `actionsThisTurn`.
+When the exit tile is drawn, the SERVER places it deterministically (per AC-v2-19). The player who drew the exit tile does NOT choose placement. The exit tile does NOT enter the player's hand. No forced-placement obligation is created. The draw costs 1 AP and increments `qualifyingActionsThisTurn`.
 
 ### AD-OB-8: D4 — Disconnect handling deferred (known v2 limitation)
 
 A disconnected player's seat stalls the round — all other players must wait for it to act. This is accepted as a known v2 limitation. Implementation adds a `[Fact(Skip="v2 known limitation: disconnected seat stalls round; auto-skip / turn-timer deferred to follow-up")]` test that documents the gap. A follow-up must add auto-skip or a turn timer before public play.
 
-### AD-OB-9: AP turn model — `activeSeat`, `actionPointsRemaining`, and `actionsThisTurn`
+### AD-OB-9: AP turn model — `activeSeat`, `actionPointsRemaining`, and `qualifyingActionsThisTurn` (F1)
 
-`activeSeat: int?`, `actionPointsRemaining: int`, and `actionsThisTurn: int` are top-level state fields. A turn is claimed by the first action from any unacted seat when `activeSeat == null`. On claiming: `activeSeat` = that seat index, `actionPointsRemaining` = `ApPoolSize[playerCount]`, `actionsThisTurn` = 0. Only `activeSeat` may act. When the turn ends (AP hits 0 or `EndTurn`): `activeSeat` → null, `actionPointsRemaining` → 0, `actionsThisTurn` → 0, seat added to `seatsActedThisRound`.
+`activeSeat: int?`, `actionPointsRemaining: int`, and `qualifyingActionsThisTurn: int` are top-level state fields. A turn is claimed by the first action from any unacted seat when `activeSeat == null`. On claiming: `activeSeat` = that seat index, `actionPointsRemaining` = `ApPoolSize[playerCount]`, `qualifyingActionsThisTurn` = 0. Only `activeSeat` may act. When the turn ends (AP hits 0 or `EndTurn`): `activeSeat` → null, `actionPointsRemaining` → 0, `qualifyingActionsThisTurn` → 0, seat added to `seatsActedThisRound`. RotateTile costs AP but does not increment `qualifyingActionsThisTurn` (F1).
 
 `ApPoolSize` is a per-count table (see Tunable Constants). Default gives higher AP at low counts (solo/duo) to compensate for fewer players contributing to deck/board work.
 
@@ -429,7 +435,7 @@ The proportion of zombie tiles and total deck size scale with player count. The 
 | 5       | 12          | 70                         | 1         | 57           |
 | 6       | 15          | 80                         | 1         | 64           |
 
-Solo perks (DD2): `ApPoolSize[1]` and `ApPoolSize[2]` are higher than for 5–6 players (see Tunable Constants). `ExitBandFraction[1]` is larger (exit tile placed higher in deck for solo), making the exit emerge sooner. These perks are intended to make solo winnable without reducing zombie count (which would reduce tension). All values are tunable.
+Solo perks (DD2, F7): `ApPoolSize[1] = 5` (raised from 4) and `ApPoolSize[2] = 4` are higher than for 5–6 players (see Tunable Constants). `ExitBandFraction[1] = 0.50` (raised from 0.40) makes the exit emerge sooner in solo play. `ExitBandFraction[5] = 0.26` (down from 0.27) and `ExitBandFraction[6] = 0.25` are unchanged. These perks are intended to make solo winnable without reducing zombie count (which would reduce tension). All values are balance TBD by playtest.
 
 ### AD-OB-13: First-cut scope trims (locked for v2)
 
@@ -439,8 +445,8 @@ These are deliberately constrained to keep v2 shippable. Each trim leaves a fiel
 - No multi-hex sprint — one hex per MoveCharacter; constant `MaxMoveDistance = 1`.
 - No zombie-tile overwrite — zombie tiles may only target in-grid tiled non-zombie-occupied cells.
 - Fixed hand cap 3 — constant `HandSize = 3`.
-- Min actions per turn 2 — constant `MinActionsPerTurn = 2` (replaces old single-draw rule).
-- Horde rate and AP pool scale by player count — see Tunable Constants and AD-OB-12.
+- Min qualifying actions per turn 2 — constant `MinActionsPerTurn = 2` (replaces old single-draw rule; RotateTile does not count toward minimum — F1).
+- Horde rate and AP pool scale by player count — see Tunable Constants and AD-OB-12. Solo `ApPoolSize[1] = 5` (raised from 4, F7).
 - Ship one v2 level (the tutorial) — level loader and SetupOptions dropdown remain wired; more levels are a follow-up.
 - Exactly one exit tile per game; tileType always `cross` at rotation 0.
 - Win reachability is the players' problem: nothing in the rules guarantees the placed exit tile will be pipe-connected to characters' positions.
@@ -506,6 +512,10 @@ Two distinct sub-cases must both be covered by the deferred `[Fact(Skip=...)]` t
 
 The `[Fact(Skip=...)]` annotation must read: `[Fact(Skip="v2 known limitation: disconnected seat stalls round (both mid-turn and between-turns variants); auto-skip / turn-timer deferred to follow-up")]`. The test body must cover both sub-cases.
 
+### KL-2: Eliminated player Draw/Place/Rotate as griefing surface (accepted — F8)
+
+Eliminated players retain access to DrawTile, PlaceTile, and RotateTile to help their teammates (co-op design intent, AC-v2-34). In a friend-group context this is cooperative assistance. In adversarial or anonymous-player contexts, an eliminated player could deliberately rotate tiles to break connections, draw tiles to drain the deck, or place tiles to block paths. This is accepted as a social-contract limitation for v2, not a rules concern. It is not a bug and will not be fixed in v2. A follow-up may add an optional "adversarial mode" flag that restricts eliminated players to zero actions. The deferred `[Fact(Skip=...)]` test from KL-1 need not cover this case; it is out of scope for v2 testing.
+
 ---
 
 ## Implementation hints
@@ -519,7 +529,7 @@ The `[Fact(Skip=...)]` annotation must read: `[Fact(Skip="v2 known limitation: d
 - Author the tutorial level first — it is the fallback target. Tutorial level must define `spawnZoneCells` (ordered, count >= 6), `exitZoneCells`, and `hordeOriginCells`. `exitZoneCells` must be on the opposite side from `spawnZoneCells`. No pre-placed tiles in `spawnZoneCells` or `exitZoneCells`. All starting zombie positions must have pre-placed tiles.
 - Every enum (`HexEscapePhase`, `HexEscapeOutcome`, tile type enums) must carry `[JsonConverter(typeof(JsonStringEnumConverter))]`.
 - `seatsActedThisRound` as `List<int>` with distinct guard; all logic uses `.Contains()`, never index arithmetic (AD-11).
-- `activeSeat: int?`, `actionPointsRemaining: int`, and `actionsThisTurn: int` tracked in state. Seat claiming sets `activeSeat`, resets AP to `ApPoolSize[playerCount]`, resets `actionsThisTurn` to 0.
+- `activeSeat: int?`, `actionPointsRemaining: int`, and `qualifyingActionsThisTurn: int` tracked in state. Seat claiming sets `activeSeat`, resets AP to `ApPoolSize[playerCount]`, resets `qualifyingActionsThisTurn` to 0. RotateTile costs 1 AP but does not increment `qualifyingActionsThisTurn` (F1).
 - Win check: after each AP action IF `exitRevealed` AND in Actions phase. Co-location elimination runs before win check on MoveCharacter. Loss check: after ZombieMovement phase (after all moves, spawns, and eliminations).
 - Win check skipped entirely when `exitRevealed == false`.
 - **SF-4 — Win must short-circuit (single most likely implementation bug):** When win fires, the handler must `return` IMMEDIATELY after setting `phase = GameOver`, `outcome = Escaped`, and emitting `GameOverEffect`. It must NOT fall through to the round-boundary sequence or zombie cascade. Add a unit test asserting the zombie cascade is NOT triggered in the same `Handle` call that produces a win.
@@ -533,9 +543,9 @@ The `[Fact(Skip=...)]` annotation must read: `[Fact(Skip="v2 known limitation: d
 - D2b horde: pick lowest-index non-zombie-occupied, non-exit-zone, tiled `hordeOriginCells` entry. Horde rate = `HordeRatePerRound[playerCount]`. MaxZombies cap applies.
 - **SF-2 — MaxZombies soft-cap:** Define `MaxZombies = 200`. Before any zombie spawn (PlaceZombieTile, D1, D2b), check `zombies.Count < MaxZombies`; if at cap skip spawn and emit server WARNING.
 - Server exit placement: when exit tile is drawn, place as `cross r0 fixed` on closest-to-centre empty `exitZoneCells` entry (tie-break: lowest q, then lowest r — H6). Set `exitRevealed = true`, `exitCell` to that coord. Run win check immediately (AC-v2-20).
-- MinActionsPerTurn enforcement: track `actionsThisTurn` in state. On `EndTurn`, check `actionsThisTurn >= MinActionsPerTurn`; if not, evaluate escape hatch (enumerate available legal actions). Reject if hatch does not apply.
-- `exitConnectedCount`: recomputed after any action that changes board connectivity or character positions, when `exitRevealed`. Renamed from `connectedCharacters` — TypeScript must use `exitConnectedCount`.
-- `CreateInitialState`: assign reserved spawn cells (`reservedSpawnCells[playerId] = spawnZoneCells[seatIndex]`); deal `StartingHandSize` tiles from safe-opening top into each player's hand.
+- MinActionsPerTurn enforcement: track `qualifyingActionsThisTurn` in state (counts DrawTile, PlaceTile, PlaceZombieTile, MoveCharacter only — RotateTile does not count). On `EndTurn`: first reject if player holds zombie tile (AC-v2-9, F5); then check `qualifyingActionsThisTurn >= min(MinActionsPerTurn, numberOfQualifyingActionsAvailableThisTurn)` (AC-v2-10, F1). Short-circuit: if deck non-empty OR hand non-full, DrawTile is available → minimum is at least 1, skip further enumeration. Reject if minimum not met. (F1 implementation guidance.)
+- `exitConnectedCount`: recomputed after any action that changes board connectivity or character positions, when `exitRevealed`. Renamed from `connectedCharacters` — TypeScript must use `exitConnectedCount`. TypeScript must also rename `actionsThisTurn` → `qualifyingActionsThisTurn` (F1, AC-v2-53).
+- `CreateInitialState`: use the two-quantity deck construction (F2, AC-v2-1b): compute `rawPoolSize = postDealSize + (StartingHandSize × playerCount)`; `safeCount = floor(rawPoolSize × SafeOpeningFraction)`; deal `StartingHandSize` tiles per player from the top `safeCount` raw-pool slots; band boundaries (`exitBandStart`, zombie band) computed on `postDealSize`; assign reserved spawn cells (`reservedSpawnCells[playerId] = spawnZoneCells[seatIndex]`).
 - Phase enum no longer includes `Drawing` — remove it.
 - Expose `ResolveZombieMove` as `internal static` (with `InternalsVisibleTo` for the test project).
 - No `HexEscapeDbContext`; no EF migrations.
@@ -544,11 +554,11 @@ The `[Fact(Skip=...)]` annotation must read: `[Fact(Skip="v2 known limitation: d
 ### Frontend (rewrite types.ts and Game.tsx; keep HexBoard)
 
 - Keep `HexBoard` axial-to-pixel rendering and geometry unchanged.
-- Rewrite `types.ts` to mirror the v2 state shape (AD-OB-4) in camelCase. Include `exitRevealed: boolean`, `exitCell: string | null`, `activeSeat: number | null`, `actionPointsRemaining: number`, `actionsThisTurn: number`, `exitConnectedCount: number`, `reservedSpawnCells: Record<string, string>`. Remove `connectedCharacters`.
+- Rewrite `types.ts` to mirror the v2 state shape (AD-OB-4) in camelCase. Include `exitRevealed: boolean`, `exitCell: string | null`, `activeSeat: number | null`, `actionPointsRemaining: number`, `qualifyingActionsThisTurn: number`, `exitConnectedCount: number`, `reservedSpawnCells: Record<string, string>`. Remove `connectedCharacters` and `actionsThisTurn` (F1, AC-v2-53).
 - Remove `Drawing` from the `HexEscapePhase` string union.
 - Add zombie token layer and character token layer over `HexBoard`.
 - Render per-player hands, deck size, round number, phase indicator, and AP counter for `activeSeat`.
-- Show `actionsThisTurn` vs `MinActionsPerTurn` so players know when EndTurn becomes legal.
+- Show `qualifyingActionsThisTurn` vs `MinActionsPerTurn` so players know when EndTurn becomes legal (F1, AC-v2-53).
 - Highlight each player's reserved spawn cell until they have placed their first tile.
 - Highlight exit zone cells as reserved (distinct visual treatment).
 - Show AP remaining for the active seat. Disable action buttons when AP is 0 or seat is not `activeSeat`.
@@ -556,22 +566,22 @@ The `[Fact(Skip=...)]` annotation must read: `[Fact(Skip="v2 known limitation: d
 - Animate `lastZombieRolls` — show dice result and movement arrow per zombie.
 - Result screen: `outcome === 'Escaped'` → "Escaped!"; `outcome === 'Overrun'` → "Overrun!". Never render null winner.
 - Highlight forced-tile obligation: block other action buttons with tooltip when player holds zombie tile.
-- Show EndTurn button disabled with tooltip `"Take at least {MinActionsPerTurn} actions first"` when `actionsThisTurn < MinActionsPerTurn`.
+- Show EndTurn button disabled with tooltip `"Take at least {MinActionsPerTurn} actions first"` when `qualifyingActionsThisTurn < MinActionsPerTurn` (F1). Note: RotateTile does not count toward this display threshold.
 - TypeScript enums mirror as PascalCase string unions; all field names camelCase.
 
 ### Tester
 
 - Port pure-geometry tests first, before the old test file is deleted.
-- New test suite covers: deck construction places safe-opening tiles in top band (no zombie/exit in top SafeOpeningFraction); exit tile in exit band for each player count; zombie tiles in middle band only; starting hand dealt from top-band tiles; deck has exactly one exit tile; exit tile is `cross r0`; catalogue validation (AC-v2-5) passes for all authored levels; every starting zombie position has a pre-placed tile; `spawnZoneCells ∩ hordeOriginCells = ∅`; no pre-placed tiles in spawnZoneCells or exitZoneCells; reserved spawn cell assigned per seat; first tile must target reserved spawn cell; non-first PlaceTile blocked from other players' reserved cells; PlaceTile accepted on occupied-by-zombie cell (zombie does not block tile placement); DrawTile costs 1 AP; AP exhausted rejects further actions; EndTurn rejected before `MinActionsPerTurn` actions; EndTurn accepted after `MinActionsPerTurn` actions; escape hatch allows EndTurn when all legal actions exhausted; unplaced player with full hand cannot use escape hatch (PlaceTile to reserved cell always available); hand cap rejects draw when full; exit-zone rejection for PlaceTile and PlaceZombieTile; PlaceZombieTile rejected on tile-less cell; character spawns on first tile; server exit placement sets exitRevealed and exitCell, tile is cross r0 fixed; server exit not in hand; win check skipped before exitRevealed; win fires when all placed non-eliminated on exitCell; unplaced players do not block win; win fires immediately after server exit if all characters already there; zombie tile discard with no legal in-grid tiled cell; ZombieMovement runs once at round boundary; round-boundary sequence correct; D1 break-out skips rotation for pre-placed level tile (C2); D1 break-out rotates zombie-placed tile; D1 spawn targets tiled cells only (C4); D1 spawn eliminated character if present; D2b horde rate = `HordeRatePerRound[playerCount]`; horde skips tile-less cells and zombie-occupied cells; horde skips exit-zone cells; AP pool = `ApPoolSize[playerCount]`; solo AP pool > 6-player pool; solo exit band fraction > 6-player fraction; activeSeat set and cleared correctly; eliminated character not counted in win check; eliminated player may still DrawTile/PlaceTile/RotateTile; eliminated player cannot MoveCharacter; loss requires ALL placed characters eliminated; unplaced characters ignored for loss; round-boundary includes all seat indices 0..N-1; projection hides other players' hands and deck; reservedSpawnCells in projection; two zombies may stack on one cell.
+- New test suite covers: deck construction uses `rawPoolSize` and `postDealSize` correctly (F2): `safeCount` computed on rawPoolSize; starting hands drawn from top `safeCount` raw-pool slots; `exitBandStart` computed on `postDealSize`; post-deal deck length equals `postDealSize`; top `(safeCount − StartingHandSize × playerCount)` deck entries are zombie/exit-free (F2 invariant); exit tile in exit band for each player count; zombie tiles in middle band only; deck has exactly one exit tile; exit tile is `cross r0`; catalogue validation (AC-v2-5, F3) passes for all authored levels; every starting zombie position has a pre-placed tile; every `hordeOriginCell` has a pre-placed level tile (F3); `ApPoolSize[n] >= MinActionsPerTurn` for all n (F3); exit-connectivity check is rotation-aware for cross r0 exit tile (F3); `spawnZoneCells ∩ hordeOriginCells = ∅`; no pre-placed tiles in spawnZoneCells or exitZoneCells; reserved spawn cell assigned per seat; first tile must target reserved spawn cell; non-first PlaceTile blocked from other players' reserved cells; PlaceTile accepted on occupied-by-zombie cell (zombie does not block tile placement); DrawTile costs 1 AP; RotateTile costs 1 AP but does NOT increment `qualifyingActionsThisTurn` (F1); AP exhausted rejects further actions; EndTurn rejected before `MinActionsPerTurn` qualifying actions (F1); EndTurn accepted after `MinActionsPerTurn` qualifying actions (F1); EndTurn rejected while holding zombie tile regardless of `qualifyingActionsThisTurn` (F5, AC-v2-9); escape hatch allows EndTurn when 0 qualifying actions available (F1, AC-v2-10); eliminated player with empty deck, full hand, no legal PlaceTile or MoveCharacter has 0 qualifying actions → EndTurn accepted (AC-v2-54, F1); unplaced player with full hand cannot use escape hatch (PlaceTile to reserved cell always available); hand cap rejects draw when full; exit-zone rejection for PlaceTile and PlaceZombieTile; PlaceZombieTile rejected on tile-less cell; character spawns on first tile; server exit placement sets exitRevealed and exitCell, tile is cross r0 fixed; server exit not in hand; win check skipped before exitRevealed; win fires when all placed non-eliminated on exitCell; unplaced players do not block win; win fires immediately after server exit if all characters already there; zombie tile discard with no legal in-grid tiled cell; MF-1 atomic resolution: drawn zombie tile on last AP increments `qualifyingActionsThisTurn` by 1 and resolves without leaving zombie tile in hand (F6, AC-v2-8b); ZombieMovement runs once at round boundary; round-boundary sequence correct; Phase-3 zombie iteration includes Phase-2-spawned zombies — `lastZombieRolls` contains entries for both original and break-out-spawned zombies (AC-v2-52, F4); D1 break-out skips rotation for pre-placed level tile (C2); D1 break-out rotates zombie-placed tile; D1 spawn targets tiled cells only (C4); D1 spawn eliminated character if present; D2b horde rate = `HordeRatePerRound[playerCount]`; horde skips tile-less cells and zombie-occupied cells; horde skips exit-zone cells; AP pool = `ApPoolSize[playerCount]`; solo `ApPoolSize[1] = 5` (raised F7); solo exit band fraction `ExitBandFraction[1] = 0.50` > 6-player fraction (F7); activeSeat set and cleared correctly; `qualifyingActionsThisTurn` resets to 0 at seat claiming and turn-end; eliminated character not counted in win check; eliminated player may still DrawTile/PlaceTile/RotateTile; eliminated player cannot MoveCharacter; loss requires ALL placed characters eliminated; unplaced characters ignored for loss; round-boundary includes all seat indices 0..N-1; projection hides other players' hands and deck; reservedSpawnCells in projection; two zombies may stack on one cell.
 - Port unhappy-path rejection tests from v1 (occupied cell, not-on-board, invalid rotation, repeat action) updating for v2 action set.
 - Disconnected seat stalls round: `[Fact(Skip="v2 known limitation: disconnected seat stalls round (both mid-turn and between-turns variants); auto-skip / turn-timer deferred to follow-up")]`. Test body covers both sub-cases.
 - **SF-4 — Win short-circuit:** Assert when win fires, `Handle` return has `phase == GameOver` AND `zombies` list unchanged AND `lastZombieRolls` empty.
 - **MF-1 — Atomic zombie resolution on last AP:** Assert drawn zombie tile on last AP leaves no zombie tile in hand, zombie in board (or discardPile if no legal cell), `actionPointsRemaining == 0`.
 - **MF-2 — Frozen-snapshot containment:** Crafted state with multiple contained zombies; assert A's break-out rotation does not affect B's containment decision.
 - **MF-3 — Exit-zone never receives zombie:** Assert D1 spawn and D2b horde never place zombie on exit-zone cell even when exit-zone cells are lowest-index candidates.
-- **DD1 — Min actions:** Assert EndTurn rejected at 0 actions, rejected at 1 action, accepted at 2 actions with default `MinActionsPerTurn = 2`. Assert escape hatch triggers when genuinely no legal actions remain.
+- **DD1/F1 — Min qualifying actions:** Assert EndTurn rejected at 0 qualifying actions (when ≥2 qualifying actions were available), rejected at 1 qualifying action (when ≥2 were available), accepted at 2 qualifying actions. Assert RotateTile does not increment `qualifyingActionsThisTurn`. Assert escape hatch triggers when 0 qualifying actions remain (required minimum = 0). Assert escape hatch triggers when exactly 1 qualifying action was available and the player took it (required minimum = 1 and was met). Assert escape hatch does NOT apply when qualifying actions remain untaken.
 - **DD2 — Scaling:** Parameterised tests across all 6 player counts for `ApPoolSize`, `HordeRatePerRound`, `ExitBandFraction`.
-- **DD3 — Safe start:** Assert no zombie or exit tile in top safeCount deck positions; starting hands non-empty and non-zombie/non-exit; round-1 play does not produce instant elimination from zombie horde (no zombie tiles in starting hand or top-of-deck).
+- **DD3/F2 — Safe start:** Assert no zombie or exit tile in top `(safeCount − StartingHandSize × playerCount)` post-deal deck positions; `safeCount` computed on `rawPoolSize` (not `postDealSize`); starting hands non-empty and non-zombie/non-exit; post-deal deck length = `postDealSize`; round-1 play does not produce instant elimination from zombie horde.
 - **H10 — Reserved spawn:** Assert no permanently-unplaced softlock possible; two players cannot take each other's reserved spawn cells.
 - Expose `ResolveZombieMove` as `internal static` for unit tests.
 
@@ -583,8 +593,8 @@ No migration and no new DbContext — no CI action required for v2.
 
 ## Story review and playtest history
 
-**Revision 5 — post-playtest hardening**
-**Status:** Pending re-playtest (DD4)
+**Revision 6 — round-2 playtest convergence**
+**Status:** Refined v6 — playtest-converged, ready for implementation
 
 ### Revision history
 
@@ -594,6 +604,24 @@ No migration and no new DbContext — no CI action required for v2.
 | v3 | 2026-06-16 | Story-review: D1/D2/D3/D4 added; 46→49 ACs; 7 blockers closed |
 | v4 | 2026-06-16 | Architect pre-implementation review: MF-1/2/3 applied; 49→63 ACs |
 | v5 | 2026-06-16 | 3-agent playtest hardening + DD1–DD4 owner decisions; 63→76 ACs |
+| v6 | 2026-06-16 | Round-2 playtest convergence: F1–F8 applied; 76→79 ACs; all prior critical/high issues resolved |
+
+### Round-2 playtest summary (v6)
+
+Round-2 playtest converged. A full 2-player game was won in simulation (escape achieved within a reasonable round count using the v6 balance constants). All prior critical and high issues are resolved:
+
+- **Rotate-spam griefing (F1):** Resolved. RotateTile costs AP but does not count as a qualifying action. A player who spends all AP on rotations still needs qualifying actions for EndTurn to be legal (or runs out of AP, auto-ending the turn). This eliminates the rotate-spam EndTurn bypass without penalising legitimate rotations.
+- **Eliminated-player busy-work (F1):** Resolved. If an eliminated player has 0 qualifying actions available (empty deck, full hand, no legal placement, no MoveCharacter), EndTurn is accepted immediately (required minimum = 0). No one is forced to take meaningless actions.
+- **1-action escape-hatch hole (F1):** Resolved. The old "fewer than MinActionsPerTurn legal actions available" wording had a gap when exactly 1 qualifying action was available — a player could claim the hatch after taking 0. The new `min(MinActionsPerTurn, numberOfQualifyingActionsAvailableThisTurn)` formula closes this: if 1 qualifying action is available the player must take that 1, not 0.
+- **Deck construction pre/post-deal ambiguity (F2):** Resolved. Two distinct quantities (`rawPoolSize`, `postDealSize`) are now defined with a clear invariant. Implementors cannot miscompute band boundaries by applying SafeOpeningFraction to the wrong total.
+- **HordeOriginCell with no pre-placed tile (F3):** Resolved. Catalogue validation now asserts every `hordeOriginCell` has a pre-placed level tile, mirroring the existing starting-zombie-position assertion.
+- **Phase-3 zombie iteration scope (F4):** Resolved. AC-v2-32d now explicitly states Phase 3 iterates ALL zombies alive at the start of Phase 3, including Phase-2 break-out spawns.
+- **Forced zombie tile + EndTurn ordering (F5):** Resolved. AC-v2-9 now enforces zombie-tile obligation check before qualifying-actions check. AC-v2-46 also notes this ordering explicitly.
+- **MF-1 atomic resolution counter (F6):** Resolved. The atomic forced placement increments `qualifyingActionsThisTurn` by 1 and does not push AP below 0. Minimum obligation is always satisfied after MF-1 resolution.
+- **Balance constants (F7):** `ApPoolSize[1]` raised to 5 (from 4); `ExitBandFraction[1]` raised to 0.50 (from 0.40); `ExitBandFraction[5]` 0.26 (from 0.27). All remain TBD by playtest.
+- **Known limitations (F8):** KL-2 added documenting eliminated-player griefing as a social-contract limitation accepted for v2.
+
+Remaining open items: none. All round-2 items applied. Spec is ready for implementation.
 
 ### Playtest findings and resolutions (v5)
 
@@ -637,4 +665,9 @@ No migration and no new DbContext — no CI action required for v2.
 13. Break-out rotation is skipped for pre-placed level tiles; zombie-placed tiles are rotatable (C2).
 14. "All seats" for round boundary = all indices 0..players.Count-1, regardless of placement or elimination status.
 15. Numeric tiebreaker everywhere: lowest q, then lowest r (not string lexicographic order) (H6).
-16. EndTurn requires MinActionsPerTurn real actions; escape hatch only when genuinely no legal actions available (DD1).
+16. EndTurn requires `min(MinActionsPerTurn, numberOfQualifyingActionsAvailableThisTurn)` QUALIFYING actions; RotateTile is not qualifying; escape hatch fires when 0 qualifying actions available (DD1, F1).
+17. Forced zombie tile on EndTurn: check zombie-tile obligation BEFORE qualifying-actions check — zombie tile must be placed first, regardless of `qualifyingActionsThisTurn` (F5).
+18. MF-1 atomic resolution increments `qualifyingActionsThisTurn` by 1 and does not push AP below 0 (F6).
+19. Phase 3 zombie iteration includes Phase-2 break-out spawns — they receive a d6 roll in Phase 3 (F4).
+20. Deck construction: `safeCount` uses `rawPoolSize` (pre-deal); `exitBandStart` uses `postDealSize` (post-deal) — these are different quantities (F2).
+21. Every `hordeOriginCell` must have a pre-placed level tile (catalogue validation — F3).
