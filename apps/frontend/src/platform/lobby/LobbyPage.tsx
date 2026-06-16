@@ -5,12 +5,24 @@ import { AvatarStrip } from '@meepliton/ui'
 import { useAuth } from '../auth/AuthContext'
 import './lobby.css'
 
+interface GameSetupChoice {
+  value: string
+  label: string
+}
+
+interface GameSetupOption {
+  key: string
+  label: string
+  choices: GameSetupChoice[]
+}
+
 interface GameInfo {
   gameId: string
   name: string
   description: string
   minPlayers: number
   maxPlayers: number
+  setupOptions?: GameSetupOption[]
 }
 
 interface RoomInfo {
@@ -54,6 +66,13 @@ export default function LobbyPage() {
 
   const [creatingGameId, setCreatingGameId] = useState<string | null>(null)
 
+  // Host's pre-game setup choices, keyed by gameId then option key.
+  const [setupChoices, setSetupChoices] = useState<Record<string, Record<string, string>>>({})
+
+  function setChoice(gameId: string, key: string, value: string) {
+    setSetupChoices(prev => ({ ...prev, [gameId]: { ...prev[gameId], [key]: value } }))
+  }
+
   useEffect(() => {
     setLoadingLobby(true)
     fetch('/api/lobby', { credentials: 'include' })
@@ -63,15 +82,25 @@ export default function LobbyPage() {
       .finally(() => setLoadingLobby(false))
   }, [])
 
-  async function createRoom(gameId: string) {
+  async function createRoom(game: GameInfo) {
     if (creatingGameId !== null) return
+    const gameId = game.gameId
     setCreatingGameId(gameId)
     try {
+      // Build the options blob from the host's setup choices, defaulting each
+      // option to its first choice when the host left it untouched.
+      const chosen = setupChoices[gameId] ?? {}
+      const options: Record<string, string> = {}
+      for (const opt of game.setupOptions ?? []) {
+        const value = chosen[opt.key] ?? opt.choices[0]?.value
+        if (value !== undefined) options[opt.key] = value
+      }
+      const body = Object.keys(options).length > 0 ? { gameId, options } : { gameId }
       const res = await fetch('/api/rooms', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId }),
+        body: JSON.stringify(body),
       })
       if (res.ok) {
         const room = await res.json() as { roomId: string; joinCode: string }
@@ -263,11 +292,34 @@ export default function LobbyPage() {
                     <div className="game-card-meta">
                       {game.minPlayers}\u2013{game.maxPlayers} players
                     </div>
+                    {(game.setupOptions ?? []).map(opt => {
+                      const selectId = `setup-${game.gameId}-${opt.key}`
+                      return (
+                        <div key={opt.key} className="game-card-option">
+                          <label className="game-card-option-label" htmlFor={selectId}>
+                            {opt.label}
+                          </label>
+                          <select
+                            id={selectId}
+                            className="game-card-option-select"
+                            value={setupChoices[game.gameId]?.[opt.key] ?? opt.choices[0]?.value ?? ''}
+                            onChange={e => setChoice(game.gameId, opt.key, e.target.value)}
+                            disabled={creatingGameId !== null}
+                          >
+                            {opt.choices.map(choice => (
+                              <option key={choice.value} value={choice.value}>
+                                {choice.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )
+                    })}
                   </div>
                   <div className="game-card-footer">
                     <button
                       className="btn btn-primary btn-full"
-                      onClick={() => createRoom(game.gameId)}
+                      onClick={() => createRoom(game)}
                       disabled={creatingGameId !== null}
                     >
                       {creatingGameId === game.gameId ? 'Creating\u2026' : 'Create room'}

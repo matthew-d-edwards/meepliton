@@ -30,6 +30,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meepliton.Games.SushiGo", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meepliton.Games.Coup", "games\Meepliton.Games.Coup\Meepliton.Games.Coup.csproj", "{30D26E21-DF7F-C479-D6D8-1A7161326C1F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meepliton.Games.HexEscape", "games\Meepliton.Games.HexEscape\Meepliton.Games.HexEscape.csproj", "{E1D2C3B4-A5F6-7890-1234-ABCDEF567890}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -88,6 +90,10 @@ Global
 		{30D26E21-DF7F-C479-D6D8-1A7161326C1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{30D26E21-DF7F-C479-D6D8-1A7161326C1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{30D26E21-DF7F-C479-D6D8-1A7161326C1F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E1D2C3B4-A5F6-7890-1234-ABCDEF567890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E1D2C3B4-A5F6-7890-1234-ABCDEF567890}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E1D2C3B4-A5F6-7890-1234-ABCDEF567890}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E1D2C3B4-A5F6-7890-1234-ABCDEF567890}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -101,5 +107,6 @@ Global
 		{4A72A147-4D61-7717-AA2E-AED0C73D8A7A} = {E5F6A7B8-C9D0-1234-EF01-345678901234}
 		{BDBB373B-560B-B74E-2884-D41829484122} = {E5F6A7B8-C9D0-1234-EF01-345678901234}
 		{30D26E21-DF7F-C479-D6D8-1A7161326C1F} = {E5F6A7B8-C9D0-1234-EF01-345678901234}
+		{E1D2C3B4-A5F6-7890-1234-ABCDEF567890} = {E5F6A7B8-C9D0-1234-EF01-345678901234}
 	EndGlobalSection
 EndGlobal

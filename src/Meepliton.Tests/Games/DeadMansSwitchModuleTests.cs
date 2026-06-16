@@ -24,6 +24,7 @@ public class DeadMansSwitchModuleTests
     // ── Action helpers ────────────────────────────────────────────────────────
 
     private static DeadMansSwitchAction PlaceDisc()                      => new("PlaceDisc");
+    private static DeadMansSwitchAction PlaceDisc(DiscType t)            => new("PlaceDisc", DiscType: t);
     private static DeadMansSwitchAction StartBid(int target)             => new("StartBid",  TargetCount: target);
     private static DeadMansSwitchAction RaiseBid(int newBid)             => new("RaiseBid",  NewBid: newBid);
     private static DeadMansSwitchAction Pass()                           => new("Pass");
@@ -147,7 +148,7 @@ public class DeadMansSwitchModuleTests
     public void Validate_PlaceDisc_OnYourTurn_IsValid()
     {
         var state = _module.CreateInitialState(ThreePlayers());
-        var error = _module.Validate(state, PlaceDisc(), "p1");
+        var error = _module.Validate(state, PlaceDisc(DiscType.Rose), "p1");
         error.Should().BeNull();
     }
 
@@ -407,7 +408,7 @@ public class DeadMansSwitchModuleTests
     public void Apply_PlaceDisc_IncrementsStackCountAndTotalDiscs()
     {
         var state = _module.CreateInitialState(ThreePlayers());
-        var next  = _module.Apply(state, PlaceDisc(), "p1");
+        var next  = _module.Apply(state, PlaceDisc(DiscType.Rose), "p1");
 
         next.Players[0].StackCount.Should().Be(1);
         next.Players[0].Stack.Should().HaveCount(1);
@@ -418,7 +419,7 @@ public class DeadMansSwitchModuleTests
     public void Apply_PlaceDisc_AdvancesToNextActivePlayer()
     {
         var state = _module.CreateInitialState(ThreePlayers());
-        var next  = _module.Apply(state, PlaceDisc(), "p1");
+        var next  = _module.Apply(state, PlaceDisc(DiscType.Rose), "p1");
 
         next.CurrentPlayerIndex.Should().Be(1, because: "turn must advance clockwise");
     }
@@ -428,9 +429,9 @@ public class DeadMansSwitchModuleTests
     {
         var state = _module.CreateInitialState(ThreePlayers());
         // p1 places, p2 places, p3 places → back to p1
-        var s1 = _module.Apply(state, PlaceDisc(), "p1");
-        var s2 = _module.Apply(s1,    PlaceDisc(), "p2");
-        var s3 = _module.Apply(s2,    PlaceDisc(), "p3");
+        var s1 = _module.Apply(state, PlaceDisc(DiscType.Rose), "p1");
+        var s2 = _module.Apply(s1,    PlaceDisc(DiscType.Rose), "p2");
+        var s3 = _module.Apply(s2,    PlaceDisc(DiscType.Rose), "p3");
 
         s3.CurrentPlayerIndex.Should().Be(0, because: "turn must wrap back to seat 0");
     }
@@ -441,7 +442,7 @@ public class DeadMansSwitchModuleTests
     public void Apply_StartBid_TransitionsToBiddingPhase()
     {
         var state = _module.CreateInitialState(ThreePlayers());
-        var s1    = _module.Apply(state, PlaceDisc(), "p1");
+        var s1    = _module.Apply(state, PlaceDisc(DiscType.Rose), "p1");
         var next  = _module.Apply(s1, StartBid(1), "p2");
 
         next.Phase.Should().Be(DeadMansSwitchPhase.Bidding);
@@ -452,7 +453,7 @@ public class DeadMansSwitchModuleTests
     public void Apply_StartBid_SetsChallengerId()
     {
         var state = _module.CreateInitialState(ThreePlayers());
-        var s1    = _module.Apply(state, PlaceDisc(), "p1");
+        var s1    = _module.Apply(state, PlaceDisc(DiscType.Rose), "p1");
         // after PlaceDisc by p1, currentPlayerIndex = 1 (p2)
         var next  = _module.Apply(s1, StartBid(1), "p2");
 
@@ -991,7 +992,7 @@ public class DeadMansSwitchModuleTests
         var stateDoc = JsonDocument.Parse(JsonSerializer.Serialize(state,
             new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
         var actionDoc = JsonDocument.Parse(JsonSerializer.Serialize(
-            PlaceDisc(),
+            PlaceDisc(DiscType.Rose),
             new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
         var ctx    = new GameContext(stateDoc, actionDoc, "p1", "room-1", 1);
         var result = _module.Handle(ctx);

@@ -27,7 +27,6 @@ const NON_GUARD_CARDS = ALL_CARDS.filter(c => c !== 'Guard')
 
 // Targeting requirements
 const NEEDS_TARGET = new Set(['Guard', 'Priest', 'Baron', 'Prince', 'King'])
-const NEEDS_GUESS  = new Set(['Guard'])
 // Prince can target self; others cannot target self
 const CAN_TARGET_SELF = new Set(['Prince'])
 

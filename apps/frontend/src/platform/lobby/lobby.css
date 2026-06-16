@@ -334,6 +334,35 @@
   color: var(--text-muted);
 }
 
+.game-card-option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.game-card-option-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+.game-card-option-select {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border-radius: 6px;
+  border: 1px solid var(--edge-subtle);
+  background: var(--surface-float);
+  color: var(--text-bright);
+  font-size: 0.82rem;
+}
+
+.game-card-option-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .game-card-footer {
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--edge-subtle);

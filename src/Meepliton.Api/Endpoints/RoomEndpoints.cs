@@ -120,11 +120,12 @@ public static class RoomEndpoints
 
             var games = modules.Select(m => new
             {
-                gameId      = m.GameId,
-                name        = m.Name,
-                description = m.Description,
-                minPlayers  = m.MinPlayers,
-                maxPlayers  = m.MaxPlayers,
+                gameId       = m.GameId,
+                name         = m.Name,
+                description  = m.Description,
+                minPlayers   = m.MinPlayers,
+                maxPlayers   = m.MaxPlayers,
+                setupOptions = m.SetupOptions,
             });
 
             return Results.Ok(new { rooms, games });
@@ -133,11 +134,12 @@ public static class RoomEndpoints
         group.MapGet("/games", (IEnumerable<IGameModule> modules) =>
             Results.Ok(modules.Select(m => new
             {
-                gameId      = m.GameId,
-                name        = m.Name,
-                description = m.Description,
-                minPlayers  = m.MinPlayers,
-                maxPlayers  = m.MaxPlayers,
+                gameId       = m.GameId,
+                name         = m.Name,
+                description  = m.Description,
+                minPlayers   = m.MinPlayers,
+                maxPlayers   = m.MaxPlayers,
+                setupOptions = m.SetupOptions,
             })));
 
         group.MapPost("/rooms", async (CreateRoomRequest req, HttpContext ctx, PlatformDbContext db) =>
@@ -146,10 +148,15 @@ public static class RoomEndpoints
             var code   = GenerateJoinCode();
             var room   = new Room
             {
-                GameId   = req.GameId,
-                HostId   = userId,
-                JoinCode = code,
-                ExpiresAt = DateTimeOffset.UtcNow.AddHours(48),
+                GameId      = req.GameId,
+                HostId      = userId,
+                JoinCode    = code,
+                ExpiresAt   = DateTimeOffset.UtcNow.AddHours(48),
+                // AD-9: transport the opaque options blob unchanged into room.GameOptions
+                // so CreateInitialState receives it when the host starts the game.
+                // When req.Options is null the column remains null — backward-safe for
+                // all existing games (FThat, Skyline, LiarsDice, etc.) that pass null.
+                GameOptions = req.Options,
             };
             db.Rooms.Add(room);
             db.RoomPlayers.Add(new RoomPlayer { RoomId = room.Id, UserId = userId, SeatIndex = 0 });
@@ -344,7 +351,7 @@ public static class RoomEndpoints
         return new string(Enumerable.Range(0, 6).Select(_ => chars[Random.Shared.Next(chars.Length)]).ToArray());
     }
 
-    record CreateRoomRequest(string GameId, object? Options = null);
+    record CreateRoomRequest(string GameId, System.Text.Json.JsonDocument? Options = null);
     record JoinRoomRequest(string Code);
     record TransferHostRequest(string TargetUserId);
 }
