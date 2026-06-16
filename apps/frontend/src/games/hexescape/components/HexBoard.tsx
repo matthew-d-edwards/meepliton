@@ -428,34 +428,19 @@ export function TileLines({ cx, cy, tileType, rotation, fixed }: TileLinesProps)
 
 // ── City blocks ───────────────────────────────────────────────────────────────
 // Each placed tile is a city block. The streets (open edges) carve the hex into
-// wedges; we drop a building footprint into each wide-enough wedge. A deterministic
-// "district" per coordinate gives the map variety — hospitals, police stations,
-// parking, bus stops, corner stores, and generic apartments/offices — so the city
-// reads as a sprawl of recognisable places rather than abstract pipes.
+// wedges; we drop a building footprint into each wide-enough wedge so the streets
+// are lined with buildings. Footprint colour and window pattern vary deterministically
+// per cell (stable per coord) for a lived-in, ruined-city look — no game symbols.
 
 const BUILDING_BODIES = ['#2c2820', '#332b22', '#26221b', '#37301f', '#2a2118']
 const WINDOW_DARK = '#15120d'
 const WINDOW_LIT = '#c9a24e'  // a few lit/burning windows in the ruins
-
-type District =
-  | 'hospital' | 'police' | 'garage' | 'bus' | 'store'
-  | 'apartments' | 'office' | 'diner' | 'warehouse'
-
-const DISTRICTS: District[] = [
-  'hospital', 'police', 'garage', 'bus', 'store',
-  'apartments', 'office', 'diner', 'warehouse',
-]
 
 /** Stable hash of a coord string → small unsigned int. */
 function hashCoord(coord: string): number {
   let h = 0
   for (let i = 0; i < coord.length; i++) h = (h * 31 + coord.charCodeAt(i)) >>> 0
   return h
-}
-
-/** Deterministic district for a cell — same coord always yields the same place. */
-function districtForCoord(coord: string): District {
-  return DISTRICTS[hashCoord(coord) % DISTRICTS.length]
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
@@ -482,30 +467,17 @@ interface TileBuildingsProps {
   rotation: number
 }
 
-/** Renders the building footprints that fill a tile's blocks between the streets. */
+/** Renders the building footprints that line a tile's streets. */
 function TileBuildings({ cx, cy, coord, tileType, rotation }: TileBuildingsProps) {
   const wedges = tileWedges(openEdges(tileType, rotation))
     .filter(w => w.widthDeg >= 26)  // skip slivers too thin for a building
   if (wedges.length === 0) return null
 
-  const district = districtForCoord(coord)
   const seed = hashCoord(coord)
-  // The widest wedge hosts the tile's "feature" building; the rest are generic.
-  let primaryIdx = 0
-  for (let i = 1; i < wedges.length; i++) if (wedges[i].widthDeg > wedges[primaryIdx].widthDeg) primaryIdx = i
-
   return (
     <g aria-hidden="true">
       {wedges.map((w, i) => (
-        <Building
-          key={i}
-          cx={cx}
-          cy={cy}
-          bisDeg={w.bisDeg}
-          widthDeg={w.widthDeg}
-          seed={seed + i * 7}
-          feature={i === primaryIdx ? district : null}
-        />
+        <Building key={i} cx={cx} cy={cy} bisDeg={w.bisDeg} widthDeg={w.widthDeg} seed={seed + i * 7} />
       ))}
     </g>
   )
@@ -517,12 +489,10 @@ interface BuildingProps {
   bisDeg: number
   widthDeg: number
   seed: number
-  /** Feature accent to draw on this footprint (null = generic block). */
-  feature: District | null
 }
 
 /** A single top-down building footprint, oriented to face the street wedge. */
-function Building({ cx, cy, bisDeg, widthDeg, seed, feature }: BuildingProps) {
+function Building({ cx, cy, bisDeg, widthDeg, seed }: BuildingProps) {
   const rad = (bisDeg * Math.PI) / 180
   const R = HEX_SIZE * 0.55            // distance from cell centre to footprint centre
   const bx = cx + R * Math.cos(rad)
@@ -546,53 +516,23 @@ function Building({ cx, cy, bisDeg, widthDeg, seed, feature }: BuildingProps) {
   }
 
   return (
-    <>
-      <g transform={`translate(${bx.toFixed(2)},${by.toFixed(2)}) rotate(${(bisDeg + 90).toFixed(2)})`}>
+    <g transform={`translate(${bx.toFixed(2)},${by.toFixed(2)}) rotate(${(bisDeg + 90).toFixed(2)})`}>
+      <rect
+        x={(-w / 2).toFixed(2)} y={(-d / 2).toFixed(2)}
+        width={w.toFixed(2)} height={d.toFixed(2)} rx={1}
+        fill={body} stroke="#15110a" strokeWidth={0.8}
+      />
+      {windows.map((win, i) => (
         <rect
-          x={(-w / 2).toFixed(2)} y={(-d / 2).toFixed(2)}
-          width={w.toFixed(2)} height={d.toFixed(2)} rx={1}
-          fill={body} stroke="#15110a" strokeWidth={0.8}
+          key={i}
+          x={(win.x - winSize / 2).toFixed(2)} y={(win.y - winSize / 2).toFixed(2)}
+          width={winSize} height={winSize}
+          fill={win.lit ? WINDOW_LIT : WINDOW_DARK}
+          opacity={win.lit ? 0.9 : 0.8}
         />
-        {windows.map((win, i) => (
-          <rect
-            key={i}
-            x={(win.x - winSize / 2).toFixed(2)} y={(win.y - winSize / 2).toFixed(2)}
-            width={winSize} height={winSize}
-            fill={win.lit ? WINDOW_LIT : WINDOW_DARK}
-            opacity={win.lit ? 0.9 : 0.8}
-          />
-        ))}
-      </g>
-      {feature && <FeatureMark x={bx} y={by} feature={feature} />}
-    </>
+      ))}
+    </g>
   )
-}
-
-/** Upright service marker drawn over a feature building (map-symbol style). */
-function FeatureMark({ x, y, feature }: { x: number; y: number; feature: District }) {
-  switch (feature) {
-    case 'hospital':
-      return (
-        <g>
-          <rect x={x - 2.4} y={y - 0.8} width={4.8} height={1.6} fill="#c2453a" />
-          <rect x={x - 0.8} y={y - 2.4} width={1.6} height={4.8} fill="#c2453a" />
-        </g>
-      )
-    case 'police':
-      return <text x={x} y={y} fill="#7d9cc0" fontSize={6} fontWeight={700}
-        textAnchor="middle" dominantBaseline="central">★</text>
-    case 'garage':
-      return <text x={x} y={y} fill="#b7b1a1" fontSize={6.5} fontWeight={700}
-        textAnchor="middle" dominantBaseline="central">P</text>
-    case 'bus':
-      return <text x={x} y={y} fill="#6a9a4e" fontSize={6} fontWeight={700}
-        textAnchor="middle" dominantBaseline="central">B</text>
-    case 'store':
-      return <text x={x} y={y} fill="#d99a3c" fontSize={6} fontWeight={700}
-        textAnchor="middle" dominantBaseline="central">S</text>
-    default:
-      return null  // apartments / office / diner / warehouse — windows tell the story
-  }
 }
 
 // ── Aria label helper ─────────────────────────────────────────────────────────
