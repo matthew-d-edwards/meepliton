@@ -1,11 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
 import type { GameContext } from '@meepliton/contracts'
-import type { HexEscapeState, HexEscapeAction, HexTileType, PlayerSlot } from '../types'
+import type {
+  HexEscapeState,
+  HexEscapeAction,
+  HexTileType,
+  HeldTile,
+  ZombieRoll,
+  CharacterState,
+  PlayerSlot,
+} from '../types'
 import { HexBoard } from './HexBoard'
 import '../hexescape.css'
 import styles from '../styles.module.css'
 
-// Tile type display names
+// ── Constants (must match HexEscapeConstants.cs) ───────────────────────────────
+
+const MIN_ACTIONS_PER_TURN = 2
 const TILE_LABELS: Record<HexTileType, string> = {
   Straight: 'Straight',
   Elbow:    'Elbow',
@@ -13,93 +23,161 @@ const TILE_LABELS: Record<HexTileType, string> = {
   Cross:    'Cross',
   Deadend:  'Dead End',
 }
-
 const TILE_TYPES: HexTileType[] = ['Straight', 'Elbow', 'Tee', 'Cross', 'Deadend']
 
-type PickerMode = 'place' | 'rotate'
+// ── Interaction modes ──────────────────────────────────────────────────────────
 
-interface PendingAction {
-  coord: string
-  mode: PickerMode
-  /** Only set for 'place' mode */
-  tileType: HexTileType | null
-  rotation: number
-}
+type PickerMode =
+  | { kind: 'place'; coord: string; tileType: HexTileType | null; rotation: number }
+  | { kind: 'placeZombie'; coord: string }
+  | { kind: 'rotate'; coord: string; rotation: number }
+  | { kind: 'move'; toCoord: string }
 
-// ── Main Game component ───────────────────────────────────────────────────────
+// ── Main Game component ────────────────────────────────────────────────────────
 
 export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEscapeState>) {
-  const [pending, setPending] = useState<PendingAction | null>(null)
+  const [picker, setPicker] = useState<PickerMode | null>(null)
+  const [zombieAnimPhase, setZombieAnimPhase] = useState<'idle' | 'showing'>('idle')
 
-  // ── Derived state ──────────────────────────────────────────────────────────
+  // Trigger zombie animation when lastZombieRolls changes (round boundary)
+  const prevRoundRef = useRef(state.roundNumber)
+  useEffect(() => {
+    if (state.roundNumber !== prevRoundRef.current && state.lastZombieRolls.length > 0) {
+      prevRoundRef.current = state.roundNumber
+      setZombieAnimPhase('showing')
+      const timer = setTimeout(() => setZombieAnimPhase('idle'), 3500)
+      return () => clearTimeout(timer)
+    }
+    prevRoundRef.current = state.roundNumber
+  }, [state.roundNumber, state.lastZombieRolls.length])
+
+  // ── Derived state ────────────────────────────────────────────────────────────
 
   const me: PlayerSlot | undefined = state.players.find(p => p.id === myPlayerId)
-  const myHasActed = me !== undefined && state.seatsActedThisRound.includes(me.seatIndex)
-  const canAct = state.phase === 'Playing' && !myHasActed && me !== undefined
+  const mySeat = me?.seatIndex ?? -1
+  const isMyActiveTurn = state.activeSeat === mySeat && mySeat >= 0
+  const myHasActedThisRound = state.seatsActedThisRound.includes(mySeat)
+  const activeSeatPlayer = state.activeSeat !== null
+    ? state.players.find(p => p.seatIndex === state.activeSeat)
+    : null
 
-  // ── Dispatch helpers ───────────────────────────────────────────────────────
+  const myChar: CharacterState | undefined = state.characters.find(c => c.playerId === myPlayerId)
+  const myCharPlaced = myChar !== null && myChar !== undefined && myChar.pos !== null
+  const myCharEliminated = myChar?.eliminated ?? false
+  const myReservedSpawn = state.reservedSpawnCells[myPlayerId] ?? null
+
+  const myHand: HeldTile[] = state.hands[myPlayerId] ?? []
+  const myZombieTile: HeldTile | null = myHand.find(t => t.isZombieTile) ?? null
+  const hasZombieObligation = myZombieTile !== null && isMyActiveTurn
+
+  // AP display
+  const ap = isMyActiveTurn ? state.actionPointsRemaining : 0
+  const qualActions = isMyActiveTurn ? state.qualifyingActionsThisTurn : 0
+
+  // Character positions for board rendering
+  const characterPositions: Record<string, string> = {}
+  for (const c of state.characters) {
+    if (c.pos && !c.eliminated) {
+      characterPositions[c.playerId] = c.pos
+    }
+  }
+
+  const zombieCoords = state.zombies.map(z => z.pos)
+
+  // ── Dispatch helpers ─────────────────────────────────────────────────────────
 
   function send(action: HexEscapeAction) {
     dispatch(action)
+    setPicker(null)
   }
 
-  function handlePass() {
-    if (!canAct) return
-    setPending(null)
-    send({ type: 'Pass' })
+  function handleDrawTile() {
+    if (!isMyActiveTurn || ap === 0) return
+    send({ type: 'DrawTile' })
   }
+
+  function handleEndTurn() {
+    if (!isMyActiveTurn) return
+    send({ type: 'EndTurn' })
+  }
+
+  // ── Cell click logic ─────────────────────────────────────────────────────────
 
   function handleCellClick(coord: string) {
-    if (!canAct) return
+    if (!isMyActiveTurn || ap === 0) return
+
+    // If holding zombie tile: show zombie placement picker
+    if (hasZombieObligation) {
+      const cellHasTile = coord in state.grid
+      const isExitZone = state.exitZoneCells.includes(coord)
+      if (cellHasTile && !isExitZone) {
+        setPicker({ kind: 'placeZombie', coord })
+      }
+      return
+    }
 
     const cell = state.grid[coord]
-    const isWall = state.walls.includes(coord)
-    if (isWall) return
+    const isExitZone = state.exitZoneCells.includes(coord)
 
     if (cell) {
-      // Placed non-fixed tile → offer rotate
+      // Placed tile: offer rotate if non-fixed, and not in exit zone
       if (!cell.fixed) {
-        setPending({ coord, mode: 'rotate', tileType: null, rotation: cell.rotation })
+        setPicker({ kind: 'rotate', coord, rotation: cell.rotation })
       }
-      // Fixed tile → no interaction
+      return
+    }
+
+    if (isExitZone) {
+      // Exit zone cells cannot receive tiles
+      return
+    }
+
+    // Empty cell: check move vs place
+    // If my character is placed and adjacent cell is connected → offer move
+    if (myCharPlaced && myChar?.pos && !myCharEliminated) {
+      // Offer move (server validates connectivity)
+      setPicker({ kind: 'move', toCoord: coord })
     } else {
-      // Empty cell → offer place
-      // Start with first available tile type
-      const firstAvailable = TILE_TYPES.find(t => (state.handCounts[t] ?? 0) > 0) ?? null
-      setPending({ coord, mode: 'place', tileType: firstAvailable, rotation: 0 })
+      // Offer place tile
+      const firstAvailable = TILE_TYPES.find(t =>
+        myHand.some(h => h.tileType === t && !h.isZombieTile)
+      ) ?? null
+      if (myHand.filter(h => !h.isZombieTile).length > 0) {
+        setPicker({ kind: 'place', coord, tileType: firstAvailable, rotation: 0 })
+      }
     }
   }
 
-  function confirmAction() {
-    if (!pending || !canAct) return
+  // ── Picker confirmation ──────────────────────────────────────────────────────
 
-    if (pending.mode === 'place') {
-      if (!pending.tileType) return
-      send({ type: 'PlaceTile', coord: pending.coord, tileType: pending.tileType, rotation: pending.rotation })
-    } else {
-      send({ type: 'RotateTile', coord: pending.coord, rotation: pending.rotation })
+  function confirmPicker() {
+    if (!picker) return
+    if (picker.kind === 'place') {
+      if (!picker.tileType) return
+      send({ type: 'PlaceTile', coord: picker.coord, tileType: picker.tileType, rotation: picker.rotation })
+    } else if (picker.kind === 'placeZombie') {
+      send({ type: 'PlaceZombieTile', coord: picker.coord })
+    } else if (picker.kind === 'rotate') {
+      send({ type: 'RotateTile', coord: picker.coord, rotation: picker.rotation })
+    } else if (picker.kind === 'move') {
+      send({ type: 'MoveCharacter', toCoord: picker.toCoord })
     }
-    setPending(null)
   }
 
   function cancelPicker() {
-    setPending(null)
+    setPicker(null)
   }
 
-  function setRotation(delta: number) {
-    if (!pending) return
-    const next = ((pending.rotation + delta) % 6 + 6) % 6
-    setPending({ ...pending, rotation: next })
-  }
-
-  // ── Game Over screen ───────────────────────────────────────────────────────
+  // ── Game Over screen ─────────────────────────────────────────────────────────
 
   if (state.phase === 'GameOver') {
     const escaped = state.outcome === 'Escaped'
     return (
       <div data-game-theme="hexescape" className={styles.root}>
         <div role="alert" aria-atomic="true" className="sr-only">
-          {escaped ? 'Escaped! All survivors reached the exit.' : 'Overrun! The threat counter maxed out.'}
+          {escaped
+            ? 'Escaped! All characters reached the exit.'
+            : 'Overrun! All characters were eliminated by zombies.'}
         </div>
         <div className={styles.gameOverCard}>
           <h1
@@ -112,8 +190,8 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
           </h1>
           <div className={styles.gameOverSub}>
             {escaped
-              ? 'All survivors found a path to safety.'
-              : 'The threat counter reached the threshold before survivors escaped.'}
+              ? 'All survivors reached the exit. Great teamwork!'
+              : 'The zombie horde overwhelmed all survivors.'}
           </div>
           <div className={styles.gameOverStats}>
             <div className={styles.gameOverStat}>
@@ -121,14 +199,12 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
               <div className={styles.gameOverStatValue} style={{ fontSize: '1rem' }}>{state.levelName}</div>
             </div>
             <div className={styles.gameOverStat}>
-              <div className={styles.gameOverStatLabel}>Final Threat</div>
-              <div className={styles.gameOverStatValue}>{state.threatCounter}</div>
+              <div className={styles.gameOverStatLabel}>Round</div>
+              <div className={styles.gameOverStatValue}>{state.roundNumber}</div>
             </div>
             <div className={styles.gameOverStat}>
-              <div className={styles.gameOverStatLabel}>Survivors</div>
-              <div className={styles.gameOverStatValue}>
-                {state.connectedSurvivors}/{state.totalSurvivors}
-              </div>
+              <div className={styles.gameOverStatLabel}>Exit Connected</div>
+              <div className={styles.gameOverStatValue}>{state.exitConnectedCount}</div>
             </div>
           </div>
         </div>
@@ -136,107 +212,163 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
     )
   }
 
-  // ── Playing screen ─────────────────────────────────────────────────────────
+  // ── Playing screen ───────────────────────────────────────────────────────────
 
-  const threatPct = Math.min(100, (state.threatCounter / state.threatThreshold) * 100)
-  const threatDanger = state.threatCounter >= Math.floor(state.threatThreshold * 0.75)
-  const allConnected = state.connectedSurvivors === state.totalSurvivors
+  // EndTurn disabled logic
+  const endTurnDisabledReason: string | null = (() => {
+    if (!isMyActiveTurn) return 'Not your turn'
+    if (hasZombieObligation) return 'Place your zombie tile first'
+    if (qualActions < MIN_ACTIONS_PER_TURN) return `Take at least ${MIN_ACTIONS_PER_TURN} actions first`
+    return null
+  })()
+
+  // Draw disabled
+  const drawDisabled = !isMyActiveTurn || ap === 0 || hasZombieObligation || myHand.filter(h => !h.isZombieTile).length >= 3
 
   return (
     <div data-game-theme="hexescape" className={styles.root}>
-      {/* Screen-reader live turn announcer */}
+      {/* Screen-reader announcer */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {canAct
-          ? 'Your turn — place or rotate a tile, or pass.'
-          : myHasActed
-          ? 'You have acted this round. Waiting for others.'
-          : 'Waiting for your turn.'}
+        {isMyActiveTurn
+          ? `Your turn — ${ap} AP remaining, ${qualActions} of ${MIN_ACTIONS_PER_TURN} qualifying actions taken.`
+          : activeSeatPlayer
+          ? `${activeSeatPlayer.displayName}'s turn.`
+          : 'Waiting for a player to claim their turn.'}
       </div>
+
+      {/* Zombie animation overlay */}
+      {zombieAnimPhase === 'showing' && state.lastZombieRolls.length > 0 && (
+        <ZombieRollOverlay rolls={state.lastZombieRolls} onDone={() => setZombieAnimPhase('idle')} />
+      )}
 
       {/* ── Header strip ── */}
       <div className={styles.header}>
         <div className={styles.levelName}>{state.levelName}</div>
-        <div className={styles.survivorRow} aria-label={`Survivors connected: ${state.connectedSurvivors} of ${state.totalSurvivors}${allConnected ? ' — all connected' : ''}`}>
-          <span className={allConnected ? styles.survivorCountAll : styles.survivorCount}>
-            {state.connectedSurvivors}/{state.totalSurvivors}
-          </span>
-          <span>survivors connected</span>
-          {allConnected && (
-            <span className={styles.survivorAllBadge} aria-hidden="true">all</span>
-          )}
+        <div className={styles.roundInfo} aria-label={`Round ${state.roundNumber}`}>
+          Round {state.roundNumber}
         </div>
-        <div className={styles.threatWrap} aria-label={`Threat: ${state.threatCounter} of ${state.threatThreshold}${threatDanger ? ' — danger' : ''}`}>
-          <span className={styles.threatLabel}>Threat</span>
-          <div
-            className={styles.threatBar}
-            role="progressbar"
-            aria-valuenow={state.threatCounter}
-            aria-valuemin={0}
-            aria-valuemax={state.threatThreshold}
-            aria-label={`Threat level: ${state.threatCounter} of ${state.threatThreshold}${threatDanger ? ', danger' : ''}`}
-          >
-            <div
-              className={[styles.threatFill, threatDanger ? styles.threatFillDanger : ''].filter(Boolean).join(' ')}
-              style={{ width: `${threatPct}%` }}
-            />
+        {state.exitRevealed && (
+          <div className={styles.exitConnected} aria-label={`${state.exitConnectedCount} characters connected to exit`}>
+            <span className={styles.exitConnectedLabel}>Exit reach</span>
+            <span className={styles.exitConnectedCount}>{state.exitConnectedCount}</span>
           </div>
-          <span className={styles.threatCount}>
-            {threatDanger && <span aria-hidden="true" className={styles.threatDangerIcon}>!</span>}
-            {state.threatCounter}/{state.threatThreshold}
-          </span>
+        )}
+        <div className={styles.phaseTag} aria-label={`Phase: ${state.phase}`}>
+          {state.phase === 'ZombieMovement' ? 'Zombie Move' : state.phase}
         </div>
       </div>
 
       {/* ── Two-column layout ── */}
       <div className={styles.gameLayout}>
+
+        {/* ── Main column: turn bar + board ── */}
         <div className={styles.mainCol}>
 
-          {/* Action bar */}
+          {/* Turn/AP panel */}
           <div className={styles.actionBar}>
-            <span className={canAct ? styles.turnInfoYours : styles.turnInfo}>
-              {canAct
-                ? 'Your turn — click a cell to act'
-                : myHasActed
-                ? 'Waiting for others…'
-                : `Waiting for ${me ? 'your turn' : 'a player'}…`}
-            </span>
-            <button
-              className={styles.btnPass}
-              onClick={handlePass}
-              disabled={!canAct}
-              aria-label="Pass your turn this round"
-            >
-              Pass
-            </button>
+            <div className={styles.turnBlock}>
+              <span className={isMyActiveTurn ? styles.turnInfoYours : styles.turnInfo}>
+                {isMyActiveTurn
+                  ? 'Your turn'
+                  : activeSeatPlayer
+                  ? `${activeSeatPlayer.displayName}'s turn`
+                  : myHasActedThisRound
+                  ? 'Waiting for others…'
+                  : 'Click a cell to claim your turn'}
+              </span>
+              {isMyActiveTurn && (
+                <span className={styles.apDisplay} aria-label={`${ap} action points remaining`}>
+                  {ap} AP
+                </span>
+              )}
+              {isMyActiveTurn && (
+                <span
+                  className={qualActions >= MIN_ACTIONS_PER_TURN ? styles.qualCountMet : styles.qualCount}
+                  aria-label={`${qualActions} of ${MIN_ACTIONS_PER_TURN} qualifying actions taken`}
+                >
+                  {qualActions}/{MIN_ACTIONS_PER_TURN} actions
+                </span>
+              )}
+            </div>
+
+            <div className={styles.turnActions}>
+              {/* Draw button */}
+              <button
+                className={styles.btnDraw}
+                onClick={handleDrawTile}
+                disabled={drawDisabled}
+                aria-label={`Draw tile (1 AP). ${state.deckSize} tiles in deck.`}
+                title={hasZombieObligation ? 'Place your zombie tile first' : drawDisabled ? 'Cannot draw' : undefined}
+              >
+                Draw ({state.deckSize})
+              </button>
+
+              {/* End turn */}
+              <button
+                className={styles.btnEndTurn}
+                onClick={handleEndTurn}
+                disabled={endTurnDisabledReason !== null}
+                aria-label={endTurnDisabledReason ?? 'End your turn'}
+                title={endTurnDisabledReason ?? undefined}
+              >
+                End Turn
+              </button>
+            </div>
           </div>
+
+          {/* Zombie obligation banner */}
+          {hasZombieObligation && (
+            <div className={styles.zombieBanner} role="status" aria-live="polite">
+              You drew a zombie tile — click an occupied non-exit cell to spawn a zombie there.
+            </div>
+          )}
 
           {/* Board */}
           <HexBoard
-            state={state}
+            cells={state.cells}
+            grid={state.grid}
+            spawnZoneCells={state.spawnZoneCells}
+            exitZoneCells={state.exitZoneCells}
+            exitCell={state.exitCell}
+            exitRevealed={state.exitRevealed}
+            characterPositions={characterPositions}
+            myPlayerId={myPlayerId}
+            zombieCoords={zombieCoords}
+            myReservedSpawnCell={myReservedSpawn}
+            myCharacterPlaced={myCharPlaced}
             onCellClick={handleCellClick}
-            canInteract={canAct}
+            canInteract={isMyActiveTurn && ap > 0}
           />
-
         </div>
 
         {/* ── Sidebar ── */}
         <div className={styles.sideCol}>
 
-          {/* Tile hand counts */}
-          <div className={styles.sideSection} aria-label="Tile hand">
-            <div className={styles.sideTitle}>Tile hand</div>
-            <div className={styles.handGrid}>
-              {TILE_TYPES.map(t => {
-                const count = state.handCounts[t] ?? 0
-                return (
-                  <div key={t} className={styles.handItem} aria-label={`${TILE_LABELS[t]}: ${count} remaining`}>
-                    <div className={styles.handItemType}>{TILE_LABELS[t]}</div>
-                    <div className={count === 0 ? `${styles.handItemCount} ${styles.handItemCountZero}` : styles.handItemCount}>
-                      {count}
-                    </div>
+          {/* My hand */}
+          <div className={styles.sideSection} aria-label="Your hand">
+            <div className={styles.sideTitle}>Your hand</div>
+            {myHand.length === 0 ? (
+              <div className={styles.emptyHandNote}>No tiles in hand. Draw to get started.</div>
+            ) : (
+              <div className={styles.handList}>
+                {myHand.map((tile, idx) => (
+                  <div
+                    key={idx}
+                    className={tile.isZombieTile ? styles.handTileZombie : styles.handTile}
+                    aria-label={`${tile.isZombieTile ? 'Zombie tile' : TILE_LABELS[tile.tileType]}`}
+                  >
+                    <span className={styles.handTileType}>
+                      {tile.isZombieTile ? 'ZOMBIE' : TILE_LABELS[tile.tileType]}
+                    </span>
+                    {tile.isZombieTile && (
+                      <span className={styles.handTileObligation}>place first</span>
+                    )}
                   </div>
-                )
-              })}
+                ))}
+              </div>
+            )}
+            <div className={styles.deckInfo} aria-label={`${state.deckSize} tiles remaining in deck`}>
+              Deck: {state.deckSize} left
             </div>
           </div>
 
@@ -245,13 +377,20 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
             <div className={styles.sideTitle}>Players</div>
             {state.players.map(p => {
               const hasActed = state.seatsActedThisRound.includes(p.seatIndex)
+              const isActive = state.activeSeat === p.seatIndex
               const isMe = p.id === myPlayerId
+              const charState = state.characters.find(c => c.playerId === p.id)
+              const handCount = state.handSizes[p.id] ?? 0
               return (
                 <PlayerRow
                   key={p.id}
                   player={p}
                   hasActed={hasActed}
+                  isActive={isActive}
                   isMe={isMe}
+                  charState={charState}
+                  handCount={handCount}
+                  apRemaining={isActive ? state.actionPointsRemaining : null}
                 />
               )
             })}
@@ -260,14 +399,24 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
         </div>
       </div>
 
-      {/* ── Tile picker modal ── */}
-      {pending && canAct && (
-        <TilePicker
-          pending={pending}
-          handCounts={state.handCounts}
-          onSelectType={(t) => setPending({ ...pending, tileType: t })}
-          onSetRotation={setRotation}
-          onConfirm={confirmAction}
+      {/* ── Pickers ── */}
+      {picker && isMyActiveTurn && (
+        <ActionPicker
+          picker={picker}
+          myHand={myHand}
+          onSelectType={(t) => {
+            if (picker.kind === 'place') setPicker({ ...picker, tileType: t })
+          }}
+          onSetRotation={(delta) => {
+            if (picker.kind === 'place') {
+              const next = ((picker.rotation + delta) % 6 + 6) % 6
+              setPicker({ ...picker, rotation: next })
+            } else if (picker.kind === 'rotate') {
+              const next = ((picker.rotation + delta) % 6 + 6) % 6
+              setPicker({ ...picker, rotation: next })
+            }
+          }}
+          onConfirm={confirmPicker}
           onCancel={cancelPicker}
         />
       )}
@@ -275,22 +424,40 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   )
 }
 
-// ── Player row ────────────────────────────────────────────────────────────────
+// ── PlayerRow ─────────────────────────────────────────────────────────────────
 
 interface PlayerRowProps {
   player: PlayerSlot
   hasActed: boolean
+  isActive: boolean
   isMe: boolean
+  charState: CharacterState | undefined
+  handCount: number
+  apRemaining: number | null
 }
 
-function PlayerRow({ player, hasActed, isMe }: PlayerRowProps) {
+function PlayerRow({ player, hasActed, isActive, isMe, charState, handCount, apRemaining }: PlayerRowProps) {
+  const eliminated = charState?.eliminated ?? false
+  const placed = charState?.pos != null
+
   const rowClass = [
     styles.playerRow,
+    isActive ? styles.playerRowActive : '',
     hasActed ? styles.playerRowActed : styles.playerRowWaiting,
+    eliminated ? styles.playerRowEliminated : '',
   ].filter(Boolean).join(' ')
 
   return (
-    <div className={rowClass} aria-label={`${player.displayName}${isMe ? ' (you)' : ''}, ${hasActed ? 'acted' : 'waiting'}`}>
+    <div
+      className={rowClass}
+      aria-label={[
+        player.displayName,
+        isMe ? '(you)' : '',
+        isActive ? 'taking turn' : hasActed ? 'acted' : 'waiting',
+        eliminated ? 'eliminated' : '',
+        !placed ? 'not yet placed' : '',
+      ].filter(Boolean).join(', ')}
+    >
       {player.avatarUrl ? (
         <img
           src={player.avatarUrl}
@@ -308,43 +475,46 @@ function PlayerRow({ player, hasActed, isMe }: PlayerRowProps) {
         {player.displayName}
         {isMe && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}> (you)</span>}
       </span>
-      <span className={hasActed ? styles.playerBadgeActed : styles.playerBadgePending}>
-        {hasActed ? 'acted' : 'waiting'}
-      </span>
+      <div className={styles.playerMeta}>
+        {eliminated && <span className={styles.badgeEliminated}>out</span>}
+        {!placed && !eliminated && <span className={styles.badgeUnplaced}>unplaced</span>}
+        {isActive && apRemaining !== null && (
+          <span className={styles.badgeAP}>{apRemaining} AP</span>
+        )}
+        <span className={styles.playerHandCount}>{handCount}</span>
+        <span className={hasActed ? styles.playerBadgeActed : styles.playerBadgePending}>
+          {isActive ? 'active' : hasActed ? 'acted' : 'waiting'}
+        </span>
+      </div>
     </div>
   )
 }
 
-// ── Tile picker modal ─────────────────────────────────────────────────────────
+// ── ActionPicker modal ────────────────────────────────────────────────────────
 
-interface TilePickerProps {
-  pending: PendingAction
-  handCounts: Record<HexTileType, number>
+interface ActionPickerProps {
+  picker: PickerMode
+  myHand: HeldTile[]
   onSelectType: (t: HexTileType) => void
   onSetRotation: (delta: number) => void
   onConfirm: () => void
   onCancel: () => void
 }
 
-function TilePicker({ pending, handCounts, onSelectType, onSetRotation, onConfirm, onCancel }: TilePickerProps) {
-  const isPlace = pending.mode === 'place'
-  const canConfirm = isPlace ? pending.tileType !== null : true
-
-  // Move focus into the dialog when it opens; return focus to the trigger on close.
+function ActionPicker({ picker, myHand, onSelectType, onSetRotation, onConfirm, onCancel }: ActionPickerProps) {
   const cardRef = useRef<HTMLDivElement>(null)
+
+  // Auto-focus first focusable element on open
   useEffect(() => {
-    const firstFocusable = cardRef.current?.querySelector<HTMLElement>(
+    const first = cardRef.current?.querySelector<HTMLElement>(
       'button:not(:disabled), [tabindex]:not([tabindex="-1"])'
     )
-    firstFocusable?.focus()
+    first?.focus()
   }, [])
 
-  // Trap focus inside the dialog
+  // Focus trap
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'Escape') {
-      onCancel()
-      return
-    }
+    if (e.key === 'Escape') { onCancel(); return }
     if (e.key !== 'Tab') return
     const focusable = Array.from(
       cardRef.current?.querySelectorAll<HTMLElement>(
@@ -355,19 +525,44 @@ function TilePicker({ pending, handCounts, onSelectType, onSetRotation, onConfir
     const first = focusable[0]
     const last = focusable[focusable.length - 1]
     if (e.shiftKey) {
-      if (document.activeElement === first) {
-        e.preventDefault()
-        last.focus()
-      }
+      if (document.activeElement === first) { e.preventDefault(); last.focus() }
     } else {
-      if (document.activeElement === last) {
-        e.preventDefault()
-        first.focus()
-      }
+      if (document.activeElement === last) { e.preventDefault(); first.focus() }
     }
   }
 
-  const titleId = `tile-picker-title-${pending.coord.replace(',', '-')}`
+  const coordDisplay =
+    picker.kind === 'move' ? picker.toCoord : picker.coord
+  const titleId = `action-picker-${coordDisplay.replace(',', '-')}`
+
+  function getTitle(): string {
+    if (picker.kind === 'place') return `Place tile on ${picker.coord}`
+    if (picker.kind === 'placeZombie') return `Spawn zombie on ${picker.coord}`
+    if (picker.kind === 'rotate') return `Rotate tile on ${picker.coord}`
+    return `Move to ${picker.toCoord}`
+  }
+
+  // Determine if confirm is allowed
+  const canConfirm = (() => {
+    if (picker.kind === 'place') return picker.tileType !== null
+    return true
+  })()
+
+  // Available normal tiles for place mode
+  const availableTiles: Map<HexTileType, number> = new Map()
+  for (const tile of myHand) {
+    if (!tile.isZombieTile) {
+      availableTiles.set(tile.tileType, (availableTiles.get(tile.tileType) ?? 0) + 1)
+    }
+  }
+
+  const currentRotation = picker.kind === 'place'
+    ? picker.rotation
+    : picker.kind === 'rotate'
+    ? picker.rotation
+    : null
+
+  const showRotationControl = picker.kind === 'place' || picker.kind === 'rotate'
 
   return (
     <div
@@ -380,16 +575,16 @@ function TilePicker({ pending, handCounts, onSelectType, onSetRotation, onConfir
     >
       <div className={styles.pickerCard} ref={cardRef}>
         <div id={titleId} className={styles.pickerTitle}>
-          {isPlace ? `Place tile on ${pending.coord}` : `Rotate tile on ${pending.coord}`}
+          {getTitle()}
         </div>
 
         {/* Tile type selector (place mode only) */}
-        {isPlace && (
-          <div className={styles.pickerGrid} role="group" aria-label="Tile type">
+        {picker.kind === 'place' && (
+          <div className={styles.pickerGrid} role="group" aria-label="Select tile type">
             {TILE_TYPES.map(t => {
-              const count = handCounts[t] ?? 0
+              const count = availableTiles.get(t) ?? 0
               const isAvailable = count > 0
-              const isSelected = pending.tileType === t
+              const isSelected = picker.tileType === t
               return (
                 <button
                   key={t}
@@ -400,7 +595,7 @@ function TilePicker({ pending, handCounts, onSelectType, onSetRotation, onConfir
                   onClick={() => onSelectType(t)}
                   disabled={!isAvailable}
                   aria-pressed={isSelected}
-                  aria-label={`${TILE_LABELS[t]}, ${count} remaining`}
+                  aria-label={`${TILE_LABELS[t]}, ${count} in hand`}
                 >
                   <span>{TILE_LABELS[t]}</span>
                   <span className={styles.tileBtnCount}>{count} left</span>
@@ -410,42 +605,110 @@ function TilePicker({ pending, handCounts, onSelectType, onSetRotation, onConfir
           </div>
         )}
 
+        {/* Zombie placement confirmation */}
+        {picker.kind === 'placeZombie' && (
+          <div className={styles.zombiePickerNote}>
+            Spawn a zombie at {picker.coord}. A zombie will appear here and may eliminate characters.
+          </div>
+        )}
+
+        {/* Move confirmation */}
+        {picker.kind === 'move' && (
+          <div className={styles.movePickerNote}>
+            Move your character to {picker.toCoord}.
+            {' '}The server will validate the connection rule.
+          </div>
+        )}
+
         {/* Rotation control */}
-        <div className={styles.rotationWrap}>
-          <span className={styles.rotLabel}>Rotation</span>
-          <button
-            className={styles.rotBtn}
-            onClick={() => onSetRotation(-1)}
-            aria-label="Rotate counter-clockwise"
-          >
-            &#8635;
-          </button>
-          <span className={styles.rotValue} aria-label={`Rotation: ${pending.rotation} of 5`}>
-            {pending.rotation}
-          </span>
-          <button
-            className={styles.rotBtn}
-            onClick={() => onSetRotation(+1)}
-            aria-label="Rotate clockwise"
-          >
-            &#8634;
-          </button>
-          <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>× 60°</span>
-        </div>
+        {showRotationControl && currentRotation !== null && (
+          <div className={styles.rotationWrap}>
+            <span className={styles.rotLabel}>Rotation</span>
+            <button
+              className={styles.rotBtn}
+              onClick={() => onSetRotation(-1)}
+              aria-label="Rotate counter-clockwise"
+            >
+              &#8635;
+            </button>
+            <span className={styles.rotValue} aria-label={`Rotation: ${currentRotation} of 5`}>
+              {currentRotation}
+            </span>
+            <button
+              className={styles.rotBtn}
+              onClick={() => onSetRotation(+1)}
+              aria-label="Rotate clockwise"
+            >
+              &#8634;
+            </button>
+            <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>× 60°</span>
+          </div>
+        )}
 
         {/* Actions */}
         <div className={styles.pickerActions}>
-          <button className={styles.btnCancel} onClick={onCancel}>
+          <button className={styles.btnCancel} type="button" onClick={onCancel}>
             Cancel
           </button>
           <button
             className={styles.btnConfirm}
+            type="button"
             onClick={onConfirm}
             disabled={!canConfirm}
           >
-            {isPlace ? 'Place' : 'Rotate'}
+            {picker.kind === 'place' ? 'Place'
+              : picker.kind === 'placeZombie' ? 'Spawn'
+              : picker.kind === 'rotate' ? 'Rotate'
+              : 'Move'}
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Zombie Roll Overlay ────────────────────────────────────────────────────────
+
+interface ZombieRollOverlayProps {
+  rolls: ZombieRoll[]
+  onDone: () => void
+}
+
+const DIR_NAMES = ['E', 'NE', 'NW', 'W', 'SW', 'SE']
+
+function ZombieRollOverlay({ rolls, onDone }: ZombieRollOverlayProps) {
+  return (
+    <div
+      className={styles.zombieOverlay}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Zombie movement results"
+    >
+      <div className={styles.zombieOverlayCard}>
+        <div className={styles.zombieOverlayTitle}>Zombie Movement</div>
+        <div className={styles.zombieRollList}>
+          {rolls.map((roll) => (
+            <div
+              key={roll.zombieId}
+              className={roll.moved ? styles.zombieRollMoved : styles.zombieRollStayed}
+              aria-label={`Zombie rolled ${roll.dieFace}, direction ${DIR_NAMES[roll.direction]}, ${roll.moved ? 'moved' : 'stayed'}`}
+            >
+              <span className={styles.zombieRollDie} aria-hidden="true">{roll.dieFace}</span>
+              <span className={styles.zombieRollDir} aria-hidden="true">{DIR_NAMES[roll.direction]}</span>
+              <span className={styles.zombieRollResult} aria-hidden="true">
+                {roll.moved ? 'moved' : 'blocked'}
+              </span>
+            </div>
+          ))}
+        </div>
+        <button
+          className={styles.btnDismiss}
+          type="button"
+          onClick={onDone}
+          autoFocus
+        >
+          Continue
+        </button>
       </div>
     </div>
   )
