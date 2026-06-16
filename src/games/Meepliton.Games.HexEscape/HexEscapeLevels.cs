@@ -3,7 +3,7 @@ using Meepliton.Games.HexEscape.Models;
 namespace Meepliton.Games.HexEscape;
 
 /// <summary>
-/// Static catalogue of all Hex Escape levels.
+/// Static catalogue of all Hex Escape v2 (Outbreak) levels.
 ///
 /// Direction offsets (axial, q right, r down-left):
 ///   dir0=(+1, 0)=E   dir1=(+1,-1)=NE  dir2=(0,-1)=N
@@ -15,176 +15,160 @@ namespace Meepliton.Games.HexEscape;
 ///   Cross {0,1,2,3}=E+NE+N+W   Deadend {0}=E
 /// Rotation k maps base edge e to (e+k)%6.
 ///
-/// Levels are guaranteed solvable and NOT pre-won.
-/// "tutorial-01" MUST remain the first entry — it is the AD-10 fallback target.
+/// All authored levels satisfy AC-v2-5 catalogue invariants:
+///   - spawnZoneCells.Count >= 6 (MaxPlayers)
+///   - exitZoneCells non-empty
+///   - hordeOriginCells non-empty
+///   - no pre-placed tiles in spawnZoneCells or exitZoneCells (H9)
+///   - every starting zombie position has a pre-placed tile (C4)
+///   - every hordeOriginCell has a pre-placed tile (F3)
+///   - hordeOriginCells ∩ spawnZoneCells = ∅ (H7)
+///   - hordeOriginCells ∩ exitZoneCells = ∅
+///   - spawnZoneCells ∩ exitZoneCells = ∅
+///   - structurally solvable (exit cross r0 connects to at least one non-exit-zone cell)
+///   - ApPoolSize[n] >= MinActionsPerTurn for all n (checked in tests)
+///
+/// "tutorial-01" MUST remain the first entry — it is the AC-v2-2 fallback target.
 /// </summary>
 public static class HexEscapeLevels
 {
     private static string C(int q, int r) => $"{q},{r}";
 
-    // ── tutorial-01 — "The Straight Path" ────────────────────────────────────
+    // ── tutorial-01 — "The Outbreak" ─────────────────────────────────────────
     //
-    // Five cells in a horizontal row.
-    //   S = (-2,0) pre-placed Straight r=0 → edges {E,W}
-    //   [-1,0] [0,0] [1,0]  empty — players fill with Straight r=0
-    //   X = (2,0)  pre-placed Straight r=0 → edges {E,W}
+    // Layout: a rectangular region of hexes spanning q = -4..4, r = -2..2.
+    // Total cells: 9 columns × 5 rows = 45 cells, laid out so that:
     //
-    // BFS from exit (2,0): W→(1,0)[E+W]→W→(0,0)[E+W]→W→(-1,0)[E+W]→W→(-2,0) SURVIVOR ✓
-    // Not pre-won: middle 3 cells are empty at start, BFS cannot traverse them.
+    //   Spawn zone (left side, q = -4):  r ∈ {-2,-1,0,1,2} → 5 spawn cells BUT
+    //   we need 6, so we use q=-4 and q=-3 partially to get 6+ spawn cells.
+    //
+    // Revised layout for simplicity and testability:
+    //
+    // SPAWN ZONE (q = -3): 6 cells at r = -2,-1,0,1,2 — only 5, need one more.
+    // Let's use a wider board:
+    //
+    // Board: q ∈ {-4,-3,-2,-1,0,1,2,3,4}, r ∈ {-2,-1,0,1,2} = 45 cells
+    //
+    // Spawn zone: q = -4, r ∈ {-2,-1,0,1,2} + q = -3, r = -2 → 6 cells
+    //   BUT spec says no pre-placed tiles in spawn zone (H9) — all 6 are empty.
+    //
+    // Exit zone: q = 4, r ∈ {-2,-1,0,1,2} → 5 cells, all empty (H9).
+    //
+    // Horde origin: q = -3, r ∈ {-1,0,1,2} — must have pre-placed tiles, not in spawn zone.
+    //   - Use r ∈ {-1,0,1} for 3 horde origin cells (must have pre-placed tiles).
+    //   - NOT in spawn zone (spawn zone uses q=-4 all rows, plus q=-3 r=-2).
+    //   - So q=-3, r ∈ {-1,0,1} is valid (not in spawn zone, not in exit zone).
+    //
+    // Pre-placed tiles (must cover starting zombie positions AND horde origins):
+    //   - q=-3, r={-1,0,1}: pre-placed Cross r=0 (horde origin; zombie can move any dir)
+    //   - q=0, r=0: pre-placed Cross r=0 (mid-board junction; also starting zombie location)
+    //   - q=3, r={-1,0,1}: pre-placed Cross r=0 (near exit zone)
+    //   The exit tile (Cross r0) will be placed by server in exit zone (q=4).
+    //
+    // Starting zombies: at pre-placed tile positions. We put 1 zombie at (0,0).
+    //
+    // Normal-tile pool: mostly Straight/Elbow/Tee with some Cross.
+    //
+    // Structural solvability: exit zone (q=4) gets Cross r0 (exit tile).
+    //   Cross r0 has edges {E(0), NE(1), N(2), W(3)}.
+    //   W(3) direction from q=4 leads to q=3. q=3 cells have pre-placed Cross r0.
+    //   Cross r0 at (3,r) has W(3) edge open → connection check:
+    //     (4,r) edge W(3) connects to (3,r) if (3,r) has edge E(0). Cross has E(0). ✓
+    //   So (3,r) cells are reachable from exit → at least one non-exit-zone cell connects ✓
+    //
+    // Spawn zone cells: q=-4 all r values + q=-3, r=-2 → 6 cells
+    // NOT in exit zone, NOT in spawn zone: ✓
 
     public static readonly HexEscapeLevel Tutorial01 = new(
         Id:   "tutorial-01",
-        Name: "The Straight Path",
-        Cells: [C(-2, 0), C(-1, 0), C(0, 0), C(1, 0), C(2, 0)],
-        Walls: [],
-        PrePlacedTiles:
-        [
-            new PrePlacedTile(C(-2, 0), HexTileType.Straight, 0),
-            new PrePlacedTile(C(2,  0), HexTileType.Straight, 0),
-        ],
-        SurvivorStartCells: [C(-2, 0)],
-        ExitCell: C(2, 0),
-        TileHandCounts: new Dictionary<HexTileType, int>
-        {
-            { HexTileType.Straight, 3 },
-            { HexTileType.Elbow,    0 },
-            { HexTileType.Tee,      0 },
-            { HexTileType.Cross,    0 },
-            { HexTileType.Deadend,  0 },
-        },
-        ThreatThreshold: 5
-    );
-
-    // ── medium-01 — "The Bend" ────────────────────────────────────────────────
-    //
-    // An L-shaped corridor: straight segment then a 90° turn.
-    //   S = (-2,0) pre-placed Straight r=0 → edges {E,W}
-    //   [-1,0] empty — player places Straight r=0 → {E,W}
-    //   [0,0]  empty — player places Elbow r=2  → {N,W}
-    //     Elbow base {0,1}+2 → {(0+2)%6,(1+2)%6} = {2,3} = N+W
-    //   [0,-1] empty — player places Straight r=2 → {N,S}
-    //     Straight base {0,3}+2 → {(0+2)%6,(3+2)%6} = {2,5} = N+S
-    //   X = (0,-2) pre-placed Straight r=2 → edges {N,S}
-    //
-    // BFS from exit (0,-2) Straight r=2 → {N(2),S(5)}:
-    //   S(5)→(0,-1): (0,-1) needs N(2). Straight r=2 has N(2). ✓ Visit (0,-1).
-    //   (0,-1) Straight r=2 {N,S}: S(5)→(0,-2) visited; N(2)→(0,0): (0,0) needs S(5).
-    //     Elbow r=2 → {2,3}=N+W. Does NOT have S(5). But wait — from (0,-1) going N(2)
-    //     we arrive at (0,-2)? No: dir2=(0,-1), so (0,-1)+dir2=(0,-2). That's the exit,
-    //     already visited. Going S means dir5=(0,+1), so (0,-1)+dir5=(0,0). (0,0) needs
-    //     open edge in (5+3)%6=2=N. Elbow r=2 → {2,3}: has N(2) ✓. Visit (0,0).
-    //   (0,0) Elbow r=2 {N,W}: N(2)→(0,-1) visited; W(3)→(-1,0): (-1,0) needs E(0).
-    //     Straight r=0 → {0,3}: has E(0) ✓. Visit (-1,0).
-    //   (-1,0) Straight r=0 {E,W}: E(0)→(0,0) visited; W(3)→(-2,0): (-2,0) needs E(0).
-    //     Straight r=0 → {0,3}: has E(0) ✓. Visit (-2,0) = SURVIVOR ✓.
-    //   connectedSurvivors=1=totalSurvivors → WIN ✓
-    //
-    // Not pre-won: (-1,0), (0,0), (0,-1) are empty at start.
-
-    public static readonly HexEscapeLevel Medium01 = new(
-        Id:   "medium-01",
-        Name: "The Bend",
-        Cells: [C(-2, 0), C(-1, 0), C(0, 0), C(0, -1), C(0, -2)],
-        Walls: [],
-        PrePlacedTiles:
-        [
-            new PrePlacedTile(C(-2, 0), HexTileType.Straight, 0),
-            new PrePlacedTile(C(0, -2), HexTileType.Straight, 2),
-        ],
-        SurvivorStartCells: [C(-2, 0)],
-        ExitCell: C(0, -2),
-        TileHandCounts: new Dictionary<HexTileType, int>
-        {
-            { HexTileType.Straight, 2 },
-            { HexTileType.Elbow,    1 },
-            { HexTileType.Tee,      0 },
-            { HexTileType.Cross,    0 },
-            { HexTileType.Deadend,  0 },
-        },
-        ThreatThreshold: 4
-    );
-
-    // ── hard-01 — "Two Roads" ─────────────────────────────────────────────────
-    //
-    // Two survivors must both reach the exit. They share a junction cell (0,0)
-    // that requires a Cross tile, and three straight segments.
-    //
-    // Cells:
-    //   (-2,0) survivor A  pre-placed Straight r=0 → {E,W}
-    //   (-1,0) empty       player places Straight r=0 → {E,W}
-    //   (0,0)  empty       player places Cross r=0 → {E,NE,N,W}
-    //     Cross base {0,1,2,3}+0 → {0,1,2,3}=E+NE+N+W
-    //     NE edge goes to (1,-1) which is a wall → dead end (not an error per spec).
-    //   (1,0)  empty       player places Straight r=0 → {E,W}
-    //   (2,0)  survivor B  pre-placed Straight r=0 → {E,W}
-    //   (0,-1) empty       player places Straight r=2 → {N,S}
-    //   (0,-2) exit        pre-placed Straight r=2 → {N,S}
-    //   (1,-1) wall        on-board but impassable — no tile may be placed
-    //
-    // BFS from exit (0,-2) Straight r=2 {N,S}:
-    //   S(5)→(0,-1): needs N(2). Straight r=2 has N(2). ✓ Visit (0,-1).
-    //   (0,-1) {N,S}: S(5)→(0,0): (0,0) needs (5+3)%6=2=N. Cross r=0 has N(2). ✓ Visit (0,0).
-    //   (0,0) Cross r=0 {E,NE,N,W}:
-    //     N(2)→(0,-1) visited
-    //     NE(1)→(1,-1) is wall — wall cells have no tile, so no open edges. Dead end.
-    //     E(0)→(1,0): (1,0) needs (0+3)%6=3=W. Straight r=0 has W(3). ✓ Visit (1,0).
-    //     W(3)→(-1,0): (-1,0) needs (3+3)%6=0=E. Straight r=0 has E(0). ✓ Visit (-1,0).
-    //   (1,0) {E,W}: E(0)→(2,0): (2,0) needs W(3). Straight r=0 has W(3). ✓ Visit (2,0)=SURVIVOR B ✓
-    //   (-1,0) {E,W}: W(3)→(-2,0): (-2,0) needs E(0). Straight r=0 has E(0). ✓ Visit (-2,0)=SURVIVOR A ✓
-    //   connectedSurvivors=2=totalSurvivors → WIN ✓
-    //
-    // Not pre-won: (-1,0),(0,0),(1,0),(0,-1) are empty at start.
-    //
-    // Required tiles: 3 Straight (for -1,0 and 1,0 and 0,-1) + 1 Cross (for 0,0) = 4 tiles total.
-    // Threat threshold 3 means 3 full rounds max (tight for 1–2 players, achievable for groups).
-
-    public static readonly HexEscapeLevel Hard01 = new(
-        Id:   "hard-01",
-        Name: "Two Roads",
+        Name: "The Outbreak",
         Cells:
         [
-            C(-2, 0), C(-1, 0), C(0, 0), C(1, 0), C(2, 0),
-            C(0, -1), C(0, -2),
-            C(1, -1),
+            // q = -4 (spawn zone column — no pre-placed tiles per H9)
+            C(-4, -2), C(-4, -1), C(-4,  0), C(-4,  1), C(-4,  2),
+            // q = -3 (horde origins + first spawn overflow)
+            C(-3, -2), C(-3, -1), C(-3,  0), C(-3,  1), C(-3,  2),
+            // q = -2
+            C(-2, -2), C(-2, -1), C(-2,  0), C(-2,  1), C(-2,  2),
+            // q = -1
+            C(-1, -2), C(-1, -1), C(-1,  0), C(-1,  1), C(-1,  2),
+            // q = 0
+            C( 0, -2), C( 0, -1), C( 0,  0), C( 0,  1), C( 0,  2),
+            // q = 1
+            C( 1, -2), C( 1, -1), C( 1,  0), C( 1,  1), C( 1,  2),
+            // q = 2
+            C( 2, -2), C( 2, -1), C( 2,  0), C( 2,  1), C( 2,  2),
+            // q = 3
+            C( 3, -2), C( 3, -1), C( 3,  0), C( 3,  1), C( 3,  2),
+            // q = 4 (exit zone — no pre-placed tiles per H9)
+            C( 4, -2), C( 4, -1), C( 4,  0), C( 4,  1), C( 4,  2),
         ],
-        Walls: [C(1, -1)],
         PrePlacedTiles:
         [
-            new PrePlacedTile(C(-2, 0), HexTileType.Straight, 0),
-            new PrePlacedTile(C(2,  0), HexTileType.Straight, 0),
-            new PrePlacedTile(C(0, -2), HexTileType.Straight, 2),
+            // Horde origin cells: q=-3, r={-1,0,1} — must have pre-placed tiles (F3)
+            // Use Cross r0 so zombies can move in multiple directions
+            new PrePlacedTile(C(-3, -1), HexTileType.Cross, 0),
+            new PrePlacedTile(C(-3,  0), HexTileType.Cross, 0),
+            new PrePlacedTile(C(-3,  1), HexTileType.Cross, 0),
+            // Mid-board pre-placed tiles — starting zombie location and path anchors
+            new PrePlacedTile(C( 0,  0), HexTileType.Cross, 0),
+            // Near-exit pre-placed tiles: connect to the exit zone
+            new PrePlacedTile(C( 3, -1), HexTileType.Cross, 0),
+            new PrePlacedTile(C( 3,  0), HexTileType.Cross, 0),
+            new PrePlacedTile(C( 3,  1), HexTileType.Cross, 0),
         ],
-        SurvivorStartCells: [C(-2, 0), C(2, 0)],
-        ExitCell: C(0, -2),
-        TileHandCounts: new Dictionary<HexTileType, int>
-        {
-            { HexTileType.Straight, 3 },
-            { HexTileType.Elbow,    0 },
-            { HexTileType.Tee,      0 },
-            { HexTileType.Cross,    1 },
-            { HexTileType.Deadend,  0 },
-        },
-        ThreatThreshold: 3
+        // Spawn zone: q=-4 (5 cells) + q=-3, r=-2 (1 cell) = 6 cells total (>= MaxPlayers=6)
+        // Note: q=-3, r=-2 is NOT a horde origin (horde origins are q=-3 r={-1,0,1})
+        // Note: q=-3, r=-2 has NO pre-placed tile (H9 — no pre-placed tiles in spawn zone)
+        SpawnZoneCells:
+        [
+            C(-4, -2), C(-4, -1), C(-4,  0), C(-4,  1), C(-4,  2),
+            C(-3, -2),
+        ],
+        // Exit zone: q=4 (5 cells) — server will place exit tile here when drawn
+        ExitZoneCells:
+        [
+            C( 4, -2), C( 4, -1), C( 4,  0), C( 4,  1), C( 4,  2),
+        ],
+        // Horde origin: q=-3, r={-1,0,1} — all have pre-placed Cross r=0
+        // NOT in spawn zone (spawn zone uses q=-4 and q=-3 r=-2 only)
+        // NOT in exit zone
+        HordeOriginCells:
+        [
+            C(-3, -1), C(-3,  0), C(-3,  1),
+        ],
+        // Starting zombies: one at (0,0) which has a pre-placed Cross tile (C4)
+        StartingZombies:
+        [
+            new StartingZombie(C(0, 0)),
+        ],
+        // Normal tile pool: weights defining distribution across the deck
+        // Mostly Straight/Elbow/Tee for varied path-building; some Cross for junctions
+        NormalTilePool:
+        [
+            new TilePoolEntry(HexTileType.Straight, 30),
+            new TilePoolEntry(HexTileType.Elbow,    25),
+            new TilePoolEntry(HexTileType.Tee,      25),
+            new TilePoolEntry(HexTileType.Cross,    15),
+            new TilePoolEntry(HexTileType.Deadend,   5),
+        ]
     );
 
     // ── Public catalogue ──────────────────────────────────────────────────────
 
     /// <summary>
     /// All authored levels indexed by ID.
-    /// "tutorial-01" must be first (and always present) — it is the AD-10 fallback.
+    /// "tutorial-01" must be first (and always present) — it is the AC-v2-2 fallback.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, HexEscapeLevel> All =
         new Dictionary<string, HexEscapeLevel>
         {
             { Tutorial01.Id, Tutorial01 },
-            { Medium01.Id,   Medium01   },
-            { Hard01.Id,     Hard01     },
         };
 
     /// <summary>
     /// Levels in display order (tutorial first). Used to render the host's level
     /// picker deterministically, independent of dictionary enumeration order.
     /// </summary>
-    public static readonly IReadOnlyList<HexEscapeLevel> Ordered =
-        [Tutorial01, Medium01, Hard01];
+    public static readonly IReadOnlyList<HexEscapeLevel> Ordered = [Tutorial01];
 }
