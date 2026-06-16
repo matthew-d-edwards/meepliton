@@ -88,6 +88,9 @@ export interface HexBoardProps {
   myCharacterPlaced: boolean
   onCellClick: (coord: string) => void
   canInteract: boolean
+  /** Coords the active player can actually act on right now. When provided,
+   *  cells not in the set are announced as disabled (focusable to read, but inert). */
+  actionableCoords?: Set<string>
 }
 
 export function HexBoard({
@@ -104,6 +107,7 @@ export function HexBoard({
   myCharacterPlaced,
   onCellClick,
   canInteract,
+  actionableCoords,
 }: HexBoardProps) {
   // Build pixel positions for each cell
   const positions = new Map<string, { x: number; y: number }>()
@@ -180,18 +184,22 @@ export function HexBoard({
           else if (isSpawnZone) polyClass = styles.hexSpawn
           else if (isMyReservedSpawn) polyClass = styles.hexMySpawn
 
-          const isClickable = canInteract
+          // When interacting, every cell is focusable so a keyboard/screen-reader
+          // user can read it, but only cells the player can actually act on fire
+          // and are announced as enabled; the rest carry aria-disabled.
+          const cellActionable = canInteract && (actionableCoords ? actionableCoords.has(key) : true)
           const cornersStr = hexCorners(x, y)
 
           return (
             <g
               key={key}
-              className={[styles.hexBase, isClickable ? styles.hexClickable : ''].filter(Boolean).join(' ')}
-              onClick={isClickable ? () => onCellClick(key) : undefined}
-              role={isClickable ? 'button' : undefined}
-              tabIndex={isClickable ? 0 : undefined}
+              className={[styles.hexBase, cellActionable ? styles.hexClickable : ''].filter(Boolean).join(' ')}
+              onClick={cellActionable ? () => onCellClick(key) : undefined}
+              role={canInteract ? 'button' : undefined}
+              tabIndex={canInteract ? 0 : undefined}
+              aria-disabled={canInteract && !cellActionable ? true : undefined}
               aria-label={hexAriaLabel(key, isSpawnZone, isExitZone, isExitCell, cell, zombieCount, charsHere, myPlayerId, isMyReservedSpawn)}
-              onKeyDown={isClickable ? (e) => {
+              onKeyDown={cellActionable ? (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
                   onCellClick(key)
@@ -214,6 +222,11 @@ export function HexBoard({
               {/* My reserved spawn marker */}
               {isMyReservedSpawn && !isOccupied && (
                 <text x={x} y={y} className={styles.mySpawnIcon} aria-hidden="true">S</text>
+              )}
+
+              {/* Spawn-zone marker (non-colour cue) for other spawn cells */}
+              {isSpawnZone && !isMyReservedSpawn && !isOccupied && (
+                <text x={x} y={y} className={styles.spawnZoneIcon} aria-hidden="true">S</text>
               )}
 
               {/* Exit zone marker (unrevealed) */}

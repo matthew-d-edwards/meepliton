@@ -106,6 +106,30 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
 
   const zombieCoords = state.zombies.map(z => z.pos)
 
+  // Cells the active player can actually act on right now — mirrors handleCellClick's
+  // "opens a picker" branches. Drives aria-disabled on the board so keyboard/screen-reader
+  // users aren't sent to dead cells with no feedback.
+  const actionableCoords = new Set<string>()
+  if (isMyActiveTurn && ap > 0) {
+    const hasPlaceableTile = myHand.some(h => !h.isZombieTile)
+    for (const coord of state.cells) {
+      const cell = state.grid[coord]
+      const inExitZone = state.exitZoneCells.includes(coord)
+      if (hasZombieObligation) {
+        if (coord in state.grid && !inExitZone) actionableCoords.add(coord)
+        continue
+      }
+      if (cell) {
+        if (!cell.fixed) actionableCoords.add(coord)
+        continue
+      }
+      if (inExitZone) continue
+      if ((myCharPlaced && myChar?.pos && !myCharEliminated) || hasPlaceableTile) {
+        actionableCoords.add(coord)
+      }
+    }
+  }
+
   // ── Dispatch helpers ─────────────────────────────────────────────────────────
 
   function send(action: HexEscapeAction) {
@@ -384,6 +408,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
             myCharacterPlaced={myCharPlaced}
             onCellClick={handleCellClick}
             canInteract={isMyActiveTurn && ap > 0}
+            actionableCoords={actionableCoords}
           />
         </div>
 
