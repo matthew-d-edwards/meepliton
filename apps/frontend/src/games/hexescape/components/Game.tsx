@@ -9,7 +9,7 @@ import type {
   CharacterState,
   PlayerSlot,
 } from '../types'
-import { HexBoard, openEdges, RoadTile } from './HexBoard'
+import { HexBoard, openEdges, RoadTile, DIR_ANGLE_DEG } from './HexBoard'
 import '../hexescape.css'
 import styles from '../styles.module.css'
 
@@ -655,7 +655,8 @@ function previewHexCorners(cx: number, cy: number): string {
 }
 
 function previewEdgeMidpoint(cx: number, cy: number, dir: number): { x: number; y: number } {
-  const angle = (Math.PI / 180) * (60 * dir)
+  // Flat-top hex: neighbours sit at edge midpoints — share the board's angle table.
+  const angle = (Math.PI / 180) * DIR_ANGLE_DEG[dir]
   const inradius = PREVIEW_HEX_SIZE * (PREVIEW_SQRT3 / 2)
   return { x: cx + inradius * Math.cos(angle), y: cy + inradius * Math.sin(angle) }
 }

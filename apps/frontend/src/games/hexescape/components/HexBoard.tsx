@@ -49,11 +49,24 @@ export function openEdges(tileType: HexTileType, rotation: number): number[] {
 }
 
 /**
- * For a flat-top hex, direction d points to angle (60 * d) degrees from centre.
- * The inradius is HEX_SIZE * sqrt(3)/2.
+ * Physical screen angle (degrees, SVG y-down) of each axial direction, in the same
+ * order as the backend's Directions table [E, NE, N, W, SW, S].
+ *
+ * For a FLAT-TOP hex the six neighbours sit at the EDGE MIDPOINTS, not the corners.
+ * These angles are derived from the hexToPixel deltas of each direction:
+ *   dir 0 (+1, 0)  → 30°    dir 1 (+1,-1) → -30°   dir 2 (0,-1) → -90°
+ *   dir 3 (-1, 0)  → -150°  dir 4 (-1,+1) → 150°   dir 5 (0,+1) →  90°
+ * (Using 60*dir here was the old bug — it pointed roads at the corners.)
+ */
+export const DIR_ANGLE_DEG = [30, -30, -90, -150, 150, 90]
+
+/**
+ * Midpoint of the hex edge facing direction `dir`. Roads run from the cell centre
+ * to this point, so connected tiles meet exactly at the shared edge.
+ * The inradius (centre→edge distance) of a flat-top hex is HEX_SIZE * sqrt(3)/2.
  */
 export function edgeMidpoint(cx: number, cy: number, dir: number): { x: number; y: number } {
-  const angle = (Math.PI / 180) * (60 * dir)
+  const angle = (Math.PI / 180) * DIR_ANGLE_DEG[dir]
   const inradius = HEX_SIZE * (SQRT3 / 2)
   return {
     x: cx + inradius * Math.cos(angle),
