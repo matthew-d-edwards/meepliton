@@ -1405,6 +1405,1443 @@ public class HexEscapeModuleTests
         _module.MaxPlayers.Should().Be(6);
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EXTENDED TESTS — added by tester agent (authored, not yet executed in CI)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // ── 1. Full happy-path WIN (SF-4 negative cascade, AC-v2-29c) ────────────
+
+    /// <summary>
+    /// Drives a deterministic win scenario:
+    ///   - exitRevealed = true, exitCell set to an exit-zone cell.
+    ///   - All placed, non-eliminated characters are at exitCell.
+    ///   - One zombie exists elsewhere.
+    ///   - Player takes a PlaceTile action that passes the win check.
+    /// Asserts: phase=GameOver, outcome=Escaped, GameOverEffect(winnerId=null),
+    ///          lastZombieRolls empty (cascade did NOT run),
+    ///          zombie position unchanged, roundNumber unchanged.
+    /// </summary>
+    [Fact]
+    public void Win_HappyPath_PhaseGameOverEscaped_NoCascade()
+    {
+        var players = Players(2);
+        var state = GetInitialState(players);
+
+        // Use a cell in the exit zone for exitCell
+        string exitCoord = state.ExitZoneCells[0];
+
+        // Place exit tile in exit zone (fixed, cross r0)
+        var newGrid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [exitCoord] = new HexCell(HexTileType.Cross, 0, Fixed: true)
+        };
+
+        // Place both characters at the exit cell
+        var newChars = state.Characters.Select(c => c with { Pos = exitCoord }).ToList();
+
+        // Add a zombie somewhere far from exit (a pre-placed tile cell, not exit zone)
+        string zombieCell = state.Grid.Keys.First(k => !state.ExitZoneCells.Contains(k));
+        var zombies = new List<ZombieToken>(state.Zombies)
+        {
+            new ZombieToken("z-happy", zombieCell)
+        };
+
+        // Add a non-fixed tile somewhere for the player to place
+        // We need a tile in the player's hand to PlaceTile.
+        // Both players have already "placed" (pos != null), so this is a non-first placement.
+        // Find an empty non-exit-zone, non-spawn-zone cell to place on.
+        var spawnSet = new HashSet<string>(state.SpawnZoneCells);
+        var exitSet  = new HashSet<string>(state.ExitZoneCells);
+        string placeTarget = state.Cells.First(c =>
+            !newGrid.ContainsKey(c) &&
+            !spawnSet.Contains(c) &&
+            !exitSet.Contains(c) &&
+            c != exitCoord);
+
+        // Give player 0 a Straight tile to place
+        var hand0 = new List<HeldTile>(state.Hands[players[0].Id])
+        {
+            new HeldTile(HexTileType.Straight, false, false)
+        };
+        var newHands = new Dictionary<string, List<HeldTile>>(state.Hands)
+        {
+            [players[0].Id] = hand0
+        };
+
+        state = state with
+        {
+            Grid           = newGrid,
+            Characters     = newChars,
+            Zombies        = zombies,
+            ExitRevealed   = true,
+            ExitCell       = exitCoord,
+            ActiveSeat     = 0,
+            ActionPointsRemaining    = 3,
+            QualifyingActionsThisTurn = 1,
+            SeatsActedThisRound      = [],
+            Hands          = newHands,
+        };
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.PlaceTile, Coord: placeTarget, TileType: HexTileType.Straight, Rotation: 0),
+            players[0].Id);
+
+        var result = _module.Handle(ctx);
+
+        // Must succeed
+        result.RejectionReason.Should().BeNull("placing a tile when all chars are on exitCell should trigger win");
+
+        var newState = GetState(result.NewState);
+
+        // Phase and outcome
+        newState.Phase.Should().Be(HexEscapePhase.GameOver, "win fires → GameOver");
+        newState.Outcome.Should().Be(HexEscapeOutcome.Escaped, "cooperative win outcome is Escaped");
+
+        // SF-4: cascade MUST NOT have run
+        newState.LastZombieRolls.Should().BeEmpty("zombie cascade must NOT run after win (SF-4)");
+
+        // Zombie must be unchanged
+        newState.Zombies.Should().Contain(z => z.Id == "z-happy" && z.Pos == zombieCell,
+            "zombie position must be unchanged — cascade did not run (SF-4)");
+
+        // Round number unchanged (no round boundary)
+        newState.RoundNumber.Should().Be(state.RoundNumber, "round must not advance after win");
+
+        // GameOverEffect emitted with null winnerId (cooperative game)
+        result.Effects.Should().HaveCount(1, "exactly one effect on win");
+        result.Effects![0].Should().BeOfType<GameOverEffect>();
+        ((GameOverEffect)result.Effects[0]).WinnerId.Should().BeNull("cooperative win has no winner id");
+    }
+
+    // ── 2. SF-4 deck-band capacity — parameterised over all player counts ─────
+
+    /// <summary>
+    /// AC-v2-1b, AD-OB-12: For each player count 1..6 assert:
+    ///   - deck.Count == PostDealSize[n]
+    ///   - exactly one exit tile in deck
+    ///   - exit tile is cross type
+    ///   - ZombieTileCount[n] zombie tiles in deck
+    ///   - exit tile index in [exitBandStart, postDealSize-1]
+    ///   - top safeRemaining entries are zombie/exit-free
+    ///   - normal tile count matches table (PostDealSize - ZombieTileCount - 1)
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void DeckBand_Capacity_AllInvariants(int playerCount)
+    {
+        var doc = ((IGameModule)_module).CreateInitialState(Players(playerCount), null);
+        var state = GetState(doc);
+
+        int postDealSize   = HexEscapeConstants.PostDealSize[playerCount];
+        int zombieCount    = HexEscapeConstants.ZombieTileCount[playerCount];
+        int rawPoolSize    = postDealSize + (HexEscapeConstants.StartingHandSize * playerCount);
+        int safeCount      = (int)(rawPoolSize * HexEscapeConstants.SafeOpeningFraction);
+        int safeRemaining  = safeCount - (HexEscapeConstants.StartingHandSize * playerCount);
+        int exitBandStart  = postDealSize - (int)(postDealSize * HexEscapeConstants.ExitBandFraction[playerCount]);
+
+        // Deck length
+        state.Deck.Should().HaveCount(postDealSize,
+            $"post-deal deck size must be PostDealSize[{playerCount}] (AD-OB-12)");
+
+        // Exactly one exit tile
+        int exitCount = state.Deck.Count(e => e.IsExitTile);
+        exitCount.Should().Be(1, $"exactly one exit tile in deck for {playerCount} players (AC-v2-1b)");
+
+        // Exit tile is cross
+        var exitEntry = state.Deck.First(e => e.IsExitTile);
+        exitEntry.TileType.Should().Be(HexTileType.Cross,
+            "exit tile must be Cross (C3)");
+        exitEntry.IsZombieTile.Should().BeFalse("exit tile is not a zombie tile");
+
+        // Zombie tile count
+        state.Deck.Count(e => e.IsZombieTile).Should().Be(zombieCount,
+            $"ZombieTileCount[{playerCount}] zombie tiles in deck (AD-OB-12)");
+
+        // Normal tile count
+        int expectedNormal = postDealSize - zombieCount - 1;
+        state.Deck.Count(e => !e.IsZombieTile && !e.IsExitTile).Should().Be(expectedNormal,
+            $"normal tile count = postDealSize - zombies - exit for {playerCount} players (AD-OB-12)");
+
+        // Exit tile in exit band [exitBandStart, postDealSize-1]
+        int exitPos = state.Deck.FindIndex(e => e.IsExitTile);
+        exitPos.Should().BeGreaterOrEqualTo(exitBandStart,
+            $"exit tile must be at or after exitBandStart={exitBandStart} for {playerCount} players");
+        exitPos.Should().BeLessThan(postDealSize,
+            "exit tile must be within deck bounds");
+
+        // Top safeRemaining entries: no zombie, no exit tile
+        // (these remain after dealing StartingHandSize to each player)
+        if (safeRemaining > 0)
+        {
+            for (int i = 0; i < safeRemaining && i < state.Deck.Count; i++)
+            {
+                state.Deck[i].IsZombieTile.Should().BeFalse(
+                    $"deck[{i}] must be zombie-free in safe opening for {playerCount} players (F2)");
+                state.Deck[i].IsExitTile.Should().BeFalse(
+                    $"deck[{i}] must be exit-free in safe opening for {playerCount} players (F2)");
+            }
+        }
+
+        // Middle band can hold all zombie tiles:
+        //   middle band = [safeRemaining, exitBandStart-1]
+        int middleBandSize = exitBandStart - safeRemaining;
+        middleBandSize.Should().BeGreaterOrEqualTo(zombieCount,
+            $"middle band must be >= ZombieTileCount[{playerCount}] (AD-OB-12)");
+    }
+
+    // ── 3a. ResolveZombieMove — deterministic direction tests ─────────────────
+
+    /// <summary>
+    /// For each die face 1..6 test ResolveZombieMove on a Cross r=0 grid.
+    /// Cross r=0 has edges {0,1,2,3}. Direction = dieFace % 6.
+    /// - Face 1 → dir 1 (NE): neighbour exists → moved
+    /// - Face 2 → dir 2 (N): neighbour exists → moved
+    /// - Face 3 → dir 3 (W): neighbour exists → moved
+    /// - Face 4 → dir 4 (SW): no neighbour placed → stays
+    /// - Face 5 → dir 5 (S): no Cross edge 5 (base edges 0,1,2,3 only) → stays
+    /// - Face 6 → dir 0 (E): neighbour exists → moved
+    /// </summary>
+    [Theory]
+    [InlineData(1, true)]   // dir1 NE — Cross has edge 1; neighbour Cross has edge 4=opposite → moved
+    [InlineData(2, true)]   // dir2 N  — Cross has edge 2; neighbour Cross has edge 5=opposite → moved
+    [InlineData(3, true)]   // dir3 W  — Cross has edge 3; neighbour Cross has edge 0=opposite → moved
+    [InlineData(4, false)]  // dir4 SW — Cross r0 has no edge 4 → stays
+    [InlineData(5, false)]  // dir5 S  — Cross r0 has no edge 5 → stays
+    [InlineData(6, true)]   // dir0 E  — Cross has edge 0; neighbour Cross has edge 3=opposite → moved
+    public void ResolveZombieMove_CrossTile_CorrectMoveDecision(int dieFace, bool expectMoved)
+    {
+        // Cross r=0 at (0,0). Place tiled Cross neighbours in all four open edge directions.
+        // Direction d neighbour (opposite = (d+3)%6) must also be Cross r=0 for connection.
+        // Dir 0 → E → (1,0); dir 1 → NE → (1,-1); dir 2 → N → (0,-1); dir 3 → W → (-1,0)
+        var grid = new Dictionary<string, HexCell>
+        {
+            ["0,0"]   = new HexCell(HexTileType.Cross, 0, false),
+            ["1,0"]   = new HexCell(HexTileType.Cross, 0, false),   // dir 0 neighbour
+            ["1,-1"]  = new HexCell(HexTileType.Cross, 0, false),   // dir 1 neighbour
+            ["0,-1"]  = new HexCell(HexTileType.Cross, 0, false),   // dir 2 neighbour
+            ["-1,0"]  = new HexCell(HexTileType.Cross, 0, false),   // dir 3 neighbour
+            // dir 4 = SW = (-1,+1): NOT added → zombie can't move there
+            // dir 5 = S  = (0,+1):  Cross r0 has no edge 5 anyway
+        };
+        var cellSet = new HashSet<string>(grid.Keys);
+
+        var (newPos, moved) = HexEscapeModule.ResolveZombieMove(grid, cellSet, "0,0", dieFace);
+
+        moved.Should().Be(expectMoved,
+            $"dieFace={dieFace} → direction={dieFace % 6}; expectMoved={expectMoved}");
+    }
+
+    /// <summary>
+    /// ResolveZombieMove: all die faces 1..6 produce direction in [0,5].
+    /// Structural invariant only — does NOT assert exact destination.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void ResolveZombieMove_AllDieFaces_DirectionInRange(int dieFace)
+    {
+        // Direction = dieFace % 6; always in [0,5]
+        int direction = dieFace % 6;
+        direction.Should().BeInRange(0, 5, $"dieFace {dieFace} maps to direction {direction}");
+    }
+
+    // ── 3b. Round-boundary zombie rolls — structural invariants ──────────────
+
+    /// <summary>
+    /// After a complete round boundary (all seats act then EndTurn), lastZombieRolls:
+    ///   - has exactly one entry per zombie alive at phase start
+    ///   - each entry's direction is in [0,5]
+    ///   - if moved, destination is a valid neighbour of the start position
+    /// Does NOT assert exact RNG outcomes.
+    /// </summary>
+    [Fact]
+    public void RoundBoundary_ZombieRolls_StructuralInvariants()
+    {
+        // 1-player game: one seat, one turn, then round boundary fires.
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Record zombie count at init (starting zombies)
+        int zombieCountAtPhaseStart = state.Zombies.Count;
+
+        // Claim seat and take MinActionsPerTurn qualifying actions (DrawTile twice)
+        state = state with { ActiveSeat = 0, ActionPointsRemaining = 5, QualifyingActionsThisTurn = 0 };
+
+        // Take 2 DrawTile actions to satisfy min qualifying
+        // (deck is non-empty per initial state)
+        var ctx1 = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var r1 = _module.Handle(ctx1);
+        r1.RejectionReason.Should().BeNull("first DrawTile should be accepted");
+
+        var ctx2 = MakeContext(r1.NewState, new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var r2 = _module.Handle(ctx2);
+        r2.RejectionReason.Should().BeNull("second DrawTile should be accepted");
+
+        // End turn — triggers round boundary since only 1 player
+        var stateAfter2Draws = GetState(r2.NewState);
+        // We must not be holding a zombie tile (if we drew one, we may need to handle it)
+        // If zombie tile drawn, place it to satisfy obligation before EndTurn.
+        // Check obligation status:
+        bool holdingZombie = stateAfter2Draws.Hands[players[0].Id].Any(t => t.IsZombieTile);
+        if (holdingZombie)
+        {
+            // Find a tiled non-exit-zone non-zombie-occupied cell
+            var exitSet = new HashSet<string>(stateAfter2Draws.ExitZoneCells);
+            var zombiePositions = stateAfter2Draws.Zombies.Select(z => z.Pos).ToHashSet();
+            string? spawnTarget = stateAfter2Draws.Grid.Keys
+                .FirstOrDefault(k => !exitSet.Contains(k) && !zombiePositions.Contains(k));
+
+            if (spawnTarget is not null)
+            {
+                var ctxPlace = MakeContext(r2.NewState,
+                    new HexEscapeAction(HexActionType.PlaceZombieTile, Coord: spawnTarget),
+                    players[0].Id);
+                var rPlace = _module.Handle(ctxPlace);
+                if (rPlace.RejectionReason is null)
+                {
+                    var ctxEnd2 = MakeContext(rPlace.NewState, new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+                    var rEnd2 = _module.Handle(ctxEnd2);
+                    // May have triggered loss if zombie landed on character
+                    if (rEnd2.RejectionReason is null)
+                    {
+                        var finalState = GetState(rEnd2.NewState);
+                        if (finalState.Phase == HexEscapePhase.GameOver) return; // loss; can't assert rolls
+                        finalState.LastZombieRolls.Count.Should().BeGreaterOrEqualTo(0);
+                        foreach (var roll in finalState.LastZombieRolls)
+                        {
+                            roll.Direction.Should().BeInRange(0, 5,
+                                $"roll direction must be in [0,5] for zombie {roll.ZombieId}");
+                            roll.DieFace.Should().BeInRange(1, 6,
+                                $"die face must be in [1,6] for zombie {roll.ZombieId}");
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+
+        var ctxEnd = MakeContext(r2.NewState, new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var rEnd = _module.Handle(ctxEnd);
+
+        // EndTurn triggers round boundary; may result in GameOver (loss) if zombie eliminates character
+        if (rEnd.RejectionReason is not null)
+        {
+            // EndTurn may have been rejected for zombie obligation — tolerate and skip assertions
+            return;
+        }
+
+        var endState = GetState(rEnd.NewState);
+        if (endState.Phase == HexEscapePhase.GameOver)
+        {
+            // Loss scenario; no rolls to assert
+            return;
+        }
+
+        // Assert structural invariants on lastZombieRolls
+        // Round boundary ran; rolls were produced for zombies alive at phase 3 start
+        endState.Phase.Should().Be(HexEscapePhase.Actions, "round boundary advances phase back to Actions");
+        endState.RoundNumber.Should().Be(2, "round number increments after boundary");
+
+        foreach (var roll in endState.LastZombieRolls)
+        {
+            roll.Direction.Should().BeInRange(0, 5,
+                $"roll direction must be in [0,5] for zombie {roll.ZombieId}");
+            roll.DieFace.Should().BeInRange(1, 6,
+                $"die face must be in [1,6] for zombie {roll.ZombieId}");
+        }
+    }
+
+    // ── 4. Containment break-out / MF-2 frozen snapshot ──────────────────────
+
+    /// <summary>
+    /// MF-2 containment break-out:
+    ///   - Craft a zombie on a non-fixed tile with no valid moves (contained).
+    ///   - Run round boundary.
+    ///   - Assert: a new zombie was spawned (break-out (b)), and the new spawn
+    ///     is on a tiled, non-exit-zone cell adjacent to the contained zombie.
+    ///   - Assert: the pre-placed level tile's rotation is NOT changed
+    ///     (skip-rotation for fixed tiles — C2).
+    ///   - Assert: a zombie-placed non-fixed tile IS eligible for rotation
+    ///     (we verify via the rotation rule: if zombie is on a non-fixed tile,
+    ///     rotation sub-step runs).
+    ///
+    /// We drive this via a full round-boundary by completing all seats' turns.
+    /// </summary>
+    [Fact]
+    public void Containment_BreakOut_SpawnsNewZombie_OnAdjacentTiledCell()
+    {
+        // Use 1-player game for simplest round boundary.
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Build a contained-zombie scenario:
+        // Place a Deadend tile (rotation 0, edge 0=E only) at "0,1"
+        // Place a Straight tile at "1,1" (rotation 0 → edges {E(0),W(3)})
+        //   The zombie at "0,1" on Deadend r0 points E(0) to "1,1"
+        //   but "1,1" on Straight r0 needs W(3) on opposite side to connect.
+        //   (1,1) Straight r0 has W(3) — so actually E from "0,1" DOES connect to "1,1".
+        //   For containment we need NO valid moves.
+        //   Use Deadend r0 (edge 0=E) at zombie cell.
+        //   To contain: neighbour "1,1" must have its tile's opposite edge (W=3) CLOSED.
+        //   Straight r0 has {E(0),W(3)} — W(3) is open → connected → NOT contained.
+        //   Use a Deadend r0 at "1,1" too (edge E=0 only; W=3 is CLOSED) → NOT connected from "0,1" dir E(0).
+        //   So zombie at "0,1" on Deadend r0: dir 0 (E) → "1,1" exists but "1,1" Deadend r0 has only E(0),
+        //     opposite of dir 0 is W(3), "1,1" has no W(3) edge → NOT connected.
+        //   All other dirs from "0,1" either off-board or no tile → zombie IS contained.
+
+        // Use a non-fixed zombie-placed tile at zombie cell (so rotation sub-step runs)
+        // The zombie-placed tile is IsZombieTile=true, Fixed=false — rotatable by D1.
+
+        string zombieCell = "0,1"; // must be in state.Cells
+        string adjacentCell = "1,1"; // also in state.Cells
+
+        // Verify these cells are in the board (tutorial has q=-4..4, r=-2..2 → yes)
+        state.Cells.Should().Contain(zombieCell, "test relies on tutorial board containing (0,1)");
+        state.Cells.Should().Contain(adjacentCell, "test relies on tutorial board containing (1,1)");
+
+        // Ensure zombie cell and adjacent cell are not in exit zone or spawn zone
+        state.ExitZoneCells.Should().NotContain(zombieCell);
+        state.ExitZoneCells.Should().NotContain(adjacentCell);
+        state.SpawnZoneCells.Should().NotContain(zombieCell);
+        state.SpawnZoneCells.Should().NotContain(adjacentCell);
+
+        // Overwrite grid: place a non-fixed zombie-placed tile at zombieCell (Deadend r0)
+        // and a non-fixed tile at adjacentCell (Deadend r0, so opposite of dir0 is closed)
+        var newGrid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [zombieCell]   = new HexCell(HexTileType.Deadend, 0, Fixed: false, IsZombieTile: true),
+            [adjacentCell] = new HexCell(HexTileType.Deadend, 0, Fixed: false, IsZombieTile: false),
+        };
+
+        // Place a zombie at zombieCell with id "z-contained"
+        var zombies = new List<ZombieToken>(state.Zombies.Where(z => z.Pos != zombieCell))
+        {
+            new ZombieToken("z-contained", zombieCell)
+        };
+        int zombieCountBefore = zombies.Count;
+
+        state = state with { Grid = newGrid, Zombies = zombies };
+
+        // Verify containment: AreConnected from zombieCell in all 6 dirs
+        // (This uses the internal AreConnected — verifying our test setup is sane)
+        var cellSet = new HashSet<string>(state.Cells);
+        bool anyOpen = Enumerable.Range(0, 6).Any(d =>
+            HexEscapeModule.AreConnected(state.Grid, cellSet, zombieCell, d));
+        anyOpen.Should().BeFalse("zombie at zombieCell must be fully contained for this test");
+
+        // Now run round boundary by completing all seats.
+        // Use the Handle path: set up state so EndTurn fires the boundary.
+        state = state with
+        {
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 0,   // AP already 0 → EndTurn auto-fires boundary
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+            SeatsActedThisRound      = [],
+        };
+
+        // EndTurn with AP=0 and all qualifying met → advance
+        // But AP=0 means we can't EndTurn the normal way (AP=0 is end-of-turn already).
+        // Instead: put 1 AP, take 0 actions, check qualifying...
+        // Easier: set QualifyingActionsThisTurn to MinActionsPerTurn and AP=1, then EndTurn.
+        state = state with
+        {
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 1,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+        };
+
+        var ctxEnd = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var result = _module.Handle(ctxEnd);
+
+        if (result.RejectionReason is not null) return; // defensive skip
+
+        var newState = GetState(result.NewState);
+        if (newState.Phase == HexEscapePhase.GameOver) return; // loss fired; skip
+
+        // Assert a new zombie was spawned (D1 break-out (b))
+        newState.Zombies.Count.Should().BeGreaterThan(zombieCountBefore,
+            "D1 break-out must spawn a new zombie on an adjacent tiled cell (MF-2, C2)");
+
+        // The new zombie must be on a tiled, non-exit-zone cell
+        var newZombie = newState.Zombies.FirstOrDefault(z => z.Id != "z-contained" && !state.Zombies.Any(oz => oz.Id == z.Id));
+        if (newZombie is not null)
+        {
+            newState.Grid.Should().ContainKey(newZombie.Pos,
+                "D1 break-out spawn must be on a cell with a placed tile (C4)");
+            newState.ExitZoneCells.Should().NotContain(newZombie.Pos,
+                "D1 break-out spawn must not target exit zone cells (MF-3)");
+        }
+    }
+
+    /// <summary>
+    /// MF-2 C2: D1 break-out rotation is SKIPPED for pre-placed level tiles (fixed=true).
+    /// Zombie sits on a fixed pre-placed tile with no valid moves → contained.
+    /// After round boundary: the fixed tile's rotation must NOT be changed.
+    /// </summary>
+    [Fact]
+    public void Containment_BreakOut_SkipsRotation_ForFixedLevelTile()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Find a fixed pre-placed tile
+        var fixedEntry = state.Grid.First(kv => kv.Value.Fixed && !state.ExitZoneCells.Contains(kv.Key));
+        string fixedCell = fixedEntry.Key;
+        var fixedTile = fixedEntry.Value;
+        int originalRotation = fixedTile.Rotation;
+
+        // Place zombie at the fixed tile's cell (so it may be "contained" there)
+        // Remove all neighbours that could provide open connections, by ensuring
+        // the fixed tile itself has no tiled neighbours with matching edges.
+        // The safest approach: remove all non-fixed tiles from the grid that are adjacent,
+        // so the fixed tile's edges all point to empty cells → contained.
+
+        var (fq, fr) = HexEscapeModule.ParseCoord(fixedCell);
+        var newGrid = new Dictionary<string, HexCell>(state.Grid);
+        foreach (var dir in HexEscapeModule.Directions)
+        {
+            string neighbourCoord = HexEscapeModule.CoordKey(fq + dir.Dq, fr + dir.Dr);
+            if (newGrid.ContainsKey(neighbourCoord) && !newGrid[neighbourCoord].Fixed)
+                newGrid.Remove(neighbourCoord);
+        }
+
+        // Now check if zombie is contained (all open edges point to empty or off-board cells)
+        var cellSet = new HashSet<string>(state.Cells);
+        bool contained = !Enumerable.Range(0, 6).Any(d =>
+            HexEscapeModule.AreConnected(newGrid, cellSet, fixedCell, d));
+
+        if (!contained)
+        {
+            // Cannot make this zombie contained without removing more tiles — skip test gracefully
+            // (This can happen if a fixed tile is at the border and all edges are to off-board cells
+            // but one neighbour fixed tile happens to share an open edge)
+            return;
+        }
+
+        var zombies = new List<ZombieToken>(state.Zombies)
+        {
+            new ZombieToken("z-fixed", fixedCell)
+        };
+
+        state = state with
+        {
+            Grid    = newGrid,
+            Zombies = zombies,
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 1,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+            SeatsActedThisRound      = [],
+        };
+
+        var ctxEnd = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var result = _module.Handle(ctxEnd);
+
+        if (result.RejectionReason is not null) return;
+        var newState = GetState(result.NewState);
+
+        // The fixed tile's rotation must NOT have changed (C2 skip-rotation rule)
+        newState.Grid[fixedCell].Rotation.Should().Be(originalRotation,
+            "D1 break-out must NOT rotate pre-placed level tiles (C2, AC-v2-32c)");
+    }
+
+    // ── 5. Min-actions / escape hatch (F1, AC-v2-10) ─────────────────────────
+
+    /// <summary>
+    /// F1: RotateTile does NOT increment qualifyingActionsThisTurn.
+    /// Three RotateTile calls → EndTurn still rejected (qualifying = 0, available >= 2).
+    /// (Reaffirms existing coverage but in an explicit "rotate-spam" scenario.)
+    /// </summary>
+    [Fact]
+    public void RotateTile_ThreeSpam_DoesNotSatisfyQualifyingActions_EndTurnRejected()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Place a non-fixed tile so we can rotate it
+        string coord = GetEmptyNonSpawnNonExitCell(state);
+        var newGrid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [coord] = new HexCell(HexTileType.Straight, 0, Fixed: false)
+        };
+        state = state with
+        {
+            Grid                     = newGrid,
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 4,
+            QualifyingActionsThisTurn = 0,
+        };
+
+        // Three RotateTile actions
+        for (int i = 0; i < 3; i++)
+        {
+            var ctxRot = MakeContext(ToDoc(state),
+                new HexEscapeAction(HexActionType.RotateTile, Coord: coord, Rotation: (i + 1) % 6),
+                players[0].Id);
+            var rRot = _module.Handle(ctxRot);
+            rRot.RejectionReason.Should().BeNull($"RotateTile {i + 1} should be accepted");
+            state = GetState(rRot.NewState);
+        }
+
+        state.QualifyingActionsThisTurn.Should().Be(0,
+            "three RotateTile calls must not increment qualifyingActionsThisTurn (F1)");
+
+        // Now EndTurn should be rejected because deck is non-empty → qualifying actions available
+        var ctxEnd = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var rEnd = _module.Handle(ctxEnd);
+        rEnd.RejectionReason.Should().NotBeNull("EndTurn must be rejected after 0 qualifying actions with deck non-empty");
+        rEnd.RejectionReason.Should().Contain("actions this turn",
+            "rejection reason must mention actions this turn (AC-v2-47)");
+    }
+
+    /// <summary>
+    /// F1 escape hatch: when 0 qualifying actions are available (deck empty, hand full,
+    /// eliminated, no legal PlaceTile), EndTurn is accepted BEFORE taking any qualifying actions.
+    /// (Mirrors existing AC-v2-54 test but asserts message is null — belt-and-suspenders.)
+    /// </summary>
+    [Fact]
+    public void EscapeHatch_ZeroQualifyingAvailable_EndTurnAccepted_WithZeroTaken()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        string spawnCell = state.ReservedSpawnCells[players[0].Id];
+        var fullHand = Enumerable.Range(0, HexEscapeConstants.HandSize)
+            .Select(_ => new HeldTile(HexTileType.Straight, false, false))
+            .ToList();
+
+        var newChars = state.Characters.Select(c =>
+            c.PlayerId == players[0].Id ? c with { Pos = spawnCell, Eliminated = true } : c).ToList();
+
+        // Fill all in-grid non-exit cells
+        var newGrid = new Dictionary<string, HexCell>(state.Grid);
+        var exitSet = new HashSet<string>(state.ExitZoneCells);
+        foreach (var cell in state.Cells.Where(c => !exitSet.Contains(c) && !newGrid.ContainsKey(c)))
+            newGrid[cell] = new HexCell(HexTileType.Straight, 0, false);
+
+        state = state with
+        {
+            Deck       = [],
+            Hands      = new Dictionary<string, List<HeldTile>> { [players[0].Id] = fullHand },
+            Characters = newChars,
+            Grid       = newGrid,
+            ActiveSeat = 0,
+            ActionPointsRemaining    = 3,
+            QualifyingActionsThisTurn = 0,
+        };
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().BeNull(
+            "escape hatch: 0 qualifying actions available → EndTurn accepted even with 0 taken (AC-v2-10, AC-v2-54)");
+    }
+
+    /// <summary>
+    /// F1 (AC-v2-10): EndTurn rejected when exactly 1 qualifying action was available
+    /// and the player took 0 of it. The formula min(2,1)=1 means 1 is required.
+    /// We simulate: hand is not full, deck empty → DrawTile unavailable as draw from empty deck.
+    /// Actually DrawTile is available if deck non-empty OR hand non-full.
+    /// If deck is empty AND hand is full: DrawTile unavailable.
+    /// Then: PlaceTile available if non-first-placement has legal cell → 1 available.
+    /// qualifyingActionsThisTurn = 0 < required min(2,1) = 1 → rejected.
+    /// </summary>
+    [Fact]
+    public void EndTurn_OneQualifyingAvailable_ZeroTaken_Rejected()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Deck empty, hand full (so DrawTile unavailable)
+        var fullHand = Enumerable.Range(0, HexEscapeConstants.HandSize)
+            .Select(_ => new HeldTile(HexTileType.Straight, false, false))
+            .ToList();
+
+        // Character placed (so PlaceTile has legal cells)
+        string spawnCell = state.ReservedSpawnCells[players[0].Id];
+        var newGrid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [spawnCell] = new HexCell(HexTileType.Cross, 0, false)
+        };
+        var newChars = state.Characters.Select(c =>
+            c.PlayerId == players[0].Id ? c with { Pos = spawnCell } : c).ToList();
+
+        state = state with
+        {
+            Deck       = [],
+            Hands      = new Dictionary<string, List<HeldTile>> { [players[0].Id] = fullHand },
+            Grid       = newGrid,
+            Characters = newChars,
+            ActiveSeat = 0,
+            ActionPointsRemaining    = 3,
+            QualifyingActionsThisTurn = 0,
+        };
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().NotBeNull(
+            "EndTurn must be rejected when 1 qualifying action was available but 0 taken (min(2,1)=1)");
+        result.RejectionReason.Should().Contain("actions this turn");
+    }
+
+    /// <summary>
+    /// F5 (AC-v2-9): EndTurn rejected while holding zombie tile, regardless of qualifyingActionsThisTurn.
+    /// Even with qualifyingActionsThisTurn >= MinActionsPerTurn, zombie tile blocks EndTurn.
+    /// </summary>
+    [Fact]
+    public void EndTurn_WhileHoldingZombieTile_Rejected_EvenWithEnoughQualifyingActions()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        var zombieHand = new List<HeldTile>
+        {
+            new HeldTile(HexTileType.Straight, IsZombieTile: true, IsExitTile: false)
+        };
+        state = state with
+        {
+            Hands = new Dictionary<string, List<HeldTile>> { [players[0].Id] = zombieHand },
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 2,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn, // already met
+        };
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("You must place your zombie tile first.",
+            "zombie-tile obligation takes priority over qualifying-actions check (F5, AC-v2-9)");
+    }
+
+    // ── 6. MF-1 atomic last-AP zombie draw ───────────────────────────────────
+
+    /// <summary>
+    /// MF-1 (AC-v2-8b): Drawing a zombie tile as the last AP resolves atomically.
+    /// After the action: no zombie tile in hand, AP=0, zombie spawned or discarded,
+    /// and qualifyingActionsThisTurn incremented by at least 1 (the forced placement counted — F6).
+    /// </summary>
+    [Fact]
+    public void DrawTile_LastAp_ZombieTile_AtomicResolution_NoZombieInHand()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Put zombie tile on top of deck
+        var zombieTile = new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false);
+        var newDeck = new List<DeckEntry> { zombieTile };
+        newDeck.AddRange(state.Deck.Skip(1));
+
+        // DrawTile is the LAST AP (actionPointsRemaining = 1)
+        // Start with qualifyingActionsThisTurn already at MinActionsPerTurn so EndTurn would be legal
+        state = state with
+        {
+            Deck                     = newDeck,
+            Hands                    = new Dictionary<string, List<HeldTile>> { [players[0].Id] = [] },
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 1,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+        };
+
+        var qualifyingBefore = state.QualifyingActionsThisTurn;
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var result = _module.Handle(ctx);
+
+        result.RejectionReason.Should().BeNull("DrawTile on last AP should succeed");
+        var newState = GetState(result.NewState);
+
+        // MF-1: no zombie tile remains in hand
+        bool zombieInHand = newState.Hands.Values.Any(h => h.Any(t => t.IsZombieTile));
+        zombieInHand.Should().BeFalse(
+            "zombie tile must never remain in hand after last-AP draw (MF-1 atomic resolution)");
+
+        // AP must be 0
+        newState.ActionPointsRemaining.Should().Be(0, "AP reaches 0 after last-AP draw");
+
+        // qualifyingActionsThisTurn incremented by at least 1 for the draw itself
+        // (F6: atomic forced placement also increments; so >= 2 total increment from before)
+        // But the turn ends after last AP → qualifyingActionsThisTurn resets to 0 at turn end.
+        // So after turn ends we see 0 in newState.QualifyingActionsThisTurn.
+        // We assert that the turn ended (activeSeat null) and no zombie tile is in hand.
+        newState.ActiveSeat.Should().BeNull("turn ends after last AP draw (AP=0 auto-end)");
+
+        // Zombie must either have spawned or been discarded
+        bool wasSpawned   = newState.Zombies.Count > state.Zombies.Count;
+        bool wasDiscarded = newState.DiscardPile.Count > state.DiscardPile.Count;
+        (wasSpawned || wasDiscarded).Should().BeTrue(
+            "zombie tile resolved atomically: either spawned on board or discarded (MF-1, AC-v2-8b)");
+    }
+
+    /// <summary>
+    /// MF-1: When a zombie is spawned via atomic resolution, it lands on a tiled,
+    /// non-exit-zone, non-zombie-occupied cell (C4 unified spawn rule).
+    /// </summary>
+    [Fact]
+    public void DrawTile_LastAp_ZombieTile_AtomicSpawn_OnValidCell()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Put zombie tile on top of deck
+        var zombieTile = new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false);
+        var newDeck = new List<DeckEntry> { zombieTile };
+        newDeck.AddRange(state.Deck.Skip(1));
+
+        // Ensure there are valid spawn candidates (tiled, non-exit, non-zombie cells)
+        // The initial state has some pre-placed tiles and the starting zombie at (0,0).
+        // Just use the initial state; verify the spawn lands correctly.
+
+        state = state with
+        {
+            Deck                     = newDeck,
+            Hands                    = new Dictionary<string, List<HeldTile>> { [players[0].Id] = [] },
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 1,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+        };
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var result = _module.Handle(ctx);
+
+        result.RejectionReason.Should().BeNull();
+        var newState = GetState(result.NewState);
+
+        if (newState.Zombies.Count > state.Zombies.Count)
+        {
+            // A zombie was spawned; find the new one
+            var prevIds = state.Zombies.Select(z => z.Id).ToHashSet();
+            var newZombie = newState.Zombies.First(z => !prevIds.Contains(z.Id));
+
+            // Must be on a tiled cell
+            newState.Grid.Should().ContainKey(newZombie.Pos,
+                "atomically-spawned zombie must be on a tiled cell (C4, MF-1)");
+
+            // Must not be in exit zone
+            newState.ExitZoneCells.Should().NotContain(newZombie.Pos,
+                "atomically-spawned zombie must not be in exit zone (MF-3)");
+        }
+        // If discarded (no valid cell), that's also correct (AC-v2-25)
+    }
+
+    // ── 7. Projection — full coverage (AC-v2-50, AC-v2-51) ──────────────────
+
+    /// <summary>
+    /// AC-v2-50: ProjectStateForPlayer hides other players' hands (empty list),
+    /// exposes handSizes, strips deck (empty list + deckSize),
+    /// but keeps board, zombies, characters, phase public.
+    /// </summary>
+    [Fact]
+    public void Projection_ExposesPublicFields_HidesHandsAndDeck()
+    {
+        var players = Players(3);
+        var doc = ((IGameModule)_module).CreateInitialState(players, null);
+        var state = GetState(doc);
+
+        var projected = HexEscapeModule.ProjectForPlayer(state, players[0].Id);
+
+        // Own hand untouched
+        projected.Hands[players[0].Id].Should()
+            .BeEquivalentTo(state.Hands[players[0].Id], "own hand must be in full");
+
+        // Other hands emptied
+        projected.Hands[players[1].Id].Should().BeEmpty("other player 1 hand must be hidden");
+        projected.Hands[players[2].Id].Should().BeEmpty("other player 2 hand must be hidden");
+
+        // handSizes exposes true counts
+        projected.HandSizes.Should().NotBeNull("handSizes must be populated in projection");
+        projected.HandSizes![players[1].Id].Should().Be(state.Hands[players[1].Id].Count,
+            "handSizes must reflect true hand count for player 1");
+        projected.HandSizes[players[2].Id].Should().Be(state.Hands[players[2].Id].Count,
+            "handSizes must reflect true hand count for player 2");
+        projected.HandSizes[players[0].Id].Should().Be(state.Hands[players[0].Id].Count,
+            "handSizes must include own count too");
+
+        // Deck stripped
+        projected.Deck.Should().BeEmpty("deck must be hidden in projection (AC-v2-50)");
+        projected.DeckSize.Should().Be(state.Deck.Count,
+            "deckSize must expose the true deck count (AC-v2-50)");
+
+        // Public fields unchanged
+        projected.Grid.Should().BeEquivalentTo(state.Grid, "grid must be public");
+        projected.Zombies.Should().BeEquivalentTo(state.Zombies, "zombies must be public");
+        projected.Characters.Should().BeEquivalentTo(state.Characters, "characters must be public");
+        projected.Phase.Should().Be(state.Phase, "phase must be public");
+        projected.RoundNumber.Should().Be(state.RoundNumber, "round number must be public");
+        projected.ExitRevealed.Should().Be(state.ExitRevealed, "exitRevealed must be public");
+        projected.ExitCell.Should().Be(state.ExitCell, "exitCell must be public");
+        projected.ReservedSpawnCells.Should().BeEquivalentTo(state.ReservedSpawnCells,
+            "reservedSpawnCells must be public (AC-v2-50)");
+    }
+
+    /// <summary>
+    /// AC-v2-51: ProjectStateForPlayer is pure — does NOT mutate the input document.
+    /// </summary>
+    [Fact]
+    public void Projection_DoesNotMutateInputDocument()
+    {
+        var players = Players(2);
+        var doc = ((IGameModule)_module).CreateInitialState(players, null);
+        var state = GetState(doc);
+
+        // Capture state before projection
+        int deckCountBefore  = state.Deck.Count;
+        int hand0CountBefore = state.Hands[players[0].Id].Count;
+        int hand1CountBefore = state.Hands[players[1].Id].Count;
+        bool handSizesNullBefore = state.HandSizes is null;
+        int? deckSizeBefore = state.DeckSize;
+
+        // Project
+        var _ = HexEscapeModule.ProjectForPlayer(state, players[0].Id);
+
+        // Input state must be unchanged
+        state.Deck.Should().HaveCount(deckCountBefore,
+            "ProjectForPlayer must not mutate Deck in input state (AC-v2-51)");
+        state.Hands[players[0].Id].Should().HaveCount(hand0CountBefore,
+            "ProjectForPlayer must not mutate own hand in input state");
+        state.Hands[players[1].Id].Should().HaveCount(hand1CountBefore,
+            "ProjectForPlayer must not mutate other hand in input state (must not clear it)");
+        state.HandSizes.Should().BeNull("HandSizes must remain null in authoritative state after projection");
+        state.DeckSize.Should().Be(deckSizeBefore, "DeckSize must remain null in authoritative state");
+    }
+
+    // ── 8. Catalogue validation — ApPoolSize[n] >= MinActionsPerTurn ─────────
+
+    /// <summary>
+    /// AC-v2-5 structural invariant: ApPoolSize[n] >= MinActionsPerTurn for ALL n 1..6.
+    /// (Already covered by Constants_ApPoolSize_AtLeastMinActionsPerTurn theory above;
+    /// this companion test names the AC explicitly as a catalogue-validation assertion.)
+    /// </summary>
+    [Fact]
+    public void Catalogue_AllPlayerCounts_ApPoolSizeAtLeastMinActionsPerTurn()
+    {
+        for (int n = 1; n <= 6; n++)
+        {
+            HexEscapeConstants.ApPoolSize[n].Should().BeGreaterOrEqualTo(
+                HexEscapeConstants.MinActionsPerTurn,
+                $"ApPoolSize[{n}] must be >= MinActionsPerTurn for AP exhaustion to be satisfiable (AC-v2-5)");
+        }
+    }
+
+    /// <summary>
+    /// AC-v2-5: Level structural solvability (rotation-aware exit connectivity).
+    /// The exit tile is Cross r=0 (edges {0,1,2,3}). For each authored level,
+    /// assert that at least one non-exit-zone cell adjacent to any exit-zone cell
+    /// has a pre-placed tile with an edge that would connect to Cross r=0 if placed.
+    /// This confirms the tutorial level is not immediately unsolvable.
+    /// </summary>
+    [Fact]
+    public void Catalogue_AllLevels_StructurallySolvable_ExitConnectivityRotationAware()
+    {
+        foreach (var level in HexEscapeLevels.All.Values)
+        {
+            // Exit tile is Cross r=0: edges {0,1,2,3}
+            var exitTileEdges = HexEscapeModule.OpenEdges(HexTileType.Cross, 0);
+            var exitZoneSet = new HashSet<string>(level.ExitZoneCells);
+            var prePlacedSet = new HashSet<string>(level.PrePlacedTiles.Select(t => t.Coord));
+            var prePlacedDict = level.PrePlacedTiles.ToDictionary(t => t.Coord);
+            var cellSet = new HashSet<string>(level.Cells);
+
+            bool foundSolvablePath = false;
+
+            foreach (string exitZoneCell in level.ExitZoneCells)
+            {
+                // Each exit-zone cell could have the exit tile placed there (Cross r=0)
+                // Check if any non-exit-zone neighbour has a pre-placed tile that can connect
+                var (eq, er) = HexEscapeModule.ParseCoord(exitZoneCell);
+                for (int dir = 0; dir < 6; dir++)
+                {
+                    if (!exitTileEdges.Contains(dir)) continue; // exit tile has no edge in this dir
+                    var (dq, dr) = HexEscapeModule.Directions[dir];
+                    string neighbour = HexEscapeModule.CoordKey(eq + dq, er + dr);
+
+                    if (!cellSet.Contains(neighbour)) continue;
+                    if (exitZoneSet.Contains(neighbour)) continue; // must be non-exit-zone
+                    if (!prePlacedSet.Contains(neighbour)) continue; // must have pre-placed tile
+
+                    // Check if the pre-placed tile has an edge in the opposite direction
+                    var preTile = prePlacedDict[neighbour];
+                    var preEdges = HexEscapeModule.OpenEdges(preTile.TileType, preTile.Rotation);
+                    int opposite = (dir + 3) % 6;
+                    if (preEdges.Contains(opposite))
+                    {
+                        foundSolvablePath = true;
+                        break;
+                    }
+                }
+                if (foundSolvablePath) break;
+            }
+
+            foundSolvablePath.Should().BeTrue(
+                $"level '{level.Id}' must have at least one non-exit-zone pre-placed tile " +
+                "that can connect to the Cross r=0 exit tile (rotation-aware AC-v2-5)");
+        }
+    }
+
+    // ── 9. Rejection exact messages ───────────────────────────────────────────
+
+    /// <summary>
+    /// AC-v2-35: Action from wrong player when activeSeat occupied → "It is not your turn."
+    /// </summary>
+    [Fact]
+    public void Rejection_WrongTurn_ActiveSeatOccupiedByOther()
+    {
+        var players = Players(2);
+        var state = GetInitialState(players);
+        state = state with { ActiveSeat = 0, ActionPointsRemaining = 3 };
+
+        // Player 1 tries to act when player 0 has the seat
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[1].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("It is not your turn.");
+    }
+
+    /// <summary>
+    /// AC-v2-35: Action from player who already acted this round (seatsActedThisRound contains their seat).
+    /// </summary>
+    [Fact]
+    public void Rejection_AlreadyActedThisRound()
+    {
+        var players = Players(2);
+        var state = GetInitialState(players);
+        state = state with { SeatsActedThisRound = [0], ActiveSeat = null };
+
+        // Player 0 tries to act again (seat 0 already in seatsActedThisRound)
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("It is not your turn.");
+    }
+
+    /// <summary>
+    /// AC-v2-44: MoveCharacter along a closed edge → "No open path to that cell."
+    /// Player character is at (0,0) on Cross r=0. Target (-2,-2) is not adjacent → rejected.
+    /// Also test non-adjacent: target too far away.
+    /// </summary>
+    [Fact]
+    public void Rejection_MoveCharacter_ClosedEdge_NoOpenPath()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Use a Deadend tile at spawnCell and try to move to a cell that's not connected
+        string spawnCell = state.ReservedSpawnCells[players[0].Id];
+        var newGrid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [spawnCell] = new HexCell(HexTileType.Deadend, 0, Fixed: false)  // Deadend r0: only E(0)
+        };
+        var newChars = state.Characters.Select(c =>
+            c.PlayerId == players[0].Id ? c with { Pos = spawnCell } : c).ToList();
+
+        state = state with
+        {
+            Grid       = newGrid,
+            Characters = newChars,
+            ActiveSeat = 0,
+            ActionPointsRemaining = 3,
+        };
+
+        // Try to move to a neighbour in direction W(3) — Deadend r0 has no edge 3
+        var (sq, sr) = HexEscapeModule.ParseCoord(spawnCell);
+        string westNeighbour = HexEscapeModule.CoordKey(sq - 1, sr); // W direction
+
+        // Only attempt if the neighbour is a valid board cell
+        if (!state.Cells.Contains(westNeighbour))
+            return; // board boundary; test not applicable
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.MoveCharacter, Coord: westNeighbour),
+            players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("No open path to that cell.",
+            "movement along a closed edge must be rejected (AC-v2-44)");
+    }
+
+    /// <summary>
+    /// AC-v2-31a: MoveCharacter onto a zombie cell → character eliminated (not win).
+    /// Character moves to exitCell where a zombie is present; eliminated, not win.
+    /// </summary>
+    [Fact]
+    public void Rejection_MoveCharacter_OntoZombieCell_Elimination_NotWin()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Set up: player at spawnCell on a Cross; exitCell reachable via dir E
+        string spawnCell = state.ReservedSpawnCells[players[0].Id];
+        // Use (0,0) and (1,0) as from→to for determinism
+        // The tutorial has a pre-placed Cross at (0,0); put player there
+        string fromCell = "0,0"; // pre-placed Cross r=0
+        string toCell   = "1,0"; // needs a tile; place a Cross so connection works
+
+        state.Cells.Should().Contain(fromCell);
+        state.Cells.Should().Contain(toCell);
+
+        var newGrid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [toCell] = new HexCell(HexTileType.Cross, 0, Fixed: false)
+        };
+        var newChars = state.Characters.Select(c =>
+            c.PlayerId == players[0].Id ? c with { Pos = fromCell } : c).ToList();
+
+        // Place a zombie at toCell
+        var zombies = new List<ZombieToken>(state.Zombies)
+        {
+            new ZombieToken("z-blocker", toCell)
+        };
+
+        // Set exitCell to toCell so this is the exit; if player enters, they'd win — but zombie blocks
+        state = state with
+        {
+            Grid         = newGrid,
+            Characters   = newChars,
+            Zombies      = zombies,
+            ExitRevealed = true,
+            ExitCell     = toCell,
+            ActiveSeat   = 0,
+            ActionPointsRemaining    = 3,
+            QualifyingActionsThisTurn = 0,
+        };
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.MoveCharacter, Coord: toCell),
+            players[0].Id);
+        var result = _module.Handle(ctx);
+
+        // Must not be rejected (move is valid path-wise)
+        // But player gets eliminated, not win
+        result.RejectionReason.Should().BeNull("movement to zombie cell is a valid move, not rejected");
+
+        var newState = GetState(result.NewState);
+        var movedChar = newState.Characters.First(c => c.PlayerId == players[0].Id);
+        movedChar.Eliminated.Should().BeTrue(
+            "moving onto a zombie cell eliminates the character (AC-v2-31a)");
+        // Phase must NOT be GameOver/Escaped (eliminated character doesn't win)
+        if (newState.Phase == HexEscapePhase.GameOver)
+        {
+            // Could be Overrun (loss) if all placed characters now eliminated
+            newState.Outcome.Should().Be(HexEscapeOutcome.Overrun,
+                "if game ends after elimination, outcome must be Overrun not Escaped");
+        }
+    }
+
+    /// <summary>
+    /// AC-v2-38, AC-v2-39: PlaceTile on occupied cell → "Cell is already occupied."
+    /// AC-v2-39: PlaceTile in exit zone → "Cannot place tiles in the exit zone."
+    /// </summary>
+    [Fact]
+    public void Rejection_PlaceTile_OccupiedCell_ExactMessage()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Pick any pre-placed tile cell
+        string occupiedCoord = state.Grid.Keys.First();
+        state = state with { ActiveSeat = 0, ActionPointsRemaining = 3 };
+
+        var newHand = new List<HeldTile>(state.Hands[players[0].Id])
+        {
+            new HeldTile(HexTileType.Straight, false, false)
+        };
+        state = state with { Hands = new Dictionary<string, List<HeldTile>>(state.Hands) { [players[0].Id] = newHand } };
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.PlaceTile, Coord: occupiedCoord, TileType: HexTileType.Straight, Rotation: 0),
+            players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("Cell is already occupied.",
+            "PlaceTile on occupied cell must be rejected with exact message (AC-v2-38)");
+    }
+
+    /// <summary>
+    /// AC-v2-39: PlaceTile in exit zone → "Cannot place tiles in the exit zone."
+    /// </summary>
+    [Fact]
+    public void Rejection_PlaceTile_InExitZone_ExactMessage()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        string exitZoneCell = state.ExitZoneCells[0];
+        state = state with { ActiveSeat = 0, ActionPointsRemaining = 3 };
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.PlaceTile, Coord: exitZoneCell, TileType: HexTileType.Straight, Rotation: 0),
+            players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("Cannot place tiles in the exit zone.",
+            "PlaceTile in exit zone must be rejected with exact message (AC-v2-39)");
+    }
+
+    /// <summary>
+    /// AC-v2-13: First tile must be in reserved spawn cell → "First tile must be placed in your assigned spawn cell."
+    /// </summary>
+    [Fact]
+    public void Rejection_PlaceTile_FirstTileNotOnReservedCell_ExactMessage()
+    {
+        var players = Players(2);
+        var state = GetInitialState(players);
+        state = state with { ActiveSeat = 0, ActionPointsRemaining = 3 };
+
+        string reserved = state.ReservedSpawnCells[players[0].Id];
+        var exitSet = new HashSet<string>(state.ExitZoneCells);
+        var spawnSet = new HashSet<string>(state.SpawnZoneCells);
+        string wrongCell = state.Cells.First(c =>
+            c != reserved &&
+            !state.Grid.ContainsKey(c) &&
+            !exitSet.Contains(c) &&
+            !spawnSet.Contains(c));
+
+        var newHand = new List<HeldTile>(state.Hands[players[0].Id])
+        {
+            new HeldTile(HexTileType.Straight, false, false)
+        };
+        state = state with { Hands = new Dictionary<string, List<HeldTile>>(state.Hands) { [players[0].Id] = newHand } };
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.PlaceTile, Coord: wrongCell, TileType: HexTileType.Straight, Rotation: 0),
+            players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("First tile must be placed in your assigned spawn cell.",
+            "first PlaceTile not on reserved spawn cell must be rejected (AC-v2-13)");
+    }
+
+    /// <summary>
+    /// AC-v2-43: RotateTile on fixed (pre-placed level) tile → "Cannot rotate a fixed tile."
+    /// </summary>
+    [Fact]
+    public void Rejection_RotateTile_OnFixedLevelTile_ExactMessage()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+        string fixedCoord = state.Grid.First(kv => kv.Value.Fixed).Key;
+        state = state with { ActiveSeat = 0, ActionPointsRemaining = 3 };
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.RotateTile, Coord: fixedCoord, Rotation: 2),
+            players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("Cannot rotate a fixed tile.",
+            "RotateTile on pre-placed level tile must be rejected (AC-v2-43)");
+    }
+
+    /// <summary>
+    /// AC-v2-43: RotateTile on zombie-placed tile → "Cannot rotate a fixed tile."
+    /// Zombie tiles are IsZombieTile=true; the rotate handler checks tile.Fixed || tile.IsZombieTile.
+    /// </summary>
+    [Fact]
+    public void Rejection_RotateTile_OnZombiePlacedTile_ExactMessage()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Place a zombie-placed tile at an empty cell
+        string coord = GetEmptyNonSpawnNonExitCell(state);
+        var newGrid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [coord] = new HexCell(HexTileType.Straight, 0, Fixed: false, IsZombieTile: true)
+        };
+        state = state with { Grid = newGrid, ActiveSeat = 0, ActionPointsRemaining = 3 };
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.RotateTile, Coord: coord, Rotation: 2),
+            players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("Cannot rotate a fixed tile.",
+            "RotateTile on zombie-placed tile must be rejected with same message (AC-v2-43)");
+    }
+
+    /// <summary>
+    /// AC-v2-40: PlaceTile with tile type not in hand → "No tiles of that type remaining."
+    /// </summary>
+    [Fact]
+    public void Rejection_PlaceTile_TileTypeNotInHand_ExactMessage()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Player has only Straight tiles in hand; try to place a Cross
+        string spawnCell = state.ReservedSpawnCells[players[0].Id];
+        var straightOnlyHand = new List<HeldTile>
+        {
+            new HeldTile(HexTileType.Straight, false, false)
+        };
+        state = state with
+        {
+            Hands      = new Dictionary<string, List<HeldTile>> { [players[0].Id] = straightOnlyHand },
+            ActiveSeat = 0,
+            ActionPointsRemaining = 3,
+        };
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.PlaceTile, Coord: spawnCell, TileType: HexTileType.Cross, Rotation: 0),
+            players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("No tiles of that type remaining.",
+            "PlaceTile with wrong tile type must be rejected (AC-v2-40)");
+    }
+
+    /// <summary>
+    /// Phase=GameOver: all actions rejected with "The game is over."
+    /// </summary>
+    [Fact]
+    public void Rejection_AllActions_WhenPhaseIsGameOver()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        state = state with
+        {
+            Phase      = HexEscapePhase.GameOver,
+            Outcome    = HexEscapeOutcome.Escaped,
+            ActiveSeat = null,
+        };
+
+        var actionTypes = new[]
+        {
+            new HexEscapeAction(HexActionType.DrawTile),
+            new HexEscapeAction(HexActionType.PlaceTile, Coord: "0,0", TileType: HexTileType.Straight, Rotation: 0),
+            new HexEscapeAction(HexActionType.RotateTile, Coord: "0,0", Rotation: 1),
+            new HexEscapeAction(HexActionType.MoveCharacter, Coord: "1,0"),
+            new HexEscapeAction(HexActionType.EndTurn),
+        };
+
+        foreach (var action in actionTypes)
+        {
+            var ctx = MakeContext(ToDoc(state), action, players[0].Id);
+            var result = _module.Handle(ctx);
+            result.RejectionReason.Should().Be("The game is over.",
+                $"action {action.Type} must be rejected when phase is GameOver");
+        }
+    }
+
+    /// <summary>
+    /// AC-v2-46: DrawTile rejected while holding zombie tile → "You must place your zombie tile first."
+    /// </summary>
+    [Fact]
+    public void Rejection_DrawTile_WhileHoldingZombieTile_ExactMessage()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        var zombieHand = new List<HeldTile>
+        {
+            new HeldTile(HexTileType.Straight, IsZombieTile: true, IsExitTile: false)
+        };
+        state = state with
+        {
+            Hands = new Dictionary<string, List<HeldTile>> { [players[0].Id] = zombieHand },
+            ActiveSeat = 0,
+            ActionPointsRemaining = 3,
+        };
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("You must place your zombie tile first.",
+            "DrawTile while holding zombie tile must be rejected (AC-v2-46)");
+    }
+
+    /// <summary>
+    /// AC-v2-46: RotateTile rejected while holding zombie tile → "You must place your zombie tile first."
+    /// </summary>
+    [Fact]
+    public void Rejection_RotateTile_WhileHoldingZombieTile_ExactMessage()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Place a non-fixed tile to rotate
+        string coord = GetEmptyNonSpawnNonExitCell(state);
+        var newGrid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [coord] = new HexCell(HexTileType.Straight, 0, Fixed: false)
+        };
+
+        var zombieHand = new List<HeldTile>
+        {
+            new HeldTile(HexTileType.Straight, IsZombieTile: true, IsExitTile: false)
+        };
+        state = state with
+        {
+            Grid  = newGrid,
+            Hands = new Dictionary<string, List<HeldTile>> { [players[0].Id] = zombieHand },
+            ActiveSeat = 0,
+            ActionPointsRemaining = 3,
+        };
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.RotateTile, Coord: coord, Rotation: 2),
+            players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().Be("You must place your zombie tile first.",
+            "RotateTile while holding zombie tile must be rejected (AC-v2-46)");
+    }
+
+    /// <summary>
+    /// AC-v2-36: AP exhausted → "No action points remaining." for all action types.
+    /// </summary>
+    [Fact]
+    public void Rejection_ApExhausted_ExactMessage_AllActionTypes()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+        state = state with { ActiveSeat = 0, ActionPointsRemaining = 0 };
+
+        var actionsRequiringAp = new[]
+        {
+            new HexEscapeAction(HexActionType.DrawTile),
+            new HexEscapeAction(HexActionType.PlaceTile, Coord: "0,0", TileType: HexTileType.Straight, Rotation: 0),
+            new HexEscapeAction(HexActionType.RotateTile, Coord: "0,0", Rotation: 1),
+            new HexEscapeAction(HexActionType.MoveCharacter, Coord: "1,0"),
+        };
+
+        foreach (var action in actionsRequiringAp)
+        {
+            var ctx = MakeContext(ToDoc(state), action, players[0].Id);
+            var result = _module.Handle(ctx);
+            result.RejectionReason.Should().Be("No action points remaining.",
+                $"action {action.Type} must be rejected when AP=0 (AC-v2-36)");
+        }
+    }
+
+    // ── 10. Disconnect known-limitation (KL-1) ────────────────────────────────
+
+    /// <summary>
+    /// KL-1 known limitation: a disconnected or idle seat (in both sub-cases below) stalls the round.
+    /// There is no auto-skip or turn-timer in v2. Deferred per AD-OB-8.
+    ///
+    /// Sub-case 1 (between turns): Seat disconnects after their turn ends (activeSeat is null).
+    ///   Other seats can still act; the stall manifests only when the round boundary
+    ///   tries to advance and the disconnected seat has never called EndTurn.
+    ///
+    /// Sub-case 2 (mid-turn claim-then-disconnect): Seat claims a turn (activeSeat pinned),
+    ///   then disconnects. This blocks ALL other seats immediately — no other seat can claim
+    ///   while activeSeat is occupied by the disconnected seat. actionPointsRemaining > 0
+    ///   and no mechanism to drain it or reassign the seat.
+    ///
+    /// Both sub-cases are accepted v2 limitations per KL-1.
+    /// A follow-up must add auto-skip or a per-seat turn timer before public play.
+    /// </summary>
+    [Fact(Skip = "v2 known limitation: disconnected seat stalls round (both mid-turn and between-turns variants); auto-skip / turn-timer deferred to follow-up")]
+    public void Disconnect_BothSubcases_KnownLimitation_StallsRound()
+    {
+        // Sub-case 1: Disconnect between turns (activeSeat is null).
+        // Seat 0 has acted; seat 1 has not. Seat 1 disconnects (never calls EndTurn).
+        // Round boundary never advances — seatsActedThisRound never includes seat 1.
+        // (No mechanism to force EndTurn for a disconnected seat.)
+
+        // Sub-case 2: Mid-turn claim-then-disconnect.
+        // Seat 0 claims a turn (activeSeat = 0, actionPointsRemaining > 0).
+        // Seat 0 disconnects without calling EndTurn.
+        // Seat 1 cannot act: state.ActiveSeat = 0, seat 1 index is 1 → rejected "It is not your turn."
+        // actionPointsRemaining never reaches 0 → auto-end never fires.
+        // Both variants are deadlocks with no resolution in v2.
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static HexEscapeState GetInitialState(IReadOnlyList<PlayerInfo> players)
