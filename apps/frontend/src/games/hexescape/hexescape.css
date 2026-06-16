@@ -1,0 +1,9 @@
+/* Hex Escape — global theme overrides scoped to [data-game-theme="hexescape"]
+   Extends platform tokens; does not redefine them.
+   All values via design tokens or WCAG-safe local overrides. */
+
+[data-game-theme="hexescape"] {
+  /* Boost grid border visibility slightly for hex cells */
+  --hex-stroke: var(--edge-strong);
+  --hex-stroke-active: var(--neon-cyan);
+}
