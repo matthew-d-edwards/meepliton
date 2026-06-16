@@ -19,6 +19,14 @@ public interface IGameModule
     string? ThumbnailUrl  { get; }
 
     /// <summary>
+    /// Optional pre-game setup choices the host configures when creating a room
+    /// (e.g. level, difficulty, variant). The platform renders these generically
+    /// and returns the chosen values in the options blob passed to
+    /// <see cref="CreateInitialState"/>. Default: none.
+    /// </summary>
+    IReadOnlyList<GameSetupOption> SetupOptions => [];
+
+    /// <summary>
     /// Called once when the host starts the game.
     /// Returns the initial JSON state blob stored in rooms.game_state.
     /// </summary>

@@ -249,7 +249,6 @@ export default function ColorettoGame({ state, myPlayerId, dispatch }: GameConte
   const [selectedRow, setSelectedRow] = useState<number | null>(null)
 
   const me = state.players.find(p => p.id === myPlayerId)
-  const isHost = state.players.some(p => p.id === myPlayerId && p.seatIndex === 0)
   const currentPlayer = state.players[state.currentPlayerIndex]
   const isMyTurn = currentPlayer?.id === myPlayerId && !(me?.hasTakenThisRound)
 

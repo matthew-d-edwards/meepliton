@@ -120,11 +120,12 @@ public static class RoomEndpoints
 
             var games = modules.Select(m => new
             {
-                gameId      = m.GameId,
-                name        = m.Name,
-                description = m.Description,
-                minPlayers  = m.MinPlayers,
-                maxPlayers  = m.MaxPlayers,
+                gameId       = m.GameId,
+                name         = m.Name,
+                description  = m.Description,
+                minPlayers   = m.MinPlayers,
+                maxPlayers   = m.MaxPlayers,
+                setupOptions = m.SetupOptions,
             });
 
             return Results.Ok(new { rooms, games });
@@ -133,11 +134,12 @@ public static class RoomEndpoints
         group.MapGet("/games", (IEnumerable<IGameModule> modules) =>
             Results.Ok(modules.Select(m => new
             {
-                gameId      = m.GameId,
-                name        = m.Name,
-                description = m.Description,
-                minPlayers  = m.MinPlayers,
-                maxPlayers  = m.MaxPlayers,
+                gameId       = m.GameId,
+                name         = m.Name,
+                description  = m.Description,
+                minPlayers   = m.MinPlayers,
+                maxPlayers   = m.MaxPlayers,
+                setupOptions = m.SetupOptions,
             })));
 
         group.MapPost("/rooms", async (CreateRoomRequest req, HttpContext ctx, PlatformDbContext db) =>

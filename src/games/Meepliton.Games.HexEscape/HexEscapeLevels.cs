@@ -180,4 +180,11 @@ public static class HexEscapeLevels
             { Medium01.Id,   Medium01   },
             { Hard01.Id,     Hard01     },
         };
+
+    /// <summary>
+    /// Levels in display order (tutorial first). Used to render the host's level
+    /// picker deterministically, independent of dictionary enumeration order.
+    /// </summary>
+    public static readonly IReadOnlyList<HexEscapeLevel> Ordered =
+        [Tutorial01, Medium01, Hard01];
 }

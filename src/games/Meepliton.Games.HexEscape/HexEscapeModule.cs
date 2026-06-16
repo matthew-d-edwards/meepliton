@@ -34,6 +34,16 @@ public class HexEscapeModule : IGameModule, IGameHandler
     public string? ThumbnailUrl  => null;
     public bool    HasStateProjection => false;
 
+    /// <summary>
+    /// The host picks which level to play before starting. The platform renders
+    /// this as a dropdown and sends the chosen id back as { "levelId": "..." }.
+    /// </summary>
+    public IReadOnlyList<GameSetupOption> SetupOptions =>
+    [
+        new GameSetupOption("levelId", "Level",
+            [.. HexEscapeLevels.Ordered.Select(l => new GameSetupChoice(l.Id, l.Name))]),
+    ];
+
     // ── Axial hex geometry ────────────────────────────────────────────────────
 
     // Six direction offsets: index → (Δq, Δr)
@@ -135,6 +145,8 @@ public class HexEscapeModule : IGameModule, IGameHandler
     {
         // Resolve level ID from options (AD-10: fall back to tutorial-01 on null/malformed/unknown)
         string? requestedId = null;
+        var optionsProvided = options is not null;
+        var parseFailed = false;
         if (options is not null)
         {
             try
@@ -144,7 +156,7 @@ public class HexEscapeModule : IGameModule, IGameHandler
             }
             catch
             {
-                requestedId = null;
+                parseFailed = true;
             }
         }
 
@@ -155,11 +167,15 @@ public class HexEscapeModule : IGameModule, IGameHandler
         }
         else
         {
-            // AD-10: emit WARNING for null, malformed, or unknown level
-            var idForLog = requestedId ?? "<null>";
-            _logger?.LogWarning(
-                "HexEscape: options missing/unknown level '{LevelId}', falling back to tutorial-01",
-                idForLog);
+            // AD-10: fall back to tutorial-01. Only warn when the host actually tried
+            // to choose a level but it was malformed or unknown — a null options blob
+            // (no selection, e.g. solo/legacy path) falls back quietly to avoid noise.
+            if (optionsProvided && (parseFailed || requestedId is not null))
+            {
+                _logger?.LogWarning(
+                    "HexEscape: unknown or malformed level option '{LevelId}', falling back to tutorial-01",
+                    requestedId ?? "<malformed>");
+            }
             level = HexEscapeLevels.Tutorial01;
         }
 
