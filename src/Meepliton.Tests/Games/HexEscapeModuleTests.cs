@@ -1599,20 +1599,22 @@ public class HexEscapeModuleTests
     /// <summary>
     /// For each die face 1..6 test ResolveZombieMove on a Cross r=0 grid.
     /// Cross r=0 has edges {0,1,2,3}. Direction = dieFace % 6.
-    /// - Face 1 → dir 1 (NE): neighbour exists → moved
-    /// - Face 2 → dir 2 (N): neighbour exists → moved
-    /// - Face 3 → dir 3 (W): neighbour exists → moved
-    /// - Face 4 → dir 4 (SW): no neighbour placed → stays
-    /// - Face 5 → dir 5 (S): no Cross edge 5 (base edges 0,1,2,3 only) → stays
-    /// - Face 6 → dir 0 (E): neighbour exists → moved
+    /// A move needs BOTH the source edge d AND the neighbour's opposite edge
+    /// (d+3)%6 open. Cross r=0 neighbours only have edges {0,1,2,3}, so:
+    /// - Face 1 → dir 1 (NE): neighbour needs edge 4 — Cross lacks it → stays
+    /// - Face 2 → dir 2 (N):  neighbour needs edge 5 — Cross lacks it → stays
+    /// - Face 3 → dir 3 (W):  neighbour needs edge 0 — Cross has it → moved
+    /// - Face 4 → dir 4 (SW): source Cross r0 has no edge 4 → stays
+    /// - Face 5 → dir 5 (S):  source Cross r0 has no edge 5 → stays
+    /// - Face 6 → dir 0 (E):  neighbour needs edge 3 — Cross has it → moved
     /// </summary>
     [Theory]
-    [InlineData(1, true)]   // dir1 NE — Cross has edge 1; neighbour Cross has edge 4=opposite → moved
-    [InlineData(2, true)]   // dir2 N  — Cross has edge 2; neighbour Cross has edge 5=opposite → moved
-    [InlineData(3, true)]   // dir3 W  — Cross has edge 3; neighbour Cross has edge 0=opposite → moved
-    [InlineData(4, false)]  // dir4 SW — Cross r0 has no edge 4 → stays
-    [InlineData(5, false)]  // dir5 S  — Cross r0 has no edge 5 → stays
-    [InlineData(6, true)]   // dir0 E  — Cross has edge 0; neighbour Cross has edge 3=opposite → moved
+    [InlineData(1, false)]  // dir1 NE — neighbour Cross r0 lacks edge 4 → stays
+    [InlineData(2, false)]  // dir2 N  — neighbour Cross r0 lacks edge 5 → stays
+    [InlineData(3, true)]   // dir3 W  — neighbour Cross has edge 0=opposite → moved
+    [InlineData(4, false)]  // dir4 SW — source Cross r0 has no edge 4 → stays
+    [InlineData(5, false)]  // dir5 S  — source Cross r0 has no edge 5 → stays
+    [InlineData(6, true)]   // dir0 E  — neighbour Cross has edge 3=opposite → moved
     public void ResolveZombieMove_CrossTile_CorrectMoveDecision(int dieFace, bool expectMoved)
     {
         // Cross r=0 at (0,0). Place tiled Cross neighbours in all four open edge directions.
@@ -1673,8 +1675,16 @@ public class HexEscapeModuleTests
         // Record zombie count at init (starting zombies)
         int zombieCountAtPhaseStart = state.Zombies.Count;
 
-        // Claim seat and take MinActionsPerTurn qualifying actions (DrawTile twice)
-        state = state with { ActiveSeat = 0, ActionPointsRemaining = 5, QualifyingActionsThisTurn = 0 };
+        // Claim seat and take MinActionsPerTurn qualifying actions (DrawTile twice).
+        // Empty the starting hand first so two draws both fit under the HandSize cap
+        // (the safe opening guarantees the top of the deck is zombie/exit-free).
+        state = state with
+        {
+            ActiveSeat = 0,
+            ActionPointsRemaining = 5,
+            QualifyingActionsThisTurn = 0,
+            Hands = new Dictionary<string, List<HeldTile>>(state.Hands) { [players[0].Id] = [] },
+        };
 
         // Take 2 DrawTile actions to satisfy min qualifying
         // (deck is non-empty per initial state)
