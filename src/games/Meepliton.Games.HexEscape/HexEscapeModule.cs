@@ -1067,13 +1067,11 @@ public class HexEscapeModule : IGameModule, IGameHandler
             }
         }
 
-        // PlaceZombieTile available?
+        // PlaceZombieTile available? Holding a zombie tile always yields a
+        // qualifying action — PlaceZombieTile, or the forced-discard path when
+        // no spawn cell is available.
         if (hand.Any(t => t.IsZombieTile))
-        {
-            var candidates = GetZombieSpawnCandidates(state);
-            if (candidates.Count > 0 || true) // even discard path counts
-                count++;
-        }
+            count++;
 
         // MoveCharacter available?
         if (character?.Pos is not null && !character.Eliminated)

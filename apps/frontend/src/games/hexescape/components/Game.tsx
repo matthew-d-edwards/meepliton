@@ -160,7 +160,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
     } else if (picker.kind === 'rotate') {
       send({ type: 'RotateTile', coord: picker.coord, rotation: picker.rotation })
     } else if (picker.kind === 'move') {
-      send({ type: 'MoveCharacter', toCoord: picker.toCoord })
+      send({ type: 'MoveCharacter', coord: picker.toCoord })
     }
   }
 

@@ -50,7 +50,7 @@ public class HexEscapeModuleTests
     private static HexEscapeState GetState(JsonDocument doc) => FromDoc<HexEscapeState>(doc);
 
     private static GameContext MakeContext(JsonDocument state, HexEscapeAction action, string playerId) =>
-        new(state, ToDoc(action), playerId, null);
+        new(state, ToDoc(action), playerId, "test-room", 0);
 
     // ── Pure geometry tests (ported from v1 — AD-OB-1) ───────────────────────
 
@@ -1395,7 +1395,7 @@ public class HexEscapeModuleTests
     [Fact]
     public void Module_SetupOptions_HasLevelId()
     {
-        ((IGameModule)_module).SetupOptions.Should().ContainSingle(o => o.Id == "levelId");
+        ((IGameModule)_module).SetupOptions.Should().ContainSingle(o => o.Key == "levelId");
     }
 
     [Fact]

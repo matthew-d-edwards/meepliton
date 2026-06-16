@@ -114,5 +114,5 @@ export type HexEscapeAction =
   | { type: 'PlaceTile'; coord: string; tileType: HexTileType; rotation: number }
   | { type: 'PlaceZombieTile'; coord: string }
   | { type: 'RotateTile'; coord: string; rotation: number }
-  | { type: 'MoveCharacter'; toCoord: string }
+  | { type: 'MoveCharacter'; coord: string }
   | { type: 'EndTurn' }
