@@ -1,6 +1,9 @@
 /* Hex Escape (Outbreak) v2 — CSS Modules.
    All values via design tokens; no raw colour literals.
-   Theme overrides live in hexescape.css. */
+   Theme overrides live in hexescape.css.
+   prefers-reduced-motion is handled globally by tokens.css (sets transition/animation
+   durations to 0.01ms on *). Backdrop-filter blur and filter transitions are also
+   suppressed here for completeness. */
 
 /* ── Root layout ── */
 .root {
@@ -940,6 +943,20 @@
 .btnDismiss:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .pickerOverlay,
+  .zombieOverlay {
+    backdrop-filter: none;
+  }
+  .hexClickable:hover polygon {
+    filter: none;
+  }
+  .btnDismiss:hover {
+    filter: none;
+  }
 }
 
 /* ── Game Over screen ── */

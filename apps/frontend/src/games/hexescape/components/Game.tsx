@@ -39,13 +39,21 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   const [picker, setPicker] = useState<PickerMode | null>(null)
   const [zombieAnimPhase, setZombieAnimPhase] = useState<'idle' | 'showing'>('idle')
 
-  // Trigger zombie animation when lastZombieRolls changes (round boundary)
+  // Trigger zombie animation when lastZombieRolls changes (round boundary).
+  // The auto-dismiss timer only fires when the overlay is not focused — keyboard
+  // and screen reader users must be able to dismiss manually via the Continue button
+  // without the dialog closing under them.
   const prevRoundRef = useRef(state.roundNumber)
+  const zombieOverlayFocusedRef = useRef(false)
   useEffect(() => {
     if (state.roundNumber !== prevRoundRef.current && state.lastZombieRolls.length > 0) {
       prevRoundRef.current = state.roundNumber
       setZombieAnimPhase('showing')
-      const timer = setTimeout(() => setZombieAnimPhase('idle'), 3500)
+      const timer = setTimeout(() => {
+        if (!zombieOverlayFocusedRef.current) {
+          setZombieAnimPhase('idle')
+        }
+      }, 3500)
       return () => clearTimeout(timer)
     }
     prevRoundRef.current = state.roundNumber
@@ -61,14 +69,28 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
     ? state.players.find(p => p.seatIndex === state.activeSeat)
     : null
 
+  // Track previous values to detect changes and drive screen-reader announcements.
+  // Initialised from current state so reconnecting mid-game does not fire false alerts.
+  const prevExitRevealedRef = useRef(state.exitRevealed)
+  const prevMyCharEliminatedRef = useRef(
+    state.characters.find(c => c.playerId === myPlayerId)?.eliminated ?? false
+  )
+
   const myChar: CharacterState | undefined = state.characters.find(c => c.playerId === myPlayerId)
   const myCharPlaced = myChar !== null && myChar !== undefined && myChar.pos !== null
-  const myCharEliminated = myChar?.eliminated ?? false
   const myReservedSpawn = state.reservedSpawnCells[myPlayerId] ?? null
 
   const myHand: HeldTile[] = state.hands[myPlayerId] ?? []
   const myZombieTile: HeldTile | null = myHand.find(t => t.isZombieTile) ?? null
   const hasZombieObligation = myZombieTile !== null && isMyActiveTurn
+
+  // Detect state changes that need live screen-reader announcements
+  const myCharEliminated = (state.characters.find(c => c.playerId === myPlayerId)?.eliminated ?? false)
+  const exitJustRevealed = state.exitRevealed && !prevExitRevealedRef.current
+  const justEliminated = myCharEliminated && !prevMyCharEliminatedRef.current
+  // Update refs after deriving the "just changed" flags
+  prevExitRevealedRef.current = state.exitRevealed
+  prevMyCharEliminatedRef.current = myCharEliminated
 
   // AP display
   const ap = isMyActiveTurn ? state.actionPointsRemaining : 0
@@ -224,10 +246,17 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
 
   // Draw disabled
   const drawDisabled = !isMyActiveTurn || ap === 0 || hasZombieObligation || myHand.filter(h => !h.isZombieTile).length >= 3
+  const drawDisabledReason: string | null = (() => {
+    if (!isMyActiveTurn) return 'Not your turn'
+    if (hasZombieObligation) return 'Place your zombie tile first'
+    if (myHand.filter(h => !h.isZombieTile).length >= 3) return 'Hand is full'
+    if (ap === 0) return 'No action points remaining'
+    return null
+  })()
 
   return (
     <div data-game-theme="hexescape" className={styles.root}>
-      {/* Screen-reader announcer */}
+      {/* Screen-reader announcer — turn state (polite, does not interrupt) */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {isMyActiveTurn
           ? `Your turn — ${ap} AP remaining, ${qualActions} of ${MIN_ACTIONS_PER_TURN} qualifying actions taken.`
@@ -236,9 +265,22 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
           : 'Waiting for a player to claim their turn.'}
       </div>
 
+      {/* Screen-reader alert — urgent one-time events (assertive, interrupts) */}
+      <div role="alert" aria-live="assertive" aria-atomic="true" className="sr-only">
+        {justEliminated
+          ? 'Your character has been eliminated by a zombie.'
+          : exitJustRevealed
+          ? `The exit has been revealed at cell ${state.exitCell ?? ''}. Move your character there to escape.`
+          : null}
+      </div>
+
       {/* Zombie animation overlay */}
       {zombieAnimPhase === 'showing' && state.lastZombieRolls.length > 0 && (
-        <ZombieRollOverlay rolls={state.lastZombieRolls} onDone={() => setZombieAnimPhase('idle')} />
+        <ZombieRollOverlay
+          rolls={state.lastZombieRolls}
+          onDone={() => setZombieAnimPhase('idle')}
+          onFocusChange={(focused) => { zombieOverlayFocusedRef.current = focused }}
+        />
       )}
 
       {/* ── Header strip ── */}
@@ -284,9 +326,9 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
               {isMyActiveTurn && (
                 <span
                   className={qualActions >= MIN_ACTIONS_PER_TURN ? styles.qualCountMet : styles.qualCount}
-                  aria-label={`${qualActions} of ${MIN_ACTIONS_PER_TURN} qualifying actions taken`}
+                  aria-label={`${qualActions} of ${MIN_ACTIONS_PER_TURN} qualifying actions taken${qualActions >= MIN_ACTIONS_PER_TURN ? ', minimum met' : ''}`}
                 >
-                  {qualActions}/{MIN_ACTIONS_PER_TURN} actions
+                  {qualActions >= MIN_ACTIONS_PER_TURN ? '✓ ' : ''}{qualActions}/{MIN_ACTIONS_PER_TURN} actions
                 </span>
               )}
             </div>
@@ -297,8 +339,12 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
                 className={styles.btnDraw}
                 onClick={handleDrawTile}
                 disabled={drawDisabled}
-                aria-label={`Draw tile (1 AP). ${state.deckSize} tiles in deck.`}
-                title={hasZombieObligation ? 'Place your zombie tile first' : drawDisabled ? 'Cannot draw' : undefined}
+                aria-label={
+                  drawDisabledReason
+                    ? `Draw tile. Unavailable: ${drawDisabledReason}.`
+                    : `Draw tile (1 AP). ${state.deckSize} tiles in deck.`
+                }
+                title={drawDisabledReason ?? undefined}
               >
                 Draw ({state.deckSize})
               </button>
@@ -345,7 +391,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
         <div className={styles.sideCol}>
 
           {/* My hand */}
-          <div className={styles.sideSection} aria-label="Your hand">
+          <div className={styles.sideSection} role="region" aria-label="Your hand">
             <div className={styles.sideTitle}>Your hand</div>
             {myHand.length === 0 ? (
               <div className={styles.emptyHandNote}>No tiles in hand. Draw to get started.</div>
@@ -373,7 +419,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
           </div>
 
           {/* Players */}
-          <div className={styles.sideSection} aria-label="Players">
+          <div className={styles.sideSection} role="region" aria-label="Players">
             <div className={styles.sideTitle}>Players</div>
             {state.players.map(p => {
               const hasActed = state.seatsActedThisRound.includes(p.seatIndex)
@@ -456,6 +502,7 @@ function PlayerRow({ player, hasActed, isActive, isMe, charState, handCount, apR
         isActive ? 'taking turn' : hasActed ? 'acted' : 'waiting',
         eliminated ? 'eliminated' : '',
         !placed ? 'not yet placed' : '',
+        `${handCount} tile${handCount !== 1 ? 's' : ''} in hand`,
       ].filter(Boolean).join(', ')}
     >
       {player.avatarUrl ? (
@@ -672,26 +719,57 @@ function ActionPicker({ picker, myHand, onSelectType, onSetRotation, onConfirm, 
 interface ZombieRollOverlayProps {
   rolls: ZombieRoll[]
   onDone: () => void
+  onFocusChange: (focused: boolean) => void
 }
 
 const DIR_NAMES = ['E', 'NE', 'NW', 'W', 'SW', 'SE']
 
-function ZombieRollOverlay({ rolls, onDone }: ZombieRollOverlayProps) {
+function ZombieRollOverlay({ rolls, onDone, onFocusChange }: ZombieRollOverlayProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const titleId = 'zombie-roll-overlay-title'
+
+  // Focus trap — keep Tab within the dialog
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Escape') { onDone(); return }
+    if (e.key !== 'Tab') return
+    const focusable = Array.from(
+      cardRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), [tabindex]:not([tabindex="-1"])'
+      ) ?? []
+    )
+    if (focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus() }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
+  }
+
   return (
     <div
       className={styles.zombieOverlay}
       role="dialog"
       aria-modal="true"
-      aria-label="Zombie movement results"
+      aria-labelledby={titleId}
+      onKeyDown={handleKeyDown}
+      onFocus={() => onFocusChange(true)}
+      onBlur={(e) => {
+        // Only signal "not focused" when focus leaves the dialog entirely
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          onFocusChange(false)
+        }
+      }}
     >
-      <div className={styles.zombieOverlayCard}>
-        <div className={styles.zombieOverlayTitle}>Zombie Movement</div>
+      <div className={styles.zombieOverlayCard} ref={cardRef}>
+        <div id={titleId} className={styles.zombieOverlayTitle}>Zombie Movement</div>
         <div className={styles.zombieRollList}>
           {rolls.map((roll) => (
             <div
               key={roll.zombieId}
               className={roll.moved ? styles.zombieRollMoved : styles.zombieRollStayed}
-              aria-label={`Zombie rolled ${roll.dieFace}, direction ${DIR_NAMES[roll.direction]}, ${roll.moved ? 'moved' : 'stayed'}`}
+              aria-label={`Zombie rolled ${roll.dieFace}, direction ${DIR_NAMES[roll.direction]}, ${roll.moved ? 'moved' : 'blocked'}`}
             >
               <span className={styles.zombieRollDie} aria-hidden="true">{roll.dieFace}</span>
               <span className={styles.zombieRollDir} aria-hidden="true">{DIR_NAMES[roll.direction]}</span>
