@@ -2852,6 +2852,240 @@ public class HexEscapeModuleTests
         // Both variants are deadlocks with no resolution in v2.
     }
 
+    // ── Regression: softlock bug in CountAvailableQualifyingActions (fixed) ────
+    //
+    // Bug: the old code had `if (deck.Count > 0 || hand.Count < HandSize) return MinActionsPerTurn;`
+    // which short-circuited with required=2 even when DrawTile was actually unavailable
+    // (because hand was full — the OR condition fired even though draw was impossible).
+    // The fix counts DrawTile only when deck.Count > 0 AND hand.Count < HandSize (AND, not OR),
+    // and computes required = min(MinActionsPerTurn, actualAvailable) with no short-circuit.
+
+    /// <summary>
+    /// Regression for the exact softlock case (AC-v2-10 escape hatch, AND-not-OR fix).
+    ///
+    /// Scenario:
+    ///   - placed (non-eliminated) player
+    ///   - deck NON-empty (> 0 cards)       ← this is the key trigger the old OR bug fired on
+    ///   - hand FULL (HandSize=3 normal tiles, no zombie) → DrawTile unavailable (hand.Count >= HandSize)
+    ///   - all non-exit board cells occupied with Deadend r=0 tiles → no legal PlaceTile
+    ///   - character on "0,0" on Deadend r=0, neighbours also Deadend r=0 → no connected move → MoveCharacter unavailable
+    ///   - no zombie tile in hand → PlaceZombieTile unavailable
+    ///
+    /// Old code: `deck.Count > 0 || hand.Count < HandSize` was true (deck non-empty) → short-circuited
+    ///           to return MinActionsPerTurn=2; required=2; 0 < 2 → EndTurn rejected forever (softlock).
+    /// Fixed code: DrawTile requires deck.Count > 0 AND hand.Count < HandSize (both); hand is full
+    ///             so DrawTile count=0; PlaceTile=0; MoveCharacter=0; PlaceZombieTile=0 → available=0;
+    ///             required = min(2,0) = 0 → EndTurn with qualifying=0 ACCEPTED (escape hatch).
+    /// </summary>
+    [Fact]
+    public void Softlock_Regression_DeckNonEmpty_HandFull_NoLegalAction_EndTurnAccepted()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Build grid: fill ALL non-exit cells with Deadend r=0.
+        // Deadend r=0 has only edge E=0. A character at "0,0" on Deadend r=0 will be fully
+        // boxed in: directions 1-5 are closed on source; direction 0 (E) goes to "1,0" which
+        // is also Deadend r=0 — needs W=3 return edge but Deadend r=0 only has E=0 → no connection.
+        // This also blocks PlaceTile (all non-exit cells occupied).
+        var exitSet = new HashSet<string>(state.ExitZoneCells);
+        var newGrid = new Dictionary<string, HexCell>();
+        foreach (var cell in state.Cells.Where(c => !exitSet.Contains(c)))
+            newGrid[cell] = new HexCell(HexTileType.Deadend, 0, Fixed: false);
+
+        string charCell = "0,0";
+        state.Cells.Should().Contain(charCell, "tutorial board must contain (0,0)");
+
+        // Verify character IS boxed in (sanity check on test setup)
+        var cellSetCheck = new HashSet<string>(state.Cells);
+        bool anyOpen = Enumerable.Range(0, 6).Any(d =>
+            HexEscapeModule.AreConnected(newGrid, cellSetCheck, charCell, d));
+        anyOpen.Should().BeFalse("Deadend r=0 at 0,0 with Deadend-r=0 east neighbour must be fully boxed in");
+
+        // Hand: 3 normal tiles = FULL (HandSize=3). No zombie tile.
+        var fullHand = Enumerable.Range(0, HexEscapeConstants.HandSize)
+            .Select(_ => new HeldTile(HexTileType.Straight, IsZombieTile: false, IsExitTile: false))
+            .ToList();
+
+        // Character: placed at charCell, NOT eliminated
+        var newChars = state.Characters.Select(c =>
+            c.PlayerId == players[0].Id ? c with { Pos = charCell } : c).ToList();
+
+        state = state with
+        {
+            Grid       = newGrid,
+            Hands      = new Dictionary<string, List<HeldTile>> { [players[0].Id] = fullHand },
+            Characters = newChars,
+            // Deck is NON-empty (kept from GetInitialState — this is the exact bug trigger)
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 3,
+            QualifyingActionsThisTurn = 0,
+        };
+
+        // Preconditions that define the bug scenario
+        state.Deck.Count.Should().BeGreaterThan(0,
+            "deck must be non-empty — the old OR short-circuit fired on this and returned required=2");
+        state.Hands[players[0].Id].Count.Should().Be(HexEscapeConstants.HandSize,
+            "hand must be full — combined with deck non-empty, the OR bug made DrawTile appear available");
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var result = _module.Handle(ctx);
+
+        // THE REGRESSION ASSERTION:
+        // Before the fix: required=2 (OR short-circuit) → 0 < 2 → rejected forever (softlock).
+        // After the fix: available=0 (DrawTile blocked by full hand), required=min(2,0)=0 → accepted.
+        result.RejectionReason.Should().BeNull(
+            "softlock regression (AND-not-OR fix): deck non-empty + hand full + no legal action → " +
+            "available=0 → required=min(2,0)=0 → EndTurn must be accepted (AC-v2-10 escape hatch)");
+    }
+
+    /// <summary>
+    /// Regression guard for the AND-not-OR fix: when exactly ONE qualifying action is available
+    /// (DrawTile only: deck non-empty AND hand has room), required = min(2,1) = 1, not 2.
+    ///
+    /// Scenario:
+    ///   - placed player, deck NON-empty, hand has 1 tile (< HandSize=3) → DrawTile available (count=1)
+    ///   - all non-exit cells filled → no legal PlaceTile (PlaceTile would count normal tiles in hand
+    ///     but anyLegalPlacement=false) → count stays 1
+    ///   - character on Deadend r=0 at "0,0", neighbours also Deadend r=0 → no connected move (count stays 1)
+    ///   - no zombie tile → PlaceZombieTile unavailable (count stays 1)
+    ///   - available = 1 → required = min(2,1) = 1
+    ///
+    /// Sub-case A: EndTurn with qualifying=0 REJECTED with exact message.
+    /// Sub-case B: EndTurn with qualifying=1 ACCEPTED.
+    /// </summary>
+    [Fact]
+    public void Regression_ExactlyOneQualifyingAvailable_DrawTileOnly_Required1Not2()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Fill all non-exit cells with Deadend r=0 to block PlaceTile and MoveCharacter.
+        var exitSet = new HashSet<string>(state.ExitZoneCells);
+        var newGrid = new Dictionary<string, HexCell>();
+        foreach (var cell in state.Cells.Where(c => !exitSet.Contains(c)))
+            newGrid[cell] = new HexCell(HexTileType.Deadend, 0, Fixed: false);
+
+        string charCell = "0,0";
+
+        // Hand: 1 normal tile (< HandSize=3 → hand has room → DrawTile IS available)
+        var partialHand = new List<HeldTile>
+        {
+            new HeldTile(HexTileType.Straight, IsZombieTile: false, IsExitTile: false)
+        };
+
+        // Character: placed, NOT eliminated
+        var newChars = state.Characters.Select(c =>
+            c.PlayerId == players[0].Id ? c with { Pos = charCell } : c).ToList();
+
+        state = state with
+        {
+            Grid       = newGrid,
+            Hands      = new Dictionary<string, List<HeldTile>> { [players[0].Id] = partialHand },
+            Characters = newChars,
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 3,
+            QualifyingActionsThisTurn = 0,
+        };
+
+        // Verify preconditions
+        state.Deck.Count.Should().BeGreaterThan(0, "deck must be non-empty for DrawTile to be available");
+        state.Hands[players[0].Id].Count.Should().BeLessThan(HexEscapeConstants.HandSize,
+            "hand must have room (hand.Count < HandSize) for DrawTile to count");
+
+        // Verify PlaceTile is unavailable (all non-exit cells occupied)
+        bool anyLegalPlace = state.Cells.Any(c => !newGrid.ContainsKey(c) && !exitSet.Contains(c));
+        anyLegalPlace.Should().BeFalse("all non-exit cells must be occupied so PlaceTile is unavailable");
+
+        // Verify character is boxed in (no MoveCharacter available)
+        var cellSetCheck = new HashSet<string>(state.Cells);
+        bool anyMove = Enumerable.Range(0, 6).Any(d =>
+            HexEscapeModule.AreConnected(newGrid, cellSetCheck, charCell, d));
+        anyMove.Should().BeFalse("character must be fully boxed in so MoveCharacter is unavailable");
+
+        // Sub-case A: qualifying=0 → REJECTED (required=min(2,1)=1, taken=0)
+        var ctxReject = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var resultReject = _module.Handle(ctxReject);
+        resultReject.RejectionReason.Should().Be(
+            $"You must take at least {HexEscapeConstants.MinActionsPerTurn} actions this turn.",
+            "1 qualifying action available → required=min(2,1)=1; taking 0 must be rejected");
+
+        // Sub-case B: qualifying=1 → ACCEPTED (required=min(2,1)=1, taken=1)
+        var stateWith1 = state with { QualifyingActionsThisTurn = 1 };
+        var ctxAccept = MakeContext(ToDoc(stateWith1), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var resultAccept = _module.Handle(ctxAccept);
+        resultAccept.RejectionReason.Should().BeNull(
+            "1 qualifying available and 1 taken → required=min(2,1)=1 satisfied → EndTurn accepted");
+    }
+
+    /// <summary>
+    /// Regression guard: the AND-not-OR fix must NOT over-relax the minimum.
+    /// When 2 qualifying actions are available (DrawTile + PlaceTile on reserved spawn cell),
+    /// required = min(2,2) = 2. Taking 0 or 1 must still be rejected.
+    ///
+    /// Scenario (unplaced player, fresh initial state):
+    ///   - deck non-empty, hand has 1 tile (room) → DrawTile available (count=1)
+    ///   - hand has 1 normal (non-zombie) Straight tile, reserved spawn cell is empty
+    ///     → PlaceTile on reserved cell available (count=2)
+    ///   - available = 2 → required = min(2,2) = 2
+    ///
+    /// EndTurn with qualifying=0 REJECTED. EndTurn with qualifying=1 REJECTED. qualifying=2 ACCEPTED.
+    /// </summary>
+    [Fact]
+    public void Regression_TwoOrMoreQualifyingAvailable_RequiredIsStill2()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Unplaced player (character Pos=null). Reserved spawn cell is empty in initial grid.
+        // Hand: 1 Straight tile — has room (< HandSize=3) AND has a normal tile.
+        // Deck: non-empty (from init) → DrawTile available.
+        // PlaceTile: reserved spawn cell is empty → available.
+        // → available >= 2 → required = min(2,2) = 2.
+        var hand = new List<HeldTile>
+        {
+            new HeldTile(HexTileType.Straight, IsZombieTile: false, IsExitTile: false)
+        };
+        state = state with
+        {
+            Hands = new Dictionary<string, List<HeldTile>> { [players[0].Id] = hand },
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 3,
+            QualifyingActionsThisTurn = 0,
+        };
+
+        // Preconditions
+        state.Deck.Count.Should().BeGreaterThan(0, "deck must be non-empty for DrawTile to be available");
+        state.Hands[players[0].Id].Count.Should().BeLessThan(HexEscapeConstants.HandSize,
+            "hand must have room for DrawTile to be available");
+        string reserved = state.ReservedSpawnCells[players[0].Id];
+        state.Grid.Should().NotContainKey(reserved, "spawn cell must be empty for PlaceTile to be available");
+        state.Characters.First(c => c.PlayerId == players[0].Id).Pos.Should().BeNull(
+            "player must be unplaced so PlaceTile on reserved cell is the first-placement path");
+
+        // qualifying=0 → REJECTED (required=2, taken=0)
+        var ctx0 = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var result0 = _module.Handle(ctx0);
+        result0.RejectionReason.Should().Be(
+            $"You must take at least {HexEscapeConstants.MinActionsPerTurn} actions this turn.",
+            "2+ qualifying available → required=2; taking 0 must be rejected (fix must not over-relax)");
+
+        // qualifying=1 → REJECTED (required=2, taken=1)
+        var stateWith1 = state with { QualifyingActionsThisTurn = 1 };
+        var ctx1 = MakeContext(ToDoc(stateWith1), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var result1 = _module.Handle(ctx1);
+        result1.RejectionReason.Should().Be(
+            $"You must take at least {HexEscapeConstants.MinActionsPerTurn} actions this turn.",
+            "2+ qualifying available → required=2; taking 1 must still be rejected (fix must not over-relax)");
+
+        // qualifying=2 → ACCEPTED (required=min(2,2)=2, taken=2)
+        var stateWith2 = state with { QualifyingActionsThisTurn = 2 };
+        var ctx2 = MakeContext(ToDoc(stateWith2), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var result2 = _module.Handle(ctx2);
+        result2.RejectionReason.Should().BeNull(
+            "2+ qualifying available and 2 taken → required=2 satisfied → EndTurn accepted");
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static HexEscapeState GetInitialState(IReadOnlyList<PlayerInfo> players)
