@@ -3,7 +3,7 @@
 **Status:** Refined v4 — Ready for implementation (architect-confirmed; 3 must-fix items applied)
 **Date:** 2026-06-16
 **Authors:** analyst + architect
-**Revision:** 4 — applies architect pre-implementation review. MF-1 (DrawTile-as-last-AP atomic resolution), MF-2 (frozen-snapshot containment evaluation), and MF-3 (exit-zone disjointness invariant and protection from all zombie sources) applied as concrete AC/AD edits. SF items folded into Implementation hints and relevant ACs. AC count: 49 → 52. AD count: 14 → 14 (AD-OB-5, AD-OB-7, AD-OB-13 updated in place).
+**Revision:** 4 — applies architect pre-implementation review. MF-1 (DrawTile-as-last-AP atomic resolution), MF-2 (frozen-snapshot containment evaluation), and MF-3 (exit-zone disjointness invariant and protection from all zombie sources) applied as concrete AC/AD edits. SF items folded into Implementation hints and relevant ACs. AC count: 1 new AC added (AC-v2-8b); 6 existing ACs updated in place (AC-v2-5, AC-v2-29c, AC-v2-31c, AC-v2-32c, AC-v2-32e); total distinct AC items: 63. AD count: 14 → 14 (AD-OB-5, AD-OB-7, AD-OB-13 updated in place; no new ADs added).
 
 Supersedes the v1 threat-counter design (preserved in git history). v1's hex geometry, tile model, and connection rule carry forward unchanged. Supersedes v2 revision 2 (which had exit-placement player choice, no anti-turtle rule, no mandatory draw, no directional layout, single-int AP tracking without activeSeat, and conflated ACs 15–18 and 28 and 31).
 
@@ -154,7 +154,7 @@ BFS runs **from the exit cell outward** over open shared edges (both sides of th
 
 - [ ] **AC-v2-29b — Unplaced players do not block win:** A player who has never placed their first tile (character `pos` is null) is NOT IN PLAY and is ignored for win evaluation. They neither satisfy nor block the win condition.
 
-- [ ] **AC-v2-29c — Win fires — effect:** On win: `phase` → `GameOver`; `outcome` → `Escaped`; emit `GameOverEffect(winnerId: null)`. ZombieMovement is NOT run; round boundary is NOT advanced.
+- [ ] **AC-v2-29c — Win fires — effect (SF-4):** On win: `phase` → `GameOver`; `outcome` → `Escaped`; emit `GameOverEffect(winnerId: null)`; RETURN immediately from `Handle`. ZombieMovement is NOT run; round boundary is NOT advanced. The handler MUST short-circuit on win — it must NOT fall through to the round-boundary sequence or the zombie cascade. (Note: v1 `HexEscapeModule.FinishAction` checked win and then fell through to increment the threat counter — v2 must not repeat this bug. This is the single most likely implementation error.)
 
 - [ ] **AC-v2-29d — Win skipped before exit revealed:** While `exitRevealed == false`, the win check is skipped entirely. BFS from a null exit cell is not computed.
 
@@ -396,6 +396,9 @@ These are deliberately constrained to keep v2 shippable. Each trim leaves a fiel
 - Exactly one exit tile per game.
 - Win reachability is the players' problem: nothing in the rules guarantees the placed exit tile will be pipe-connected to characters' positions. Players must route their network toward wherever the exit lands on the opposite side.
 - Rotate-spam is bounded by AP cost + mandatory draw + horde pressure. No special anti-spam rule is added.
+- No forced-obligation carry-over across turns — a zombie tile drawn as the last AP is resolved atomically by the server (see AC-v2-8b/MF-1); a forced zombie tile may never exist in a player's hand when `actionPointsRemaining == 0`.
+- **MaxZombies soft-cap (SF-2):** Define a tunable constant `MaxZombies = 200` (high default). Before spawning any new zombie (via `PlaceZombieTile`, D1 spawn, or D2b horde), check `zombies.Count < MaxZombies`. If at cap, skip the spawn (log a server WARNING). The cap exists solely to bound JSONB blob growth in pathologically long games; it should never be reached in normal play. `zombies` and `lastZombieRolls` are the dominant growth terms in the JSONB blob.
+- **Optional D1 trim — defer break-out ROTATION (noted hook only):** The architect noted that D1 break-out spawn alone (without the tile rotation) already defeats turtling and adds attrition pressure, while the rotation is the most ordering-sensitive piece of D1. If D1 proves too complex to implement correctly in v2, the rotation sub-step (a) may be deferred: implement only the spawn (b) in the first cut, with break-out rotation added as a follow-up. The spec keeps BOTH (rotation + spawn) as the target design; this trim is a noted fallback, not the default. The implementation team must call this out explicitly if they choose the trim, and must add a `[Fact(Skip="D1 break-out rotation deferred")]` test to document the gap.
 
 ### AD-OB-14: No database changes
 
@@ -445,7 +448,13 @@ The following v1 architecture decisions remain in effect unchanged:
 
 ### KL-1: Disconnected seat stalls round (deferred — D4)
 
-If a player disconnects during their turn, no other player can act until the disconnected seat dispatches `EndTurn`. There is no auto-skip or turn timer. This is accepted as a known v2 limitation. A follow-up must add auto-skip or a per-seat turn timer before the game is opened for public play. A `[Fact(Skip=...)]` test documents the expected (but unimplemented) behaviour.
+If a player disconnects during their turn, no other player can act until the disconnected seat dispatches `EndTurn`. There is no auto-skip or turn timer. This is accepted as a known v2 limitation. A follow-up must add auto-skip or a per-seat turn timer before the game is opened for public play.
+
+Two distinct sub-cases must both be covered by the deferred `[Fact(Skip=...)]` test (SF-3):
+1. **Disconnect between turns:** Player disconnects after their turn ends (`activeSeat` is null). Other seats can still act; the stall only manifests when the round boundary tries to advance and the disconnected seat has not acted.
+2. **Mid-turn claim-then-disconnect (worse case):** Player claims a turn (`activeSeat` is pinned to the disconnected seat, `actionPointsRemaining > 0`), then disconnects. This blocks ALL other seats immediately — no other seat can claim while `activeSeat` is occupied. This is strictly worse than the between-turns case and is the primary failure mode.
+
+The `[Fact(Skip=...)]` annotation must read: `[Fact(Skip="v2 known limitation: disconnected seat stalls round (both mid-turn and between-turns variants); auto-skip / turn-timer deferred to follow-up")]`. The test body must cover both sub-cases.
 
 See docs/owner/TODO.md for the deferred action item.
 
@@ -465,9 +474,15 @@ See docs/owner/TODO.md for the deferred action item.
 - `activeSeat: int?` and `actionPointsRemaining: int` tracked in state. Seat claiming sets `activeSeat` and resets AP. Turn-end clears both.
 - Win check: after each AP action IF `exitRevealed` AND in Actions phase. Co-location elimination runs before win check on MoveCharacter. Loss check: after ZombieMovement phase (after all moves, spawns, and eliminations).
 - Win check skipped entirely when `exitRevealed == false`.
-- Round-boundary sequence (all in one `Handle` invocation): ZombieMovement transition → D1 containment evaluation → d6 rolls + moves → D2b horde spawn → loss check → round advance.
-- D1 break-out: rotate zombie tile to open lowest-index direction toward an in-grid neighbour. D1 spawn: new zombie on lowest-index in-grid tiled neighbour. Both are deterministic — no RNG.
-- D2b horde: pick lowest-index non-zombie-occupied `hordeOriginCells` entry.
+- **SF-4 — Win must short-circuit (single most likely implementation bug):** When win fires, the handler must `return` IMMEDIATELY after setting `phase = GameOver`, `outcome = Escaped`, and emitting `GameOverEffect`. It must NOT fall through to the round-boundary sequence or zombie cascade. v1's `HexEscapeModule.FinishAction` checked win then fell through to increment the threat counter — v2 must not repeat this. Add a unit test that asserts the zombie cascade is NOT triggered in the same `Handle` call that produces a win.
+- **MF-1 — DrawTile-as-last-AP atomic resolution:** When `DrawTile` spends the last AP and the drawn tile is a zombie tile, the server resolves the forced placement/discard ATOMICALLY in the same `Handle` call before returning. Deterministic cell selection: lowest lexicographic `"q,r"` key among empty non-exit-zone in-grid cells. If no such cell exists, append to `discardPile`. The state machine must never enter a configuration where `actionPointsRemaining == 0` AND a forced zombie tile is in the player's hand.
+- Round-boundary sequence (all in one `Handle` invocation): ZombieMovement transition → D1 containment evaluation (Phase 2, frozen snapshot) → d6 rolls + moves (Phase 3, live post-Phase-2 grid) → D2b horde spawn → loss check → round advance.
+- **MF-2 — Phase 2 frozen snapshot:** Before iterating any zombie in Phase 2, take an immutable snapshot of tile rotations and zombie positions. Read all containment decisions, break-out direction selection, and spawn-target selection from this snapshot. Apply mutations (rotation changes, new zombie spawns) to live state only. Newly spawned zombies are not re-evaluated in Phase 2.
+- **SF-5 — Two distinct snapshot rules by phase:** Phase 2 containment uses the frozen pre-phase snapshot (above). Phase 3 d6 movement reads the LIVE post-Phase-2 grid — break-out rotations from Phase 2 ARE visible to Phase 3 (intended: break-out frees the zombie this round).
+- D1 break-out: rotate zombie tile (live state) to open lowest-index direction toward an in-grid neighbour (checked against frozen snapshot). D1 spawn: new zombie on lowest-index in-grid tiled non-exit-zone neighbour (checked against frozen snapshot). Both are deterministic — no RNG. MaxZombies cap applies before each spawn.
+- **MF-3 — Exit-zone exclusion from all zombie sources:** D1 break-out spawn and D2b horde spawn must both skip any candidate cell in `exitZoneCells`. Log a server DEBUG entry when a candidate is skipped for this reason.
+- D2b horde: pick lowest-index non-zombie-occupied, non-exit-zone `hordeOriginCells` entry. MaxZombies cap applies.
+- **SF-2 — MaxZombies soft-cap:** Define `MaxZombies = 200`. Before any zombie spawn (PlaceZombieTile, D1, D2b), check `zombies.Count < MaxZombies`; if at cap skip spawn and emit server WARNING. This is a safety rail, not a gameplay rule.
 - Server exit placement: when exit tile is drawn, place on closest-to-centre empty `exitZoneCells` entry (tie-break: lowest lex key). No player involvement.
 - Mandatory draw: track per-turn whether `DrawTile` was executed. If `EndTurn` arrives without a draw and a draw was possible, reject.
 - `exitConnectedCount` (renamed from `connectedCharacters`): recomputed after any action that changes board connectivity or character positions, when `exitRevealed`.
@@ -499,7 +514,11 @@ See docs/owner/TODO.md for the deferred action item.
 - Port pure-geometry tests first, before the old test file is deleted.
 - New test suite covers: deck shuffle places exit tile in bottom 25%; deck composition has exactly one exit tile; catalogue validation (AC-v2-5) passes for all authored levels; DrawTile costs 1 AP; AP exhausted rejects further actions; EndTurn without draw rejected when draw was possible; EndTurn without draw allowed when hand full or deck empty; hand cap rejects draw when full; spawn-zone validation rejects first tile outside zone; exit-zone rejection for PlaceTile and PlaceZombieTile; character spawns on first tile; server exit placement sets exitRevealed and exitCell without entering hand; server exit placed in exitZoneCells; win check skipped before exitRevealed; win fires when all placed non-eliminated characters on exitCell; unplaced players do not block win; win fires immediately after server exit placement if all characters already there; zombie tile discard with no legal non-exit-zone cell; ZombieMovement runs once at round boundary; round-boundary sequence is correct (containment before roll, horde after roll); D1 break-out rotates zombie tile and spawns; D1 spawn eliminates character if present; D2b horde spawns one zombie per round from hordeOriginCells; horde skips if all origin cells occupied; AP pool resets at turn start (seat claiming); activeSeat set and cleared correctly; eliminated character not counted in win check; loss requires ALL placed characters eliminated; unplaced characters ignored for loss; projection hides other players' hands and deck; two zombies may stack on one cell; mandatory draw waived when deck empty; mandatory draw waived when hand full.
 - Port unhappy-path rejection tests from v1 (occupied cell, not-on-board, invalid rotation, repeat action) updating for v2 action set.
-- Disconnected seat stalls round: `[Fact(Skip="v2 known limitation: disconnected seat stalls round; auto-skip / turn-timer deferred to follow-up")]`.
+- Disconnected seat stalls round: `[Fact(Skip="v2 known limitation: disconnected seat stalls round (both mid-turn and between-turns variants); auto-skip / turn-timer deferred to follow-up")]`. Test body must cover BOTH sub-cases: (1) disconnect between turns (other seats can still act until round-boundary stall) and (2) mid-turn claim-then-disconnect (`activeSeat` pinned to disconnected player with `actionPointsRemaining > 0` — blocks all other seats immediately). (SF-3)
+- **SF-4 — Win short-circuit:** Assert that when a win fires (all non-eliminated placed characters on exitCell), the `Handle` return value has `phase == GameOver` AND `zombies` list is unchanged (no zombie cascade ran in that invocation). Assert `lastZombieRolls` is empty in the win result.
+- **MF-1 — Atomic zombie resolution on last AP:** Assert that when DrawTile spends the last AP and draws a zombie tile, the returned state has the zombie placed on the board (or in discardPile if no legal cell) AND `actionPointsRemaining == 0` AND the player's hand contains no zombie tile. No intermediate state with zombie-in-hand + AP == 0 should be observable.
+- **MF-2 — Frozen-snapshot containment:** Assert that in a round-boundary Phase 2 pass with multiple contained zombies, break-out rotations applied to zombie A do not influence the containment decision for zombie B (iterating after A) — use a crafted state where A's break-out rotation would, if applied to the live grid, incorrectly mark B as non-contained.
+- **MF-3 — Exit-zone never receives a zombie:** Assert for D1 spawn and D2b horde spawn that no zombie is ever placed on an exit-zone cell, even when exit-zone cells are the lowest-index candidates.
 - Expose `ResolveZombieMove` as `internal static` for unit tests (deterministic direction-to-movement assertions without RNG).
 
 ### DevOps
@@ -514,7 +533,7 @@ No migration and no new DbContext — no CI action required for v2.
 **Review date:** 2026-06-16
 **Spec version reviewed:** v2 revision 2 (46 ACs, 11 ADs)
 **Challenges raised:** 32 (7 blockers)
-**This revision:** v3 — all 32 challenges resolved; all 7 blockers closed
+**This revision:** v4 (architect-confirmed) — all 32 challenges resolved; all 7 blockers closed; 3 must-fix architect items (MF-1/2/3) applied; SF items (SF-1 through SF-5) folded into ACs and Implementation hints.
 
 ### Blockers and resolution
 
@@ -528,29 +547,37 @@ No migration and no new DbContext — no CI action required for v2.
 | B6 (ch.13) | Disconnect stalls round indefinitely | D4 (AD-OB-8): deferred with Skip test + TODO item |
 | B7 (ch.24) | AP reset timing undefined (activeSeat not in state) | AD-OB-9: activeSeat + actionPointsRemaining both in state; seat-claiming model defined (ACs 6–9) |
 
-### Changes summary
+### Changes summary — v3 (story-review)
 
 - **ACs restructured:** 46 → 49 (net). Removed: v2r2 ACs 15–18 (player-chosen exit placement, held-obligation, no-legal-cell carry-over — all eliminated by D3). Split: AC-28 → 29a–d; AC-31 → 32a–32f. Added: ACs for mandatory draw (10, 47), exit zone reservation (17, 39), server exit placement (18–21), containment/break-out (32b–32c), horde spawn (32e), co-location in all three cases (31a–31c), zombie stacking (31d), seat claiming (6–9), catalogue validation (5).
 - **ADs added:** AD-OB-5 (D1 anti-turtle), AD-OB-6 (D2 deck pressure), AD-OB-7 (D3 directional layout), AD-OB-8 (D4 disconnect deferred), AD-OB-9 (activeSeat/AP model), AD-OB-10 (win/loss ordering — expanded), AD-OB-11 (co-location elimination timing).
 - **State shape changes:** added `activeSeat`, `exitZoneCells`/`hordeOriginCells` to level shape, renamed `connectedCharacters` → `exitConnectedCount`, removed held-exit-tile obligation.
 - **Known Limitations section added** (KL-1: disconnect stall deferred).
 
+### Changes summary — v4 (architect pre-implementation review)
+
+- **AC count:** 1 new AC added (AC-v2-8b: MF-1 DrawTile-as-last-AP atomic resolution); 6 existing ACs updated in place: AC-v2-5 (MF-3 disjointness assertions), AC-v2-29c (SF-4 win short-circuit), AC-v2-31c (MF-3 exit-zone spawn invariant), AC-v2-32c (MF-2 frozen snapshot + MF-3 exit-zone D1 spawn exclusion), AC-v2-32e (MF-3 exit-zone horde exclusion). Total distinct AC items: 63. Tester section: added SF-3 mid-turn disconnect sub-case, SF-4 win short-circuit test, MF-1 atomic resolution test, MF-2 frozen-snapshot test, MF-3 exit-zone spawn test.
+- **ADs updated in place (14 total, unchanged count):** AD-OB-5 (MF-2 frozen-snapshot rule; SF-5 two-phase snapshot distinction; MF-3 exit-zone D1 spawn exclusion). AD-OB-7 (MF-3 comprehensive exit-zone exclusion from all sources; no-soft-lock invariant explicitly depends on multi-source exclusion; catalogue disjointness assertions). AD-OB-13 (MF-1 no-carry-over trim; SF-2 MaxZombies soft-cap constant; optional D1 rotation trim hook).
+- **Implementation hints updated:** SF-4 win short-circuit called out as most likely implementation bug. MF-1 atomic draw resolution. MF-2 frozen-snapshot implementation note. SF-5 two distinct snapshot rules. MF-3 exit-zone exclusion from all spawn sources. SF-2 MaxZombies cap.
+- **KL-1 updated:** SF-3 mid-turn claim-then-disconnect sub-case added; Skip annotation wording updated.
+
 ### Key edge cases to implement carefully
 
 1. D1 containment check must run BEFORE d6 rolls — containment evaluation is on pre-roll state.
-2. Co-location elimination on MoveCharacter runs BEFORE win check — moving to exitCell occupied by a zombie eliminates, does not win.
-3. Server exit placement fires as a side-effect of DrawTile — exit tile never enters the player's hand; no new action type needed.
-4. Mandatory draw is waived automatically when deck is empty or hand is full — not an error, just waived.
-5. Unplaced characters (null pos) are ignored for BOTH win and loss — they are not IN PLAY until first tile placed.
-6. Round-boundary sequence is strict: transition → containment evaluation → d6 rolls → horde spawn → loss check → round advance (all in one Handle call).
-7. `exitConnectedCount` rename from `connectedCharacters` must be applied in both C# and TypeScript.
+2. D1 Phase 2 uses a FROZEN SNAPSHOT — mutations from earlier zombies in the same pass do not affect later zombies' containment decisions (MF-2).
+3. Phase 3 d6 movement reads the LIVE post-Phase-2 grid — break-out rotations from Phase 2 ARE visible to Phase 3 (SF-5).
+4. Co-location elimination on MoveCharacter runs BEFORE win check — moving to exitCell occupied by a zombie eliminates, does not win.
+5. Win must short-circuit immediately — do NOT fall through to round-boundary or zombie cascade (SF-4).
+6. DrawTile-as-last-AP with a zombie tile: resolve forced placement ATOMICALLY before returning (MF-1) — no 0-AP-holding-forced-tile state.
+7. Server exit placement fires as a side-effect of DrawTile — exit tile never enters the player's hand; no new action type needed.
+8. Mandatory draw is waived automatically when deck is empty or hand is full — not an error, just waived.
+9. Unplaced characters (null pos) are ignored for BOTH win and loss — they are not IN PLAY until first tile placed.
+10. Round-boundary sequence is strict: transition → containment evaluation (frozen snapshot) → d6 rolls (live grid) → horde spawn → loss check → round advance (all in one Handle call).
+11. `exitConnectedCount` rename from `connectedCharacters` must be applied in both C# and TypeScript.
+12. No zombie may ever land on an exit-zone cell — enforced at PlaceZombieTile, D1 spawn, and D2b horde spawn (MF-3).
 
-### Architect confirmation required before implementation
+### Architect verdict
 
-The new round-boundary mechanics (D1 containment break-out + spawn; D2b escalating horde) materially change the complexity and ordering of the round-boundary `Handle` invocation. The architect must confirm:
-- The proposed round-boundary sequence (AC-32a–32f) is correct and complete.
-- D1 break-out rotation (opening lowest-index direction toward a neighbour) is unambiguous and implementable without new state fields.
-- D2b horde spawn via `hordeOriginCells` index ordering is sufficient (no need for weighted or dynamic origin selection in v2).
-- `activeSeat` as a nullable int in state (not derived) is the right approach.
+**Verdict: Ready for implementation (architect-confirmed; 3 must-fix items applied)**
 
-**Verdict:** Approved for implementation, subject to architect confirmation of round-boundary mechanics (D1/D2) before or during backend implementation begins.
+The proposed round-boundary sequence (AC-32a–32f) is correct and complete. D1 break-out rotation is unambiguous and requires no new state fields. D2b horde spawn via `hordeOriginCells` index ordering is sufficient for v2. `activeSeat` as a nullable int in state is the right approach. MF-1, MF-2, and MF-3 are applied in this revision. SF items are folded into Implementation hints and ACs.
