@@ -1,8 +1,9 @@
 # Spec: Hex Escape
 
-**Status:** Ready for implementation
+**Status:** Implemented — pending CI verification
 **Date:** 2026-06-15
 **Authors:** analyst + architect
+**Implementation note:** Level selection is wired via the generic `IGameModule.SetupOptions` mechanism (ADR-012). `HexEscapeModule.SetupOptions` declares a single `levelId` dropdown populated from `HexEscapeLevels.Ordered`. The platform renders it as a labelled dropdown in the lobby and transports the host's selection as `{ "levelId": "<id>" }` to `CreateInitialState` — satisfying the AD-9 prerequisite, which is now resolved. See `src/Meepliton.Contracts/GameSetupOption.cs`.
 
 ---
 

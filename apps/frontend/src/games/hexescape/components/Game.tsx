@@ -224,7 +224,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
 
           {/* Tile hand counts */}
           <div className={styles.sideSection} aria-label="Tile hand">
-            <div className={styles.sideTitle}>Tile Hand</div>
+            <div className={styles.sideTitle}>Tile hand</div>
             <div className={styles.handGrid}>
               {TILE_TYPES.map(t => {
                 const count = state.handCounts[t] ?? 0
@@ -380,7 +380,7 @@ function TilePicker({ pending, handCounts, onSelectType, onSetRotation, onConfir
     >
       <div className={styles.pickerCard} ref={cardRef}>
         <div id={titleId} className={styles.pickerTitle}>
-          {isPlace ? `Place Tile on ${pending.coord}` : `Rotate Tile on ${pending.coord}`}
+          {isPlace ? `Place tile on ${pending.coord}` : `Rotate tile on ${pending.coord}`}
         </div>
 
         {/* Tile type selector (place mode only) */}

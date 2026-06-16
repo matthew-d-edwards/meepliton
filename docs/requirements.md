@@ -234,6 +234,46 @@ An `AdminSeeder` hosted service runs in all environments on startup. It ensures 
 
 ---
 
+### ADR-012: Generic game setup options via IGameModule.SetupOptions
+
+**Date:** 2026-06-16
+**Status:** Accepted
+
+**Context:** Games need a way to offer pre-game configuration choices to the host — for example, which level to play, a difficulty setting, or a game variant. Without a platform mechanism, each game would need its own custom lobby screen or would hardcode a single configuration.
+
+**Decision:** Add `IReadOnlyList<GameSetupOption> SetupOptions { get; }` to `IGameModule`, defaulting to an empty list. A `GameSetupOption` carries a `Key`, a human-readable `Label`, and a list of `GameSetupChoice` values (each with a `Value` and a `Label`). The platform renders these generically as labelled dropdowns in the lobby UI before a room starts. The host's selections are transported as a flat `{ key: value }` JSON blob via `room.GameOptions` to `IGameModule.CreateInitialState` unchanged. The platform never interprets what any key or value means — that is entirely the game's concern. The option `Key` must match the field name the game reads from the options blob.
+
+This also required fixing `POST /rooms` to populate `room.GameOptions` from `req.Options`, which was previously dropped (see AD-9 in `docs/specs/hexescape.md`). That fix is backward-safe: existing games pass null options today and are unaffected.
+
+**Rationale:** Games vary enormously in their setup needs. A platform that learns specific concepts like "level" or "difficulty" would need updating for every game that introduces a new concept. Treating the options blob as opaque keeps the platform thin, consistent with ADR-009. Generic dropdowns cover the common case (a fixed list of named choices) without constraining games that need something else.
+
+**Consequences:**
+- Games that need pre-game configuration declare their options in `SetupOptions` — no custom lobby code required.
+- Games with no setup options return the default empty list — no behaviour change.
+- The platform renders one dropdown per `GameSetupOption` entry; the order of entries controls the display order.
+- `HexEscape` is the first game to use this mechanism (level selection).
+
+---
+
+### ADR-013: Game modules may accept constructor-injected framework abstractions
+
+**Date:** 2026-06-16
+**Status:** Accepted
+
+**Context:** Game modules are plain C# classes discovered by assembly scanning. They must not reference `Meepliton.Api` or platform internals, but they may legitimately need framework services — most commonly logging — for diagnostics and the AD-10 fallback warning.
+
+**Decision:** Game modules may declare constructor parameters for framework *abstraction* packages (for example, `ILogger<T>` from `Microsoft.Extensions.Logging.Abstractions`). The DI container resolves these at startup alongside any other registered service. Constructor parameters must be optional with a null default (e.g. `ILogger<T>? logger = null`) so the module can be instantiated directly in unit tests without a DI container. Game modules must still never reference `Meepliton.Api`, `Meepliton.Contracts` internal types, or any platform DbContext. `HexEscapeModule` is the first example: it accepts `ILogger<HexEscapeModule>? logger = null` and uses it to emit the AD-10 fallback warning.
+
+**Rationale:** Blocking all constructor injection would force games to use static logging helpers or global state, both of which are harder to test and reason about. Allowing only abstraction packages (no platform internals) keeps the isolation boundary intact while enabling legitimate framework dependencies. The optional-with-default pattern is the standard .NET approach for making services testable without a DI container.
+
+**Consequences:**
+- Scrutor discovers and registers the module class as usual; DI resolves constructor parameters automatically.
+- Unit tests can call `new HexEscapeModule()` (or any future game module) without a service provider.
+- The `IGameModule` and `IGameHandler` interfaces are unchanged.
+- Game authors must keep constructor parameters to framework abstraction packages only — referencing platform internals is still prohibited.
+
+---
+
 ## 4. User Stories
 
 ### Authentication
@@ -1010,6 +1050,13 @@ public interface IGameModule
     bool    SupportsUndo  { get; }  // declares whether the game handles "Undo" actions
     string? ThumbnailUrl  { get; }
 
+    // Optional pre-game configuration choices the host sees as labelled dropdowns
+    // in the lobby. The platform transports the host's selections as an opaque
+    // { key: value } blob to CreateInitialState via the options parameter.
+    // Games that need no setup return an empty list (the default).
+    // See ADR-012.
+    IReadOnlyList<GameSetupOption> SetupOptions => [];
+
     // Called once when the host starts the game.
     // Returns whatever JSON blob this game uses as its initial state.
     // The platform stores this in rooms.game_state and knows nothing about its structure.
@@ -1776,6 +1823,7 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 - [x] Second game module (validates module system for a genuinely different game type — e.g. map-based or simultaneous-action, not just another tile game) — **Liar's Dice**
 - [x] Third game module — **Dead Man's Switch** (disc-bluffing, multi-phase turn structure, per-player hidden state)
 - [x] Fourth game module — **F'That** (card-passing with chips, server-side state projection for private chip counts)
+- [x] Fifth game module — **Hex Escape** (co-operative hex-pipe puzzle, 1–6 players, zombie threat track, authored levels; first co-op title on the platform; validates `GameOverEffect(winnerId: null)`, `MinPlayers = 1`, and the generic `SetupOptions` level-picker mechanism — see ADR-012 and ADR-013)
 - [ ] Application Insights: errors + response times
 - [ ] Host-only action log rewind (undo to N-1 state)
 - [ ] Admin portal (story-031): user management (unlock, grant/revoke admin, password reset) + room management (list, delete) — no log viewer in v1
@@ -1796,4 +1844,4 @@ The PLATFORM.md and GAME-MODULE.md skills are documented inline in this file for
 *Maintained in `docs/requirements.md` in the meepliton GitHub repository.*
 *Architecture decisions recorded in §3 (Architecture Decision Records).*
 *Claude skill files for game development are in `.claude/skills/`.*
-*Last updated: 2026-03-26*
+*Last updated: 2026-06-16*
