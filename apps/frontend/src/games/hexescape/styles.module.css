@@ -325,6 +325,18 @@
   stroke-width: 2.5;
 }
 
+/* ── City blocks (solid buildings filling the hex, streets carved on top) ── */
+.cityBlock {
+  stroke: var(--city-wall);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+.cityBlock0 { fill: var(--city-1); }
+.cityBlock1 { fill: var(--city-2); }
+.cityBlock2 { fill: var(--city-3); }
+.cityBlock3 { fill: var(--city-4); }
+.cityBlock4 { fill: var(--city-5); }
+
 /* ── Road tiles (city streets) ──
    Layered render: curb casing (widest) → asphalt surface → dashed lane line.
    Widths are set inline on the <line> elements; colour comes from theme tokens. */

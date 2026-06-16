@@ -240,10 +240,11 @@ export function HexBoard({
                 />
               )}
 
-              {/* City blocks: building footprints in the wedges between streets.
-                  Drawn before the roads so the streets cleanly overlay them. */}
+              {/* City blocks: solid buildings fill the hex; streets carve through.
+                  Drawn before the roads so the streets (and their sidewalk curbs)
+                  overlay them cleanly. */}
               {cell && (
-                <TileBuildings
+                <TileBlocks
                   cx={x}
                   cy={y}
                   coord={key}
@@ -368,10 +369,10 @@ export interface TileLinesProps {
 // is one road segment running from the cell centre to that edge's midpoint, so
 // roads on connected tiles meet exactly at the shared edge.
 
-const ROAD_CASING_W = 17       // curb/sidewalk band width
-const ROAD_SURFACE_W = 12.5    // asphalt width
-const ROAD_HUB_CASING_R = 8.5  // intersection curb radius
-const ROAD_HUB_SURFACE_R = 6.25 // intersection asphalt radius
+const ROAD_CASING_W = 19       // curb/sidewalk band width
+const ROAD_SURFACE_W = 11.5    // asphalt width (narrower → wider sidewalk strip)
+const ROAD_HUB_CASING_R = 9.5  // intersection curb radius
+const ROAD_HUB_SURFACE_R = 5.75 // intersection asphalt radius
 const LANE_START_T = 0.34      // lane dashes start this far out from centre…
 const LANE_END_T = 0.94        // …and stop just short of the edge
 
@@ -426,15 +427,16 @@ export function TileLines({ cx, cy, tileType, rotation, fixed }: TileLinesProps)
   return <RoadTile cx={cx} cy={cy} ends={ends} fixed={fixed} />
 }
 
-// ── City blocks ───────────────────────────────────────────────────────────────
-// Each placed tile is a city block. The streets (open edges) carve the hex into
-// wedges; we drop a building footprint into each wide-enough wedge so the streets
-// are lined with buildings. Footprint colour and window pattern vary deterministically
-// per cell (stable per coord) for a lived-in, ruined-city look — no game symbols.
+// ── City blocks (top-down, Zombies!!!-style) ──────────────────────────────────
+// A placed tile is a top-down city block. The whole hex is built up: the wedges
+// between the streets are filled as SOLID building blocks, and the streets are
+// carved through on top. The street's light curb band reads as the sidewalk that
+// lines each building, so no separate sidewalk geometry is needed. Block shades
+// vary deterministically per cell so adjacent blocks read as distinct buildings.
 
-const BUILDING_BODIES = ['#2c2820', '#332b22', '#26221b', '#37301f', '#2a2118']
-const WINDOW_DARK = '#15120d'
-const WINDOW_LIT = '#c9a24e'  // a few lit/burning windows in the ruins
+const CITY_BLOCK_CLASSES = [
+  styles.cityBlock0, styles.cityBlock1, styles.cityBlock2, styles.cityBlock3, styles.cityBlock4,
+]
 
 /** Stable hash of a coord string → small unsigned int. */
 function hashCoord(coord: string): number {
@@ -443,23 +445,44 @@ function hashCoord(coord: string): number {
   return h
 }
 
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+/** Distance from centre to the flat-top hex boundary at screen angle `deg`. */
+function hexBoundaryRadius(deg: number): number {
+  const m = 30 + 60 * Math.round((deg - 30) / 60)  // nearest edge-midpoint angle
+  return (HEX_SIZE * (SQRT3 / 2)) / Math.cos((deg - m) * (Math.PI / 180))
+}
 
-/** Wedges (angular gaps) between the streets, each a candidate building lot. */
-function tileWedges(openDirs: number[]): { bisDeg: number; widthDeg: number }[] {
-  const angles = [...new Set(openDirs.map(d => ((DIR_ANGLE_DEG[d] % 360) + 360) % 360))]
-    .sort((a, b) => a - b)
-  if (angles.length === 0) return [{ bisDeg: 0, widthDeg: 360 }]
-  const out: { bisDeg: number; widthDeg: number }[] = []
-  for (let i = 0; i < angles.length; i++) {
-    const a = angles[i]
-    const b = i + 1 < angles.length ? angles[i + 1] : angles[0] + 360
-    out.push({ bisDeg: (a + b) / 2, widthDeg: b - a })
+/** A point on the hex boundary at screen angle `deg`, as an "x,y" string. */
+function boundaryPoint(cx: number, cy: number, deg: number): string {
+  const r = hexBoundaryRadius(deg)
+  const a = deg * (Math.PI / 180)
+  return `${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`
+}
+
+/** Hex corner angles (multiples of 60°) strictly between a and b. */
+function cornersBetween(a: number, b: number): number[] {
+  const out: number[] = []
+  for (let k = -1; k <= 7; k++) {
+    const c = 60 * k
+    if (c > a + 0.01 && c < b - 0.01) out.push(c)
   }
   return out
 }
 
-interface TileBuildingsProps {
+/** Angular block lots between consecutive streets, as [start, end] screen angles. */
+function tileWedges(openDirs: number[]): { a: number; b: number }[] {
+  const angles = [...new Set(openDirs.map(d => ((DIR_ANGLE_DEG[d] % 360) + 360) % 360))]
+    .sort((x, y) => x - y)
+  if (angles.length === 0) return [{ a: 0, b: 360 }]
+  const out: { a: number; b: number }[] = []
+  for (let i = 0; i < angles.length; i++) {
+    const a = angles[i]
+    const b = i + 1 < angles.length ? angles[i + 1] : angles[0] + 360
+    out.push({ a, b })
+  }
+  return out
+}
+
+interface TileBlocksProps {
   cx: number
   cy: number
   coord: string
@@ -467,70 +490,25 @@ interface TileBuildingsProps {
   rotation: number
 }
 
-/** Renders the building footprints that line a tile's streets. */
-function TileBuildings({ cx, cy, coord, tileType, rotation }: TileBuildingsProps) {
+/** Solid building blocks filling the hex between the streets (drawn under the roads). */
+function TileBlocks({ cx, cy, coord, tileType, rotation }: TileBlocksProps) {
   const wedges = tileWedges(openEdges(tileType, rotation))
-    .filter(w => w.widthDeg >= 26)  // skip slivers too thin for a building
-  if (wedges.length === 0) return null
-
   const seed = hashCoord(coord)
   return (
     <g aria-hidden="true">
-      {wedges.map((w, i) => (
-        <Building key={i} cx={cx} cy={cy} bisDeg={w.bisDeg} widthDeg={w.widthDeg} seed={seed + i * 7} />
-      ))}
-    </g>
-  )
-}
-
-interface BuildingProps {
-  cx: number
-  cy: number
-  bisDeg: number
-  widthDeg: number
-  seed: number
-}
-
-/** A single top-down building footprint, oriented to face the street wedge. */
-function Building({ cx, cy, bisDeg, widthDeg, seed }: BuildingProps) {
-  const rad = (bisDeg * Math.PI) / 180
-  const R = HEX_SIZE * 0.55            // distance from cell centre to footprint centre
-  const bx = cx + R * Math.cos(rad)
-  const by = cy + R * Math.sin(rad)
-
-  const w = HEX_SIZE * clamp(widthDeg / 130, 0.34, 0.92)  // tangential size scales with the lot
-  const d = HEX_SIZE * 0.30                               // radial depth
-  const body = BUILDING_BODIES[seed % BUILDING_BODIES.length]
-
-  // Window grid (drawn in the footprint's local space, before rotation).
-  const cols = clamp(Math.round(w / 5), 2, 5)
-  const rows = 2
-  const winSize = 1.7
-  const windows: { x: number; y: number; lit: boolean }[] = []
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const wx = -w / 2 + (w / (cols + 1)) * (c + 1)
-      const wy = -d / 2 + (d / (rows + 1)) * (r + 1)
-      windows.push({ x: wx, y: wy, lit: (seed + r * cols + c) % 6 === 0 })
-    }
-  }
-
-  return (
-    <g transform={`translate(${bx.toFixed(2)},${by.toFixed(2)}) rotate(${(bisDeg + 90).toFixed(2)})`}>
-      <rect
-        x={(-w / 2).toFixed(2)} y={(-d / 2).toFixed(2)}
-        width={w.toFixed(2)} height={d.toFixed(2)} rx={1}
-        fill={body} stroke="#15110a" strokeWidth={0.8}
-      />
-      {windows.map((win, i) => (
-        <rect
-          key={i}
-          x={(win.x - winSize / 2).toFixed(2)} y={(win.y - winSize / 2).toFixed(2)}
-          width={winSize} height={winSize}
-          fill={win.lit ? WINDOW_LIT : WINDOW_DARK}
-          opacity={win.lit ? 0.9 : 0.8}
-        />
-      ))}
+      {wedges.map(({ a, b }, i) => {
+        // Sector polygon: centre → boundary(a) → hex corners between → boundary(b).
+        // The two straight sides run along the street centrelines and are covered
+        // by the asphalt drawn on top, leaving each block bounded by sidewalks.
+        const points = [
+          `${cx.toFixed(2)},${cy.toFixed(2)}`,
+          boundaryPoint(cx, cy, a),
+          ...cornersBetween(a, b).map(c => boundaryPoint(cx, cy, c)),
+          boundaryPoint(cx, cy, b),
+        ].join(' ')
+        const shade = CITY_BLOCK_CLASSES[(seed + i) % CITY_BLOCK_CLASSES.length]
+        return <polygon key={i} points={points} className={`${styles.cityBlock} ${shade}`} />
+      })}
     </g>
   )
 }

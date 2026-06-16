@@ -52,11 +52,21 @@
   --status-error:   #b53a2f;  /* blood red */
   --status-info:    #e08a2c;  /* ember */
 
-  /* ── City-street tile palette — cracked asphalt, worn concrete curbs, faded lines.
-        Tuned to read clearly on the dark ash board ground. ── */
-  --road-asphalt: #3f3a33;        /* cracked road surface */
-  --road-curb: #6b6253;           /* worn concrete curb / sidewalk */
+  /* ── Top-down city tile palette ──
+        Layered read (darkest → lightest): asphalt street < building block < sidewalk.
+        Buildings are the solid fill; the light curb band is the sidewalk. ── */
+  --road-asphalt: #312d27;        /* street surface (darkest) */
+  --road-curb: #837a66;           /* concrete sidewalk (lightest) */
   --road-lane: #c9a94e;           /* faded, weathered lane line */
-  --road-asphalt-fixed: #443b2c;  /* pre-placed (fixed) road — warmer, packed-earth tint */
-  --road-curb-fixed: color-mix(in srgb, var(--accent) 35%, #6b6253);
+  --road-asphalt-fixed: #2c2b22;  /* pre-placed (fixed) street — cooler tint */
+  --road-curb-fixed: color-mix(in srgb, var(--accent) 22%, #837a66);
+
+  /* Building block shades — warm concrete/brick, mid-tone so the darker streets and
+     lighter sidewalks stand out. Varied per cell for distinct adjacent buildings. */
+  --city-1: #585040;
+  --city-2: #4f4736;
+  --city-3: #615645;
+  --city-4: #4a4233;
+  --city-5: #574c3a;
+  --city-wall: #2a2418;           /* party-wall / block outline */
 }
