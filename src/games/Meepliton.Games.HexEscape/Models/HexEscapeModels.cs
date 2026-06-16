@@ -48,17 +48,18 @@ public static class HexEscapeConstants
     /// <summary>JSONB growth safety cap. Structurally fixed for v2.</summary>
     public const int MaxZombies = 200;
 
-    /// <summary>Non-zombie, non-exit tiles dealt per player at CreateInitialState (DD3). Balance TBD.</summary>
-    public const int StartingHandSize = 2;
+    /// <summary>Non-zombie, non-exit tiles dealt per player at CreateInitialState (DD3, D2). Balance TBD.</summary>
+    public const int StartingHandSize = 1;
 
-    /// <summary>Top fraction of raw pool guaranteed zombie/exit-free (DD3, F2). Balance TBD.</summary>
-    public const double SafeOpeningFraction = 0.30;
+    /// <summary>Top fraction of raw pool guaranteed zombie/exit-free (DD3, F2, D2). Balance TBD.</summary>
+    public const double SafeOpeningFraction = 0.20;
 
     /// <summary>
-    /// AP granted per turn; index = player count (1–6). Higher for low counts (DD2, F7).
+    /// AP granted per turn; index = player count (1–6). Higher for solo (DD2, F7, D2).
+    /// Raised 4–6p from 3 to 4 so every player count has ≥2 discretionary AP above MinActionsPerTurn=2.
     /// Balance TBD by playtest.
     /// </summary>
-    public static readonly int[] ApPoolSize = [0, 5, 4, 4, 3, 3, 3];
+    public static readonly int[] ApPoolSize = [0, 5, 4, 4, 4, 4, 4];
 
     /// <summary>
     /// Zombies spawned per round boundary; index = player count (1–6).
@@ -68,10 +69,18 @@ public static class HexEscapeConstants
 
     /// <summary>
     /// Exit tile placed randomly in the last X fraction of the deck (post-deal);
-    /// higher fraction = earlier exit for low counts (DD2, F7).
+    /// higher fraction = earlier exit for low counts (DD2, F7, D2).
+    /// Raised mid counts so exit surfaces earlier (3p fix: 0.30→0.40).
     /// Index = player count (1–6). Balance TBD by playtest.
     /// </summary>
-    public static readonly double[] ExitBandFraction = [0.0, 0.50, 0.35, 0.30, 0.28, 0.26, 0.25];
+    public static readonly double[] ExitBandFraction = [0.0, 0.50, 0.40, 0.40, 0.35, 0.32, 0.30];
+
+    /// <summary>
+    /// Minimum deck-position gap between any two zombie tiles in the middle band during
+    /// construction (D2, AC-v2-1b). Prevents difficulty cliffs from clustered zombie draws.
+    /// Best-effort when band is too small to honour the gap. Balance TBD.
+    /// </summary>
+    public const int ZombieTileMinSpacing = 2;
 
     // ── Deck composition table (AD-OB-12) ────────────────────────────────────
     // postDealSize[count], zombieTiles[count] — indexed by player count 1–6.

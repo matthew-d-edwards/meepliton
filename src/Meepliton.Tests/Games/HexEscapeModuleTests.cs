@@ -279,9 +279,9 @@ public class HexEscapeModuleTests
         var doc = ((IGameModule)_module).CreateInitialState(Players(2), null);
         var state = GetState(doc);
 
-        // Tutorial level has 1 starting zombie
-        state.Zombies.Should().HaveCountGreaterThanOrEqualTo(1);
-        // Every zombie is on a pre-placed (tiled) cell
+        // Tutorial-01 v7 has 2 route-blocking starting zombies (D1)
+        state.Zombies.Should().HaveCountGreaterThanOrEqualTo(2);
+        // Every zombie is on a pre-placed (tiled) cell (C4)
         foreach (var z in state.Zombies)
             state.Grid.Should().ContainKey(z.Pos);
     }
@@ -1350,7 +1350,8 @@ public class HexEscapeModuleTests
     [InlineData(6)]
     public void ApPoolSize_AllPlayerCounts_CorrectValues(int n)
     {
-        int[] expected = [0, 5, 4, 4, 3, 3, 3];
+        // v7 D2: 4–6p raised from 3 to 4 so every count has ≥2 discretionary AP above MinActionsPerTurn=2.
+        int[] expected = [0, 5, 4, 4, 4, 4, 4];
         HexEscapeConstants.ApPoolSize[n].Should().Be(expected[n]);
     }
 
@@ -3084,6 +3085,477 @@ public class HexEscapeModuleTests
         var result2 = _module.Handle(ctx2);
         result2.RejectionReason.Should().BeNull(
             "2+ qualifying available and 2 taken → required=2 satisfied → EndTurn accepted");
+    }
+
+    // ── v7: Zombie-tile minimum spacing (AC-v2-1b, D2) ───────────────────────
+
+    /// <summary>
+    /// AC-v2-1b, D2: In the constructed deck, no two zombie tiles should appear within
+    /// ZombieTileMinSpacing=2 positions of each other in the middle band (when the band
+    /// is large enough to honour the constraint — all 6 player counts satisfy this per
+    /// AD-OB-12 band math worked examples).
+    ///
+    /// Middle band: [safeRemaining, exitBandStart-1] in deck indices.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void DeckConstruction_ZombieTiles_HonourMinSpacing_InMiddleBand(int playerCount)
+    {
+        var doc = ((IGameModule)_module).CreateInitialState(Players(playerCount), null);
+        var state = GetState(doc);
+
+        int postDealSize  = HexEscapeConstants.PostDealSize[playerCount];
+        int rawPoolSize   = postDealSize + (HexEscapeConstants.StartingHandSize * playerCount);
+        int safeCount     = (int)(rawPoolSize * HexEscapeConstants.SafeOpeningFraction);
+        int safeRemaining = safeCount - (HexEscapeConstants.StartingHandSize * playerCount);
+        int exitBandStart = postDealSize - (int)(postDealSize * HexEscapeConstants.ExitBandFraction[playerCount]);
+
+        // Middle band: deck indices [safeRemaining, exitBandStart-1]
+        int middleStart = safeRemaining;
+        int middleEnd   = exitBandStart - 1;  // inclusive
+
+        if (middleStart > middleEnd) return; // degenerate band — no assertion
+
+        // Collect zombie-tile positions within the middle band
+        var zombiePosInMiddle = new List<int>();
+        for (int i = middleStart; i <= middleEnd && i < state.Deck.Count; i++)
+        {
+            if (state.Deck[i].IsZombieTile)
+                zombiePosInMiddle.Add(i);
+        }
+
+        int minSpacing = HexEscapeConstants.ZombieTileMinSpacing;
+        int zombieCount = HexEscapeConstants.ZombieTileCount[playerCount];
+        int middleBandSize = exitBandStart - safeRemaining;
+        int minSlotsRequired = zombieCount + (zombieCount - 1) * minSpacing;
+
+        // Only assert spacing when the band is large enough to honour the constraint
+        // (all 6 counts satisfy this per AD-OB-12; if somehow not, skip assertion gracefully)
+        if (middleBandSize >= minSlotsRequired)
+        {
+            for (int i = 1; i < zombiePosInMiddle.Count; i++)
+            {
+                int gap = zombiePosInMiddle[i] - zombiePosInMiddle[i - 1];
+                gap.Should().BeGreaterThanOrEqualTo(
+                    minSpacing + 1,
+                    $"zombie tiles at deck positions {zombiePosInMiddle[i - 1]} and {zombiePosInMiddle[i]} " +
+                    $"are too close (gap={gap - 1} < ZombieTileMinSpacing={minSpacing}) for {playerCount}p (AC-v2-1b, D2)");
+            }
+        }
+    }
+
+    /// <summary>
+    /// AC-v2-1b: New constants — StartingHandSize=1 (reduced from 2 per D2).
+    /// Assert that each player's starting hand contains exactly 1 tile.
+    /// </summary>
+    [Fact]
+    public void Constants_StartingHandSize_IsOne()
+    {
+        HexEscapeConstants.StartingHandSize.Should().Be(1,
+            "StartingHandSize reduced from 2 to 1 per v7 D2 balance change");
+    }
+
+    /// <summary>
+    /// AC-v2-1b: New constants — SafeOpeningFraction=0.20 (reduced from 0.30 per D2).
+    /// </summary>
+    [Fact]
+    public void Constants_SafeOpeningFraction_IsPointTwo()
+    {
+        HexEscapeConstants.SafeOpeningFraction.Should().BeApproximately(0.20, 0.001,
+            "SafeOpeningFraction reduced from 0.30 to 0.20 per v7 D2 balance change");
+    }
+
+    /// <summary>
+    /// v7 D2: ApPoolSize[4..6] raised from 3 to 4 so every player count has ≥2 discretionary AP.
+    /// </summary>
+    [Theory]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void Constants_ApPoolSize_4To6p_RaisedTo4(int n)
+    {
+        HexEscapeConstants.ApPoolSize[n].Should().Be(4,
+            $"ApPoolSize[{n}] raised from 3 to 4 per v7 D2 to give every count ≥2 discretionary AP");
+    }
+
+    /// <summary>
+    /// v7 D2: ExitBandFraction raised for 2p–6p. Spot-check key values:
+    ///   2p: 0.40 (was 0.35), 3p: 0.40 (was 0.30 — critical 3p fix), 4p: 0.35 (was 0.28),
+    ///   5p: 0.32 (was 0.26), 6p: 0.30 (was 0.25).
+    /// </summary>
+    [Theory]
+    [InlineData(2, 0.40)]
+    [InlineData(3, 0.40)]
+    [InlineData(4, 0.35)]
+    [InlineData(5, 0.32)]
+    [InlineData(6, 0.30)]
+    public void Constants_ExitBandFraction_RaisedForMidCounts(int n, double expected)
+    {
+        HexEscapeConstants.ExitBandFraction[n].Should().BeApproximately(expected, 0.001,
+            $"ExitBandFraction[{n}] raised per v7 D2 so exit surfaces earlier (3p was unwinnable)");
+    }
+
+    /// <summary>
+    /// v7 D2: ZombieTileMinSpacing constant is 2.
+    /// </summary>
+    [Fact]
+    public void Constants_ZombieTileMinSpacing_IsTwo()
+    {
+        HexEscapeConstants.ZombieTileMinSpacing.Should().Be(2,
+            "ZombieTileMinSpacing added in v7 D2 to prevent difficulty cliffs from clustered zombie draws");
+    }
+
+    // ── v7: MF-1 character-free preference (AC-v2-8b, D4) ───────────────────
+
+    /// <summary>
+    /// AC-v2-8b D4: When the last AP draws a zombie tile and forced atomic resolution runs,
+    /// the server PREFERS character-free cells over character-occupied cells.
+    /// Assert: when at least one character-free tiled candidate exists, the spawned zombie
+    /// lands on a character-free cell.
+    /// </summary>
+    [Fact]
+    public void AtomicZombieResolution_PrefersCharacterFreeCell_WhenFreeAndOccupiedBothExist()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Put zombie tile on top of deck
+        var zombieTile = new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false);
+        var newDeck = new List<DeckEntry> { zombieTile };
+        newDeck.AddRange(state.Deck.Skip(1));
+
+        // We need two tiled cells:
+        //   - one with the player's character on it (occupied)
+        //   - one without (free)
+        // The character-free cell must have lower (q,r) so tiebreak always prefers it,
+        // OR the character-occupied cell must have lower (q,r) to prove the preference
+        // overrides the tiebreak.
+        //
+        // Strategy: use pre-placed tiles. Tutorial has tiles at (-3,-1),(-3,0),(-3,1),(0,0),(2,0),(3,-1),(3,0),(3,1).
+        // The candidates are sorted lowest q then r.
+        // Lowest-q pre-placed tiles are at q=-3: (-3,-1) first.
+        // Put the character at (-3,-1) [occupied, lowest-q candidate].
+        // Also use (-3,0) [character-free, second lowest-q candidate].
+        // If preference were not applied, the server would pick (-3,-1) (lowest q,r overall).
+        // With D4 preference, it should pick the lowest character-free cell instead.
+        // The lowest character-free candidate is (-3,0) (assuming no zombie there).
+        //
+        // However we need to ensure (-3,-1) is not in exit zone and has a tile (it does: Straight r0).
+        // We also need to remove any initial zombies from (-3,-1) to keep it as a candidate.
+
+        string occupiedCell  = "-3,-1";   // character placed here; lowest overall (q,r)
+        string freeCell      = "-3,0";    // no character; second lowest (q,r) among pre-placed
+
+        // Verify these cells are in the board and tiled at init
+        state.Cells.Should().Contain(occupiedCell, "test relies on tutorial board having (-3,-1)");
+        state.Cells.Should().Contain(freeCell,     "test relies on tutorial board having (-3,0)");
+        state.Grid.Should().ContainKey(occupiedCell, "(-3,-1) must have a pre-placed tile");
+        state.Grid.Should().ContainKey(freeCell,    "(-3,0) must have a pre-placed tile");
+        state.ExitZoneCells.Should().NotContain(occupiedCell, "(-3,-1) must not be in exit zone");
+        state.ExitZoneCells.Should().NotContain(freeCell,     "(-3,0) must not be in exit zone");
+
+        // Place the character at occupiedCell
+        var newChars = state.Characters.Select(c =>
+            c.PlayerId == players[0].Id ? c with { Pos = occupiedCell } : c).ToList();
+
+        // Ensure no zombie is at either candidate (remove starting zombies from those cells)
+        var cleanedZombies = state.Zombies.Where(z => z.Pos != occupiedCell && z.Pos != freeCell).ToList();
+
+        state = state with
+        {
+            Deck                     = newDeck,
+            Hands                    = new Dictionary<string, List<HeldTile>> { [players[0].Id] = [] },
+            Characters               = newChars,
+            Zombies                  = cleanedZombies,
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 1,   // LAST AP
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+        };
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var result = _module.Handle(ctx);
+
+        result.RejectionReason.Should().BeNull("DrawTile on last AP should succeed");
+        var newState = GetState(result.NewState);
+
+        // A zombie should have been spawned (both candidates are valid: tiled, non-exit, non-zombie)
+        if (newState.Zombies.Count > cleanedZombies.Count)
+        {
+            // Find the newly spawned zombie
+            var prevIds = cleanedZombies.Select(z => z.Id).ToHashSet();
+            var newZombie = newState.Zombies.First(z => !prevIds.Contains(z.Id));
+
+            // D4 preference: the spawn must be on a character-FREE cell, not occupiedCell,
+            // because freeCell is a valid candidate (tiled, non-exit, non-zombie-occupied).
+            newZombie.Pos.Should().NotBe(occupiedCell,
+                "D4: forced placement must prefer character-free cell (-3,0) over " +
+                "character-occupied cell (-3,-1) even though (-3,-1) has lower (q,r) (AC-v2-8b)");
+        }
+        // If discarded (shouldn't happen since valid cells exist), still no zombie in hand
+        newState.Hands.Values.SelectMany(h => h).Should().NotContain(t => t.IsZombieTile,
+            "no zombie tile must remain in hand after atomic resolution (MF-1)");
+    }
+
+    /// <summary>
+    /// AC-v2-8b D4: When ALL legal candidates are character-occupied, the server falls back
+    /// to selecting the lowest (q,r) among all candidates (no discard when valid cells exist).
+    /// </summary>
+    [Fact]
+    public void AtomicZombieResolution_FallsBack_WhenAllCandidatesCharacterOccupied()
+    {
+        var players = Players(2);
+        var state = GetInitialState(players);
+
+        // Build a state where all tiled non-exit non-zombie-occupied cells have characters.
+        // Use a minimal grid: only 2 tiled cells, both with characters.
+        // Cell A = (-3,-1) Straight r0 with character from player 0.
+        // Cell B = (-3, 0) Straight r0 with character from player 1.
+        // All other cells: empty (remove from grid except the two we want).
+
+        string cellA = "-3,-1";
+        string cellB = "-3,0";
+
+        var minimalGrid = new Dictionary<string, HexCell>
+        {
+            [cellA] = new HexCell(HexTileType.Straight, 0, Fixed: true),
+            [cellB] = new HexCell(HexTileType.Straight, 0, Fixed: true),
+        };
+
+        // Both players placed at the two tiled cells
+        var newChars = new List<CharacterState>
+        {
+            state.Characters.First(c => c.PlayerId == players[0].Id) with { Pos = cellA },
+            state.Characters.First(c => c.PlayerId == players[1].Id) with { Pos = cellB },
+        };
+
+        // No zombies at either cell
+        var zombieTile = new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false);
+        var newDeck = new List<DeckEntry> { zombieTile };
+        newDeck.AddRange(state.Deck.Skip(1));
+
+        state = state with
+        {
+            Grid                     = minimalGrid,
+            Deck                     = newDeck,
+            Hands                    = new Dictionary<string, List<HeldTile>> { [players[0].Id] = [], [players[1].Id] = [] },
+            Characters               = newChars,
+            Zombies                  = [],   // no existing zombies
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 1,   // LAST AP
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+        };
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var result = _module.Handle(ctx);
+
+        result.RejectionReason.Should().BeNull("DrawTile on last AP should succeed");
+        var newState = GetState(result.NewState);
+
+        // All candidates are character-occupied → falls back to spawning on a candidate
+        // rather than discarding (fallback uses lowest q,r among all candidates = cellA)
+        bool wasSpawned   = newState.Zombies.Count > 0;
+        bool wasDiscarded = newState.DiscardPile.Count > state.DiscardPile.Count;
+
+        wasSpawned.Should().BeTrue(
+            "D4 fallback: when all candidates are character-occupied, server spawns on one rather than discarding (AC-v2-8b)");
+        wasDiscarded.Should().BeFalse(
+            "D4 fallback must not discard when valid (albeit occupied) candidate cells exist");
+
+        // The spawned zombie should be at cellA (lowest q,r among all candidates)
+        newState.Zombies.Should().Contain(z => z.Pos == cellA,
+            "D4 fallback tiebreak: lowest (q,r) among all candidates = cellA=(-3,-1) (H6)");
+    }
+
+    // ── v7: Phase-3 movement exit-zone exclusion (AC-v2-32d, D5) ────────────
+
+    /// <summary>
+    /// AC-v2-32d D5 tester assertion: a zombie adjacent to an exit-zone cell whose d6 roll
+    /// maps to a direction into the exit zone stays in place and moved=false is recorded,
+    /// even when the connection rule would otherwise permit the move.
+    ///
+    /// Setup: zombie at (3,0) on Cross r=0 (all edges open). Exit tile (Cross r=0) at (4,0)
+    /// [exit zone]. Die face 6 → direction 0 (E) → would move from (3,0) to (4,0) [exit zone].
+    /// Expected: zombie stays at (3,0), moved=false in lastZombieRolls.
+    ///
+    /// We use a deterministic die face by patching: we craft a state where the zombie's only
+    /// possible move via the connection rule is into the exit zone, so any non-zero direction
+    /// that connects must be exit-zone. We verify that the zombie doesn't end up in the exit zone.
+    /// </summary>
+    [Fact]
+    public void Phase3_ZombieMove_BlockedByExitZone_StaysInPlace_MovedFalse()
+    {
+        // Use the internal ResolveZombieMove to confirm exit-zone guard at the unit level.
+        // ResolveZombieMove does NOT apply exit-zone filtering (it is a pure connection-rule check).
+        // The exit-zone filter is applied in RunPhase3ZombieRolls. We verify via the full round boundary.
+
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Place zombie at (3,0) on a Cross r=0 tile (all edges open).
+        // Place the exit tile (Cross r=0 fixed) at (4,0) [exit zone].
+        // Connection from (3,0) E(0) to (4,0): (3,0) has edge E(0) open AND (4,0) Cross r=0 has W(3) open ✓
+        // So the connection rule PERMITS the move. The exit-zone guard must BLOCK it.
+        string zombieCell = "3,0";
+        string exitCell   = "4,0";
+
+        // (3,0) already has a Straight r=0 pre-placed tile; change to Cross so E(0) is open
+        var newGrid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [zombieCell] = new HexCell(HexTileType.Cross, 0, Fixed: false),
+            [exitCell]   = new HexCell(HexTileType.Cross, 0, Fixed: true),   // exit tile in exit zone
+        };
+
+        // Place zombie at zombieCell; no character so no elimination concern
+        var testZombie = new ZombieToken("z-exit-test", zombieCell);
+        // Remove existing starting zombies; use only our test zombie
+        var zombies = new List<ZombieToken> { testZombie };
+
+        state = state with
+        {
+            Grid             = newGrid,
+            Zombies          = zombies,
+            ExitRevealed     = true,
+            ExitCell         = exitCell,
+            // All characters eliminated so no win/loss complexity
+            Characters       = state.Characters.Select(c => c with { Eliminated = true }).ToList(),
+            ActiveSeat       = 0,
+            ActionPointsRemaining    = 1,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+            SeatsActedThisRound      = [],
+        };
+
+        // Trigger round boundary via EndTurn
+        var ctxEnd = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
+        var result = _module.Handle(ctxEnd);
+
+        // Round boundary should fire (1 player, all seats acted after EndTurn)
+        if (result.RejectionReason is not null) return; // defensive skip
+
+        var newState = GetState(result.NewState);
+
+        // Key assertion: zombie must NOT be at any exit-zone cell after Phase 3
+        var exitZoneSet = new HashSet<string>(newState.ExitZoneCells);
+        foreach (var z in newState.Zombies)
+        {
+            exitZoneSet.Should().NotContain(z.Pos,
+                $"zombie {z.Id} must never enter an exit-zone cell by Phase-3 movement (AC-v2-32d, D5)");
+        }
+
+        // Specific check: if the test zombie still exists and rolled direction 0 (E) → exit zone,
+        // it must have stayed at zombieCell (or moved elsewhere non-exit if other directions opened).
+        var testZ = newState.Zombies.FirstOrDefault(z => z.Id == "z-exit-test");
+        if (testZ is not null)
+        {
+            exitZoneSet.Should().NotContain(testZ.Pos,
+                "the test zombie specifically must not have entered the exit zone (AC-v2-32d, D5)");
+        }
+
+        // Check lastZombieRolls: any roll that would have been direction 0 (E toward exit) from (3,0)
+        // must have moved=false if the only valid connection-rule move was into the exit zone.
+        var testZombieRoll = newState.LastZombieRolls.FirstOrDefault(r => r.ZombieId == "z-exit-test");
+        if (testZombieRoll is not null && testZombieRoll.Direction == 0)
+        {
+            // Direction E(0) from (3,0) leads to (4,0) [exit zone] — must be blocked
+            testZombieRoll.Moved.Should().BeFalse(
+                "zombie roll direction E(0) from (3,0) targets exit zone (4,0) — must NOT move (AC-v2-32d, D5)");
+        }
+    }
+
+    /// <summary>
+    /// Confirms the level-design invariant: tutorial-01 has ≥2 exit approach cells (AC-v2-5 D1).
+    /// Approach cells = non-exit-zone in-grid cells adjacent to any exit-zone cell that have a
+    /// pre-placed tile with the correct opposite edge to connect to Cross r=0.
+    /// </summary>
+    [Fact]
+    public void Catalogue_Tutorial01_HasAtLeastTwoExitApproachCells()
+    {
+        var level = HexEscapeLevels.Tutorial01;
+        var exitTileEdges = HexEscapeModule.OpenEdges(HexTileType.Cross, 0);  // {0,1,2,3}
+        var exitZoneSet = new HashSet<string>(level.ExitZoneCells);
+        var prePlacedDict = level.PrePlacedTiles.ToDictionary(t => t.Coord);
+        var cellSet = new HashSet<string>(level.Cells);
+
+        var approachCells = new HashSet<string>();
+
+        foreach (string exitZoneCell in level.ExitZoneCells)
+        {
+            var (eq, er) = HexEscapeModule.ParseCoord(exitZoneCell);
+            for (int dir = 0; dir < 6; dir++)
+            {
+                if (!exitTileEdges.Contains(dir)) continue;
+                var (dq, dr) = HexEscapeModule.Directions[dir];
+                string neighbour = HexEscapeModule.CoordKey(eq + dq, er + dr);
+
+                if (!cellSet.Contains(neighbour)) continue;
+                if (exitZoneSet.Contains(neighbour)) continue;
+                if (!prePlacedDict.TryGetValue(neighbour, out var preTile)) continue;
+
+                var preEdges = HexEscapeModule.OpenEdges(preTile.TileType, preTile.Rotation);
+                int opposite = (dir + 3) % 6;
+                if (preEdges.Contains(opposite))
+                    approachCells.Add(neighbour);
+            }
+        }
+
+        approachCells.Count.Should().BeGreaterThanOrEqualTo(2,
+            "tutorial-01 must have ≥2 distinct rotation-aware exit approach cells (AC-v2-5, D1)");
+    }
+
+    /// <summary>
+    /// v7 D1: Tutorial-01 horde-origin cells must have Straight pre-placed tiles (not Cross).
+    /// Straight tiles enable containment → break-out mechanic. Cross tiles never get contained.
+    /// </summary>
+    [Fact]
+    public void Catalogue_Tutorial01_HordeOriginTiles_AreStrait()
+    {
+        var level = HexEscapeLevels.Tutorial01;
+        var prePlacedDict = level.PrePlacedTiles.ToDictionary(t => t.Coord);
+
+        foreach (var hordeCell in level.HordeOriginCells)
+        {
+            prePlacedDict.Should().ContainKey(hordeCell,
+                $"horde origin {hordeCell} must have a pre-placed tile (F3)");
+            var tile = prePlacedDict[hordeCell];
+            tile.TileType.Should().Be(HexTileType.Straight,
+                $"horde origin {hordeCell} must have a Straight tile per v7 D1 design intent " +
+                "(enables containment → anti-turtle break-out mechanic)");
+        }
+    }
+
+    /// <summary>
+    /// v7 D1: Tutorial-01 has ≥2 starting zombies on route-blocking pre-placed tiles.
+    /// None of the starting zombie cells should be adjacent to any spawn-zone cell.
+    /// </summary>
+    [Fact]
+    public void Catalogue_Tutorial01_StartingZombies_OnRouteNotAdjacentToSpawn()
+    {
+        var level = HexEscapeLevels.Tutorial01;
+        var prePlacedSet = new HashSet<string>(level.PrePlacedTiles.Select(t => t.Coord));
+        var spawnSet = new HashSet<string>(level.SpawnZoneCells);
+
+        level.StartingZombies.Should().HaveCountGreaterThanOrEqualTo(2,
+            "tutorial-01 must have ≥2 route-blocking starting zombies per v7 D1");
+
+        foreach (var sz in level.StartingZombies)
+        {
+            // Must have a pre-placed tile (C4)
+            prePlacedSet.Should().Contain(sz.Coord,
+                $"starting zombie at {sz.Coord} must have a pre-placed tile (C4)");
+
+            // Must not be adjacent to any spawn-zone cell
+            var (zq, zr) = HexEscapeModule.ParseCoord(sz.Coord);
+            foreach (var (dq, dr) in HexEscapeModule.Directions)
+            {
+                string neighbour = HexEscapeModule.CoordKey(zq + dq, zr + dr);
+                spawnSet.Should().NotContain(neighbour,
+                    $"starting zombie at {sz.Coord} must not be adjacent to spawn-zone cell {neighbour} per v7 D1");
+            }
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

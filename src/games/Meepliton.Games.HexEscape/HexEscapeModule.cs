@@ -322,24 +322,89 @@ public class HexEscapeModule : IGameModule, IGameHandler
         int middleBandSize = exitBandStart - safeRemainingCount;
         int exitBandSize = postDealSize - exitBandStart;
 
-        // Zombie tiles: go into middle band
-        // Normal fill for middle band
-        var middleNormals = new List<DeckEntry>();
-        for (int i = 0; i < middleBandSize - zombieTileCount && remainingNormal.Count > 0; i++)
+        // ── Middle band construction (AC-v2-1b step 5: zombie minimum spacing) ──
+        // Build the middle band as an array; place zombie tiles at spaced intervals,
+        // fill remaining slots with normal tiles.
+        var middleBand = new DeckEntry?[middleBandSize];
+
+        if (zombieTileCount > 0 && middleBandSize > 0)
         {
-            if (remainingNormal.Count == 0) break;
-            middleNormals.Add(remainingNormal[0]);
-            remainingNormal.RemoveAt(0);
+            // Check whether the band is large enough to honour ZombieTileMinSpacing.
+            // Minimum slots needed: zombieTileCount slots for zombies plus (zombieTileCount-1)
+            // gaps of ZombieTileMinSpacing each → zombieTileCount + (zombieTileCount-1)*ZombieTileMinSpacing.
+            int minSlotsRequired = zombieTileCount + (zombieTileCount - 1) * HexEscapeConstants.ZombieTileMinSpacing;
+            if (middleBandSize < minSlotsRequired)
+            {
+                // Band too small — best effort: place zombie tiles at uniform random positions
+                _logger?.LogWarning(
+                    "HexEscape: zombie tile spacing constraint could not be satisfied for {PlayerCount}p — band too small",
+                    playerCount);
+                // Shuffle normal+zombie tiles uniformly
+                var middleNormalsSmall = new List<DeckEntry>();
+                for (int i = 0; i < middleBandSize - zombieTileCount && remainingNormal.Count > 0; i++)
+                {
+                    middleNormalsSmall.Add(remainingNormal[0]);
+                    remainingNormal.RemoveAt(0);
+                }
+                var zombieEntriesSmall = Enumerable.Range(0, zombieTileCount)
+                    .Select(_ => new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false))
+                    .ToList();
+                var middleMixed = middleNormalsSmall.Concat(zombieEntriesSmall).ToList();
+                while (middleMixed.Count < middleBandSize)
+                    middleMixed.Add(new DeckEntry(HexTileType.Straight, IsZombieTile: false, IsExitTile: false));
+                Shuffle(middleMixed, Random.Shared);
+                for (int i = 0; i < middleBandSize; i++)
+                    middleBand[i] = middleMixed[i];
+            }
+            else
+            {
+                // Distribute zombie tiles at roughly even intervals with small random jitter,
+                // enforcing a minimum gap of ZombieTileMinSpacing between consecutive zombie positions.
+                // interval = (bandSize - zombieTileCount) / zombieTileCount ≈ spacing between zombies
+                // Place zombie i at approx: i * (bandSize / zombieTileCount), then jitter within interval.
+                // Use a greedy approach: track lastZombiePos, for each zombie compute candidate position
+                // as basePos + jitter in [0, maxJitter], clamped so gap >= ZombieTileMinSpacing.
+                double interval = (double)middleBandSize / zombieTileCount;
+                int lastZombiePos = -HexEscapeConstants.ZombieTileMinSpacing - 1; // before band start
+
+                for (int zi = 0; zi < zombieTileCount; zi++)
+                {
+                    // Earliest valid position: lastZombiePos + ZombieTileMinSpacing + 1
+                    int earliest = lastZombiePos + HexEscapeConstants.ZombieTileMinSpacing + 1;
+                    // Latest valid position: leave room for remaining zombies
+                    int latest = middleBandSize - 1 - (zombieTileCount - zi - 1) * (HexEscapeConstants.ZombieTileMinSpacing + 1);
+                    // Clamp latest so it's in range
+                    latest = Math.Min(latest, middleBandSize - 1);
+                    earliest = Math.Max(earliest, 0);
+
+                    // Ideal base position (centre of this zombie's interval)
+                    int basePos = (int)(zi * interval + interval / 2.0);
+                    basePos = Math.Max(earliest, Math.Min(latest, basePos));
+
+                    // Apply random jitter within [earliest, latest]
+                    int jitterRange = latest - earliest + 1;
+                    int zombiePos = earliest + (jitterRange > 0 ? Random.Shared.Next(jitterRange) : 0);
+                    // Ensure zombie position doesn't conflict with basePos constraint — just use jittered
+                    lastZombiePos = zombiePos;
+                    middleBand[zombiePos] = new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false);
+                }
+            }
         }
 
-        var zombieEntries = Enumerable.Range(0, zombieTileCount)
-            .Select(_ => new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false))
-            .ToList();
-        var middleBand = middleNormals.Concat(zombieEntries).ToList();
-        // Pad if needed
-        while (middleBand.Count < middleBandSize)
-            middleBand.Add(new DeckEntry(HexTileType.Straight, IsZombieTile: false, IsExitTile: false));
-        Shuffle(middleBand, Random.Shared);
+        // Fill remaining middle band slots with normal tiles
+        for (int i = 0; i < middleBandSize; i++)
+        {
+            if (middleBand[i] is not null) continue;
+            if (remainingNormal.Count > 0)
+            {
+                middleBand[i] = remainingNormal[0];
+                remainingNormal.RemoveAt(0);
+            }
+            else
+            {
+                middleBand[i] = new DeckEntry(HexTileType.Straight, IsZombieTile: false, IsExitTile: false);
+            }
+        }
 
         // Exit band: exit tile + normal fill
         var exitBand = new List<DeckEntry?>(new DeckEntry?[exitBandSize]);
@@ -361,7 +426,7 @@ public class HexEscapeModule : IGameModule, IGameHandler
         // Assemble the post-deal deck
         var deck = new List<DeckEntry>(postDealSize);
         deck.AddRange(safeRemaining);
-        deck.AddRange(middleBand);
+        deck.AddRange(middleBand.Select(e => e!));
         deck.AddRange(exitBand.Select(e => e!));
 
         // AC-v2-1: initial state
@@ -615,15 +680,32 @@ public class HexEscapeModule : IGameModule, IGameHandler
     // ── MF-1: Atomic zombie resolution ───────────────────────────────────────
 
     /// <summary>
-    /// AC-v2-8b: When a zombie tile is drawn as the last AP, resolve forced placement
-    /// ATOMICALLY. Find the first valid in-grid tiled non-exit-zone non-zombie-occupied cell
-    /// (lowest q, then lowest r — H6 numeric ordering). Spawn or discard.
-    /// Increments qualifyingActionsThisTurn by 1. Does NOT decrement AP below 0.
+    /// AC-v2-8b, D4: When a zombie tile is drawn as the last AP, resolve forced placement
+    /// ATOMICALLY. Among legal candidate cells (in-grid, tiled, non-exit-zone, not zombie-occupied),
+    /// PREFER cells with NO character on them; only fall back to a character-occupied cell if EVERY
+    /// candidate is character-occupied. Deterministic tiebreak (lowest q, then lowest r — H6 numeric
+    /// ordering) applies WITHIN the preferred (character-free) subset first.
+    /// Spawn or discard. Increments qualifyingActionsThisTurn by 1. Does NOT decrement AP below 0.
     /// </summary>
     private HexEscapeState AtomicZombieResolution(HexEscapeState state, PlayerSlot actor)
     {
-        var candidates = GetZombieSpawnCandidates(state);
-        var target = candidates.FirstOrDefault();  // already numerically ordered (H6)
+        var candidates = GetZombieSpawnCandidates(state);  // numerically ordered (H6)
+
+        string? target = null;
+        if (candidates.Count > 0)
+        {
+            // D4: prefer character-free cells; tiebreak lowest q then r within the preferred subset
+            var characterPositions = state.Characters
+                .Where(c => c.Pos is not null && !c.Eliminated)
+                .Select(c => c.Pos!)
+                .ToHashSet();
+
+            var characterFree = candidates.Where(c => !characterPositions.Contains(c)).ToList();
+            // candidates already sorted by (q,r) ascending; characterFree preserves that order
+            target = characterFree.Count > 0
+                ? characterFree.First()   // lowest (q,r) among character-free
+                : candidates.First();     // fallback: lowest (q,r) among all (all occupied)
+        }
 
         if (target is not null)
         {
