@@ -236,8 +236,8 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
           </h1>
           <div className={styles.gameOverSub}>
             {escaped
-              ? 'All survivors reached the exit. Great teamwork!'
-              : 'The zombie horde overwhelmed all survivors.'}
+              ? 'All characters reached the exit. Great teamwork!'
+              : 'The zombie horde eliminated all characters.'}
           </div>
           <div className={styles.gameOverStats}>
             <div className={styles.gameOverStat}>
@@ -249,7 +249,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
               <div className={styles.gameOverStatValue}>{state.roundNumber}</div>
             </div>
             <div className={styles.gameOverStat}>
-              <div className={styles.gameOverStatLabel}>Exit Connected</div>
+              <div className={styles.gameOverStatLabel}>Exit reach</div>
               <div className={styles.gameOverStatValue}>{state.exitConnectedCount}</div>
             </div>
           </div>
@@ -389,7 +389,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
           {/* Zombie obligation banner */}
           {hasZombieObligation && (
             <div className={styles.zombieBanner} role="status" aria-live="polite">
-              You drew a zombie tile — click an occupied non-exit cell to spawn a zombie there.
+              You drew a zombie tile — click a tiled, non-exit cell without a zombie to spawn one there.
             </div>
           )}
 
@@ -688,7 +688,7 @@ function ActionPicker({ picker, myHand, onSelectType, onSetRotation, onConfirm, 
         {picker.kind === 'move' && (
           <div className={styles.movePickerNote}>
             Move your character to {picker.toCoord}.
-            {' '}The server will validate the connection rule.
+            {' '}The move is only allowed along an open pipe connection.
           </div>
         )}
 
@@ -788,7 +788,7 @@ function ZombieRollOverlay({ rolls, onDone, onFocusChange }: ZombieRollOverlayPr
       }}
     >
       <div className={styles.zombieOverlayCard} ref={cardRef}>
-        <div id={titleId} className={styles.zombieOverlayTitle}>Zombie Movement</div>
+        <div id={titleId} className={styles.zombieOverlayTitle}>Zombie movement</div>
         <div className={styles.zombieRollList}>
           {rolls.map((roll) => (
             <div

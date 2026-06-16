@@ -1,7 +1,7 @@
 ---
 id: story-035
 title: Add Hex Escape co-op game module (Outbreak — v2)
-status: refined
+status: in-review
 created: 2026-06-15
 updated: 2026-06-16
 ---
@@ -16,11 +16,22 @@ Every current game module is competitive. Hex Escape is the first co-op title. v
 
 ## v2 supersedes v1
 
-The v1 implementation on branch `add-hexescape-game` is superseded. v2 rewrites `HexEscapeModule.cs`, `Models/HexEscapeModels.cs`, `HexEscapeLevels.cs`, `types.ts`, `Game.tsx`, and `HexEscapeModuleTests.cs` in place on branch `claude/hex-pipe-zombie-coop-mtlx2m`. The hex geometry, tile model, connection rule, `HexBoard` rendering, `SetupOptions`/level-selector mechanism, and the platform fixes from v1 (AD-9, ADR-012, ADR-013) all carry forward unchanged.
+The v1 implementation on branch `add-hexescape-game` is fully superseded. v2 rewrites `HexEscapeModule.cs`, `Models/HexEscapeModels.cs`, `HexEscapeLevels.cs`, `types.ts`, `Game.tsx`, and `HexEscapeModuleTests.cs` in place on branch `claude/hex-pipe-zombie-coop-mtlx2m`. The hex geometry, tile model, connection rule, `HexBoard` rendering, `SetupOptions`/level-selector mechanism, and the platform fixes from v1 (AD-9, ADR-012, ADR-013) all carry forward unchanged.
+
+## Status note
+
+Implementation is complete and in review on branch `claude/hex-pipe-zombie-coop-mtlx2m`.
+
+**This story cannot be marked `done` until:**
+- CI passes for the full build on this branch (build + `dotnet test`)
+- All 79 acceptance criteria (AC-v2-1 through AC-v2-79 in `docs/specs/hexescape.md`) are covered by passing tests
+- architect, ally, and docs review gates are cleared
+
+CI cannot run in this environment. Do not set `status: done` until CI is confirmed green.
 
 ## Acceptance criteria
 
-See `docs/specs/hexescape.md` for the full Given/When/Then criteria (AC-v2-1 through AC-v2-29).
+See `docs/specs/hexescape.md` for the full Given/When/Then criteria (AC-v2-1 through AC-v2-79).
 
 ## Notes
 
