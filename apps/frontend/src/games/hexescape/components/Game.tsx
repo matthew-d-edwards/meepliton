@@ -16,6 +16,8 @@ import styles from '../styles.module.css'
 // ── Constants (must match HexEscapeConstants.cs) ───────────────────────────────
 
 const MIN_ACTIONS_PER_TURN = 2
+// Mirror of HexEscapeConstants.ApPoolSize — AP granted on claiming a turn, indexed by player count.
+const AP_POOL_SIZE = [0, 5, 4, 4, 4, 4, 4]
 const TILE_LABELS: Record<HexTileType, string> = {
   Straight: 'Straight',
   Elbow:    'Elbow',
@@ -70,6 +72,16 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
     ? state.players.find(p => p.seatIndex === state.activeSeat)
     : null
 
+  // Seat claiming (AC-v2-6): when no seat is active and I haven't acted this round,
+  // my first action claims the turn. The board must be interactive in this state too —
+  // otherwise the first player can never place their first tile.
+  const canClaimTurn =
+    state.phase === 'Actions' &&
+    state.activeSeat === null &&
+    mySeat >= 0 &&
+    !myHasActedThisRound
+  const isMyTurn = isMyActiveTurn || canClaimTurn
+
   // Track previous values to detect changes and drive screen-reader announcements.
   // Initialised from current state so reconnecting mid-game does not fire false alerts.
   const prevExitRevealedRef = useRef(state.exitRevealed)
@@ -106,8 +118,13 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   prevExitRevealedRef.current = state.exitRevealed
   prevMyCharEliminatedRef.current = myCharEliminated
 
-  // AP display
-  const ap = isMyActiveTurn ? state.actionPointsRemaining : 0
+  // AP display. When claiming (not yet active), the seat will receive the full AP pool
+  // on the first dispatched action, so treat AP as available for interaction gating.
+  const ap = isMyActiveTurn
+    ? state.actionPointsRemaining
+    : canClaimTurn
+    ? (AP_POOL_SIZE[state.players.length] ?? 0)
+    : 0
   const qualActions = isMyActiveTurn ? state.qualifyingActionsThisTurn : 0
 
   // Character positions for board rendering
@@ -124,7 +141,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   // "opens a picker" branches. Drives aria-disabled on the board so keyboard/screen-reader
   // users aren't sent to dead cells with no feedback.
   const actionableCoords = new Set<string>()
-  if (isMyActiveTurn && ap > 0) {
+  if (isMyTurn && ap > 0) {
     const hasPlaceableTile = myHand.some(h => !h.isZombieTile)
     for (const coord of state.cells) {
       const cell = state.grid[coord]
@@ -152,7 +169,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   }
 
   function handleDrawTile() {
-    if (!isMyActiveTurn || ap === 0) return
+    if (!isMyTurn || ap === 0) return
     send({ type: 'DrawTile' })
   }
 
@@ -164,7 +181,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   // ── Cell click logic ─────────────────────────────────────────────────────────
 
   function handleCellClick(coord: string) {
-    if (!isMyActiveTurn || ap === 0) return
+    if (!isMyTurn || ap === 0) return
 
     // If holding zombie tile: show zombie placement picker
     if (hasZombieObligation) {
@@ -291,9 +308,9 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   })()
 
   // Draw disabled
-  const drawDisabled = !isMyActiveTurn || ap === 0 || hasZombieObligation || myHand.filter(h => !h.isZombieTile).length >= 3
+  const drawDisabled = !isMyTurn || ap === 0 || hasZombieObligation || myHand.filter(h => !h.isZombieTile).length >= 3
   const drawDisabledReason: string | null = (() => {
-    if (!isMyActiveTurn) return 'Not your turn'
+    if (!isMyTurn) return 'Not your turn'
     if (hasZombieObligation) return 'Place your zombie tile first'
     if (myHand.filter(h => !h.isZombieTile).length >= 3) return 'Hand is full'
     if (ap === 0) return 'No action points remaining'
@@ -434,7 +451,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
             myReservedSpawnCell={myReservedSpawn}
             myCharacterPlaced={myCharPlaced}
             onCellClick={handleCellClick}
-            canInteract={isMyActiveTurn && ap > 0}
+            canInteract={isMyTurn && ap > 0}
             actionableCoords={actionableCoords}
             exitJustRevealed={exitBannerVisible}
           />
@@ -499,7 +516,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
       </div>
 
       {/* ── Pickers ── */}
-      {picker && isMyActiveTurn && (
+      {picker && isMyTurn && (
         <ActionPicker
           picker={picker}
           myHand={myHand}
