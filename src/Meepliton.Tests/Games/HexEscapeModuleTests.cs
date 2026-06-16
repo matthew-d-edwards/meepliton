@@ -280,7 +280,7 @@ public class HexEscapeModuleTests
         var state = GetState(doc);
 
         // Tutorial level has 1 starting zombie
-        state.Zombies.Should().HaveCountGreaterOrEqualTo(1);
+        state.Zombies.Should().HaveCountGreaterThanOrEqualTo(1);
         // Every zombie is on a pre-placed (tiled) cell
         foreach (var z in state.Zombies)
             state.Grid.Should().ContainKey(z.Pos);
@@ -379,7 +379,7 @@ public class HexEscapeModuleTests
         int exitBandStart = postDealSize - (int)(postDealSize * HexEscapeConstants.ExitBandFraction[playerCount]);
         int exitPos = state.Deck.FindIndex(e => e.IsExitTile);
 
-        exitPos.Should().BeGreaterOrEqualTo(exitBandStart);
+        exitPos.Should().BeGreaterThanOrEqualTo(exitBandStart);
         exitPos.Should().BeLessThan(postDealSize);
     }
 
@@ -431,7 +431,7 @@ public class HexEscapeModuleTests
     {
         foreach (var level in HexEscapeLevels.All.Values)
         {
-            level.SpawnZoneCells.Count.Should().BeGreaterOrEqualTo(6,
+            level.SpawnZoneCells.Count.Should().BeGreaterThanOrEqualTo(6,
                 $"level '{level.Id}' spawnZoneCells.Count must be >= MaxPlayers (6)");
         }
     }
@@ -540,7 +540,7 @@ public class HexEscapeModuleTests
     [InlineData(6)]
     public void Constants_ApPoolSize_AtLeastMinActionsPerTurn(int playerCount)
     {
-        HexEscapeConstants.ApPoolSize[playerCount].Should().BeGreaterOrEqualTo(
+        HexEscapeConstants.ApPoolSize[playerCount].Should().BeGreaterThanOrEqualTo(
             HexEscapeConstants.MinActionsPerTurn,
             $"ApPoolSize[{playerCount}] must be >= MinActionsPerTurn (AC-v2-5)");
     }
@@ -557,7 +557,7 @@ public class HexEscapeModuleTests
         // Solo gets 0.50, highest of all player counts (F7)
         HexEscapeConstants.ExitBandFraction[1].Should().Be(0.50);
         for (int n = 2; n <= 6; n++)
-            HexEscapeConstants.ExitBandFraction[n].Should().BeLessOrEqualTo(HexEscapeConstants.ExitBandFraction[1]);
+            HexEscapeConstants.ExitBandFraction[n].Should().BeLessThanOrEqualTo(HexEscapeConstants.ExitBandFraction[1]);
     }
 
     // ── Seat claiming and AP model ────────────────────────────────────────────
@@ -1569,7 +1569,7 @@ public class HexEscapeModuleTests
 
         // Exit tile in exit band [exitBandStart, postDealSize-1]
         int exitPos = state.Deck.FindIndex(e => e.IsExitTile);
-        exitPos.Should().BeGreaterOrEqualTo(exitBandStart,
+        exitPos.Should().BeGreaterThanOrEqualTo(exitBandStart,
             $"exit tile must be at or after exitBandStart={exitBandStart} for {playerCount} players");
         exitPos.Should().BeLessThan(postDealSize,
             "exit tile must be within deck bounds");
@@ -1590,7 +1590,7 @@ public class HexEscapeModuleTests
         // Middle band can hold all zombie tiles:
         //   middle band = [safeRemaining, exitBandStart-1]
         int middleBandSize = exitBandStart - safeRemaining;
-        middleBandSize.Should().BeGreaterOrEqualTo(zombieCount,
+        middleBandSize.Should().BeGreaterThanOrEqualTo(zombieCount,
             $"middle band must be >= ZombieTileCount[{playerCount}] (AD-OB-12)");
     }
 
@@ -1715,7 +1715,7 @@ public class HexEscapeModuleTests
                     {
                         var finalState = GetState(rEnd2.NewState);
                         if (finalState.Phase == HexEscapePhase.GameOver) return; // loss; can't assert rolls
-                        finalState.LastZombieRolls.Count.Should().BeGreaterOrEqualTo(0);
+                        finalState.LastZombieRolls.Count.Should().BeGreaterThanOrEqualTo(0);
                         foreach (var roll in finalState.LastZombieRolls)
                         {
                             roll.Direction.Should().BeInRange(0, 5,
@@ -2322,7 +2322,7 @@ public class HexEscapeModuleTests
     {
         for (int n = 1; n <= 6; n++)
         {
-            HexEscapeConstants.ApPoolSize[n].Should().BeGreaterOrEqualTo(
+            HexEscapeConstants.ApPoolSize[n].Should().BeGreaterThanOrEqualTo(
                 HexEscapeConstants.MinActionsPerTurn,
                 $"ApPoolSize[{n}] must be >= MinActionsPerTurn for AP exhaustion to be satisfiable (AC-v2-5)");
         }
