@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { GameContext } from '@meepliton/contracts'
 import type { HexEscapeState, HexEscapeAction, HexTileType, PlayerSlot } from '../types'
 import { HexBoard } from './HexBoard'
@@ -98,20 +98,18 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
     const escaped = state.outcome === 'Escaped'
     return (
       <div data-game-theme="hexescape" className={styles.root}>
-        <div aria-live="assertive" aria-atomic="true" className="sr-only">
+        <div role="alert" aria-atomic="true" className="sr-only">
           {escaped ? 'Escaped! All survivors reached the exit.' : 'Overrun! The threat counter maxed out.'}
         </div>
         <div className={styles.gameOverCard}>
-          <div
+          <h1
             className={[
               styles.gameOverTitle,
               escaped ? styles.gameOverTitleEscaped : styles.gameOverTitleOverrun,
             ].join(' ')}
-            role="heading"
-            aria-level={1}
           >
             {escaped ? 'Escaped!' : 'Overrun!'}
-          </div>
+          </h1>
           <div className={styles.gameOverSub}>
             {escaped
               ? 'All survivors found a path to safety.'
@@ -158,21 +156,34 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
       {/* ── Header strip ── */}
       <div className={styles.header}>
         <div className={styles.levelName}>{state.levelName}</div>
-        <div className={styles.survivorRow} aria-label={`Survivors connected: ${state.connectedSurvivors} of ${state.totalSurvivors}`}>
+        <div className={styles.survivorRow} aria-label={`Survivors connected: ${state.connectedSurvivors} of ${state.totalSurvivors}${allConnected ? ' — all connected' : ''}`}>
           <span className={allConnected ? styles.survivorCountAll : styles.survivorCount}>
             {state.connectedSurvivors}/{state.totalSurvivors}
           </span>
           <span>survivors connected</span>
+          {allConnected && (
+            <span className={styles.survivorAllBadge} aria-hidden="true">all</span>
+          )}
         </div>
-        <div className={styles.threatWrap} aria-label={`Threat: ${state.threatCounter} of ${state.threatThreshold}`}>
+        <div className={styles.threatWrap} aria-label={`Threat: ${state.threatCounter} of ${state.threatThreshold}${threatDanger ? ' — danger' : ''}`}>
           <span className={styles.threatLabel}>Threat</span>
-          <div className={styles.threatBar} role="progressbar" aria-valuenow={state.threatCounter} aria-valuemin={0} aria-valuemax={state.threatThreshold}>
+          <div
+            className={styles.threatBar}
+            role="progressbar"
+            aria-valuenow={state.threatCounter}
+            aria-valuemin={0}
+            aria-valuemax={state.threatThreshold}
+            aria-label={`Threat level: ${state.threatCounter} of ${state.threatThreshold}${threatDanger ? ', danger' : ''}`}
+          >
             <div
               className={[styles.threatFill, threatDanger ? styles.threatFillDanger : ''].filter(Boolean).join(' ')}
               style={{ width: `${threatPct}%` }}
             />
           </div>
-          <span className={styles.threatCount}>{state.threatCounter}/{state.threatThreshold}</span>
+          <span className={styles.threatCount}>
+            {threatDanger && <span aria-hidden="true" className={styles.threatDangerIcon}>!</span>}
+            {state.threatCounter}/{state.threatThreshold}
+          </span>
         </div>
       </div>
 
@@ -319,16 +330,56 @@ function TilePicker({ pending, handCounts, onSelectType, onSetRotation, onConfir
   const isPlace = pending.mode === 'place'
   const canConfirm = isPlace ? pending.tileType !== null : true
 
+  // Move focus into the dialog when it opens; return focus to the trigger on close.
+  const cardRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const firstFocusable = cardRef.current?.querySelector<HTMLElement>(
+      'button:not(:disabled), [tabindex]:not([tabindex="-1"])'
+    )
+    firstFocusable?.focus()
+  }, [])
+
+  // Trap focus inside the dialog
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Escape') {
+      onCancel()
+      return
+    }
+    if (e.key !== 'Tab') return
+    const focusable = Array.from(
+      cardRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), [tabindex]:not([tabindex="-1"])'
+      ) ?? []
+    )
+    if (focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (e.shiftKey) {
+      if (document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      }
+    } else {
+      if (document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+  }
+
+  const titleId = `tile-picker-title-${pending.coord.replace(',', '-')}`
+
   return (
     <div
       className={styles.pickerOverlay}
       role="dialog"
       aria-modal="true"
-      aria-label={isPlace ? 'Place a tile' : 'Rotate tile'}
+      aria-labelledby={titleId}
       onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
+      onKeyDown={handleKeyDown}
     >
-      <div className={styles.pickerCard}>
-        <div className={styles.pickerTitle}>
+      <div className={styles.pickerCard} ref={cardRef}>
+        <div id={titleId} className={styles.pickerTitle}>
           {isPlace ? `Place Tile on ${pending.coord}` : `Rotate Tile on ${pending.coord}`}
         </div>
 

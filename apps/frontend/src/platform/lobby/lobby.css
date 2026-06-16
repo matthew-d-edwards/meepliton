@@ -349,7 +349,7 @@
 }
 
 .game-card-option-select {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 var(--space-2);
   border-radius: 6px;
   border: 1px solid var(--edge-subtle);

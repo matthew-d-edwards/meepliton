@@ -104,6 +104,13 @@
   white-space: nowrap;
 }
 
+.threatDangerIcon {
+  font-weight: 900;
+  color: var(--status-error);
+  margin-right: 3px;
+  font-style: normal;
+}
+
 /* ── Survivor counter ── */
 .survivorRow {
   display: flex;
@@ -122,6 +129,18 @@
 .survivorCountAll {
   color: var(--accent);
   text-shadow: var(--glow-sm) var(--accent-glow);
+}
+
+.survivorAllBadge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent-glow);
+  border-radius: var(--radius-pill);
+  padding: 1px 5px;
 }
 
 /* ── Hex board ── */
@@ -358,8 +377,8 @@
 }
 
 .rotBtn {
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--edge-strong);
   background: none;
@@ -486,7 +505,7 @@
   text-transform: uppercase;
   cursor: pointer;
   transition: all 150ms;
-  min-height: 40px;
+  min-height: 44px;
 }
 
 .btnPass:hover:not(:disabled) {

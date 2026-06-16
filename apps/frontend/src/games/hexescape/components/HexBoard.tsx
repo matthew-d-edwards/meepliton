@@ -115,7 +115,7 @@ export function HexBoard({ state, onCellClick, canInteract }: HexBoardProps) {
         width={Math.min(600, vbW * 2)}
         height={Math.min(500, vbH * 2)}
         aria-label="Hex Escape board"
-        role="img"
+        role="group"
       >
         <title>Hex Escape game board</title>
 
