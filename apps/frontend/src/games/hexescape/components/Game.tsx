@@ -9,7 +9,7 @@ import type {
   CharacterState,
   PlayerSlot,
 } from '../types'
-import { HexBoard } from './HexBoard'
+import { HexBoard, openEdges } from './HexBoard'
 import '../hexescape.css'
 import styles from '../styles.module.css'
 
@@ -38,6 +38,7 @@ type PickerMode =
 export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEscapeState>) {
   const [picker, setPicker] = useState<PickerMode | null>(null)
   const [zombieAnimPhase, setZombieAnimPhase] = useState<'idle' | 'showing'>('idle')
+  const [exitBannerVisible, setExitBannerVisible] = useState(false)
 
   // Trigger zombie animation when lastZombieRolls changes (round boundary).
   // The auto-dismiss timer only fires when the overlay is not focused — keyboard
@@ -88,6 +89,19 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   const myCharEliminated = (state.characters.find(c => c.playerId === myPlayerId)?.eliminated ?? false)
   const exitJustRevealed = state.exitRevealed && !prevExitRevealedRef.current
   const justEliminated = myCharEliminated && !prevMyCharEliminatedRef.current
+
+  // Show exit banner when exit is newly revealed; auto-dismiss after 4s
+  useEffect(() => {
+    if (state.exitRevealed && !prevExitRevealedRef.current) {
+      setExitBannerVisible(true)
+      const timer = setTimeout(() => setExitBannerVisible(false), 4000)
+      return () => clearTimeout(timer)
+    }
+  // We need prevExitRevealedRef.current's value at effect time — we read it before the ref
+  // is updated below, so state.exitRevealed changing is the correct trigger.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.exitRevealed])
+
   // Update refs after deriving the "just changed" flags
   prevExitRevealedRef.current = state.exitRevealed
   prevMyCharEliminatedRef.current = myCharEliminated
@@ -214,6 +228,14 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
     setPicker(null)
   }
 
+  // For rotate mode, look up the current tile type from the grid to drive the preview
+  const pickerPreviewTileType: HexTileType | null = (() => {
+    if (!picker) return null
+    if (picker.kind === 'place') return picker.tileType
+    if (picker.kind === 'rotate') return state.grid[picker.coord]?.tileType ?? null
+    return null
+  })()
+
   // ── Game Over screen ─────────────────────────────────────────────────────────
 
   if (state.phase === 'GameOver') {
@@ -242,14 +264,14 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
           <div className={styles.gameOverStats}>
             <div className={styles.gameOverStat}>
               <div className={styles.gameOverStatLabel}>Level</div>
-              <div className={styles.gameOverStatValue} style={{ fontSize: '1rem' }}>{state.levelName}</div>
+              <div className={[styles.gameOverStatValue, styles.gameOverStatValueSmall].join(' ')}>{state.levelName}</div>
             </div>
             <div className={styles.gameOverStat}>
-              <div className={styles.gameOverStatLabel}>Round</div>
+              <div className={styles.gameOverStatLabel}>Rounds survived</div>
               <div className={styles.gameOverStatValue}>{state.roundNumber}</div>
             </div>
             <div className={styles.gameOverStat}>
-              <div className={styles.gameOverStatLabel}>Exit reach</div>
+              <div className={styles.gameOverStatLabel}>Characters at exit</div>
               <div className={styles.gameOverStatValue}>{state.exitConnectedCount}</div>
             </div>
           </div>
@@ -298,6 +320,11 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
           : null}
       </div>
 
+      {/* Exit reveal ceremony banner — sighted players */}
+      {exitBannerVisible && (
+        <ExitRevealBanner onDismiss={() => setExitBannerVisible(false)} />
+      )}
+
       {/* Zombie animation overlay */}
       {zombieAnimPhase === 'showing' && state.lastZombieRolls.length > 0 && (
         <ZombieRollOverlay
@@ -314,8 +341,8 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
           Round {state.roundNumber}
         </div>
         {state.exitRevealed && (
-          <div className={styles.exitConnected} aria-label={`${state.exitConnectedCount} characters connected to exit`}>
-            <span className={styles.exitConnectedLabel}>Exit reach</span>
+          <div className={styles.exitConnected} aria-label={`${state.exitConnectedCount} characters at exit`}>
+            <span className={styles.exitConnectedLabel}>At exit</span>
             <span className={styles.exitConnectedCount}>{state.exitConnectedCount}</span>
           </div>
         )}
@@ -409,6 +436,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
             onCellClick={handleCellClick}
             canInteract={isMyActiveTurn && ap > 0}
             actionableCoords={actionableCoords}
+            exitJustRevealed={exitBannerVisible}
           />
         </div>
 
@@ -475,6 +503,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
         <ActionPicker
           picker={picker}
           myHand={myHand}
+          previewTileType={pickerPreviewTileType}
           onSelectType={(t) => {
             if (picker.kind === 'place') setPicker({ ...picker, tileType: t })
           }}
@@ -491,6 +520,34 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
           onCancel={cancelPicker}
         />
       )}
+    </div>
+  )
+}
+
+// ── Exit reveal banner ─────────────────────────────────────────────────────────
+
+interface ExitRevealBannerProps {
+  onDismiss: () => void
+}
+
+function ExitRevealBanner({ onDismiss }: ExitRevealBannerProps) {
+  return (
+    <div
+      className={styles.exitRevealBanner}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <span className={styles.exitRevealBannerIcon} aria-hidden="true">E</span>
+      <span className={styles.exitRevealBannerText}>EXIT REVEALED — reach it to escape!</span>
+      <button
+        className={styles.exitRevealBannerDismiss}
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss exit revealed notification"
+      >
+        ✕
+      </button>
     </div>
   )
 }
@@ -545,7 +602,7 @@ function PlayerRow({ player, hasActed, isActive, isMe, charState, handCount, apR
       )}
       <span className={styles.playerName}>
         {player.displayName}
-        {isMe && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}> (you)</span>}
+        {isMe && <span className={styles.playerNameYou}> (you)</span>}
       </span>
       <div className={styles.playerMeta}>
         {eliminated && <span className={styles.badgeEliminated}>out</span>}
@@ -562,18 +619,91 @@ function PlayerRow({ player, hasActed, isActive, isMe, charState, handCount, apR
   )
 }
 
+// ── TilePreview — inline SVG hex showing pipe edges at chosen rotation ─────────
+
+// We derive edge midpoints using our own preview-size geometry rather than
+// reusing HexBoard's size-bound helpers, keeping the preview self-contained.
+
+const PREVIEW_HEX_SIZE = 28  // slightly smaller than board cells (HEX_SIZE = 32)
+const PREVIEW_SQRT3 = Math.sqrt(3)
+const PREVIEW_VIEWBOX_HALF = PREVIEW_HEX_SIZE + 6  // small padding around the hex
+
+function previewHexCorners(cx: number, cy: number): string {
+  const pts: string[] = []
+  for (let i = 0; i < 6; i++) {
+    const angleRad = (Math.PI / 180) * (60 * i)
+    pts.push(`${(cx + PREVIEW_HEX_SIZE * Math.cos(angleRad)).toFixed(2)},${(cy + PREVIEW_HEX_SIZE * Math.sin(angleRad)).toFixed(2)}`)
+  }
+  return pts.join(' ')
+}
+
+function previewEdgeMidpoint(cx: number, cy: number, dir: number): { x: number; y: number } {
+  const angle = (Math.PI / 180) * (60 * dir)
+  const inradius = PREVIEW_HEX_SIZE * (PREVIEW_SQRT3 / 2)
+  return { x: cx + inradius * Math.cos(angle), y: cy + inradius * Math.sin(angle) }
+}
+
+interface TilePreviewProps {
+  tileType: HexTileType | null
+  rotation: number
+}
+
+function TilePreview({ tileType, rotation }: TilePreviewProps) {
+  const cx = 0
+  const cy = 0
+  const vbHalf = PREVIEW_VIEWBOX_HALF
+  const corners = previewHexCorners(cx, cy)
+
+  return (
+    <svg
+      className={styles.tilePreviewSvg}
+      viewBox={`${-vbHalf} ${-vbHalf} ${vbHalf * 2} ${vbHalf * 2}`}
+      aria-hidden="true"
+    >
+      <polygon points={corners} className={styles.tilePreviewHex} />
+      {tileType && (
+        <>
+          {openEdges(tileType, rotation).map(dir => {
+            const mid = previewEdgeMidpoint(cx, cy, dir)
+            return (
+              <line
+                key={dir}
+                x1={cx.toFixed(2)}
+                y1={cy.toFixed(2)}
+                x2={mid.x.toFixed(2)}
+                y2={mid.y.toFixed(2)}
+                className={styles.tilePreviewPath}
+              />
+            )
+          })}
+          <circle
+            cx={cx}
+            cy={cy}
+            r={PREVIEW_HEX_SIZE * 0.1}
+            fill="var(--neon-cyan)"
+            opacity={0.7}
+          />
+        </>
+      )}
+    </svg>
+  )
+}
+
 // ── ActionPicker modal ────────────────────────────────────────────────────────
 
 interface ActionPickerProps {
   picker: PickerMode
   myHand: HeldTile[]
+  /** Tile type to show in the rotation preview (null for place mode before a type is chosen,
+   *  or when the picker does not support a visual preview). */
+  previewTileType: HexTileType | null
   onSelectType: (t: HexTileType) => void
   onSetRotation: (delta: number) => void
   onConfirm: () => void
   onCancel: () => void
 }
 
-function ActionPicker({ picker, myHand, onSelectType, onSetRotation, onConfirm, onCancel }: ActionPickerProps) {
+function ActionPicker({ picker, myHand, previewTileType, onSelectType, onSetRotation, onConfirm, onCancel }: ActionPickerProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   // Auto-focus first focusable element on open
@@ -692,28 +822,35 @@ function ActionPicker({ picker, myHand, onSelectType, onSetRotation, onConfirm, 
           </div>
         )}
 
-        {/* Rotation control */}
+        {/* Rotation section: visual tile preview + rotation controls */}
         {showRotationControl && currentRotation !== null && (
-          <div className={styles.rotationWrap}>
-            <span className={styles.rotLabel}>Rotation</span>
-            <button
-              className={styles.rotBtn}
-              onClick={() => onSetRotation(-1)}
-              aria-label="Rotate counter-clockwise"
-            >
-              &#8635;
-            </button>
-            <span className={styles.rotValue} aria-label={`Rotation: ${currentRotation} of 5`}>
-              {currentRotation}
-            </span>
-            <button
-              className={styles.rotBtn}
-              onClick={() => onSetRotation(+1)}
-              aria-label="Rotate clockwise"
-            >
-              &#8634;
-            </button>
-            <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>× 60°</span>
+          <div className={styles.rotationSection}>
+            {/* Visual pipe preview — decorative, aria-hidden on the SVG itself */}
+            <div className={styles.tilePreviewWrap}>
+              <TilePreview tileType={previewTileType} rotation={currentRotation} />
+            </div>
+
+            <div className={styles.rotationWrap}>
+              <span className={styles.rotLabel}>Rotation</span>
+              <button
+                className={styles.rotBtn}
+                onClick={() => onSetRotation(-1)}
+                aria-label="Rotate counter-clockwise"
+              >
+                &#8635;
+              </button>
+              <span className={styles.rotValue} aria-label={`Rotation: ${currentRotation} of 5`}>
+                {currentRotation}
+              </span>
+              <button
+                className={styles.rotBtn}
+                onClick={() => onSetRotation(+1)}
+                aria-label="Rotate clockwise"
+              >
+                &#8634;
+              </button>
+              <span className={styles.rotNote}>× 60°</span>
+            </div>
           </div>
         )}
 
