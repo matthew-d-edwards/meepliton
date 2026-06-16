@@ -13,4 +13,5 @@ export const gameRegistry: Record<string, () => Promise<{ default: AnyGameModule
   coup: () => import('./coup'),
   loveletter: () => import('./loveletter'),
   coloretto: () => import('./coloretto'),
+  hexescape: () => import('./hexescape'),
 }
