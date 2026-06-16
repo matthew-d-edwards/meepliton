@@ -287,7 +287,7 @@ The host chooses a level when creating the room. v2 ships one level:
 
 | ID | Name | Board | Description |
 |---|---|---|---|
-| `tutorial-01` | The Outbreak | 9 × 5 hex grid (45 cells) | One starting zombie at the centre. Spawn zone on the left, exit zone on the right. Three horde-origin cells anchor the zombie supply. |
+| `tutorial-01` | The Outbreak | 9 × 5 hex grid (45 cells) | Two starting zombies on the main route (at the centre and two steps east). Spawn zone on the left, exit zone set back from the right edge. Three horde-origin cells anchor the zombie supply. |
 
 If no level is chosen, **The Outbreak** (`tutorial-01`) is used.
 
@@ -299,8 +299,8 @@ If no level is chosen, **The Outbreak** (`tutorial-01`) is used.
 
 - Alice (seat 0) is assigned spawn cell `(-4, 0)`.
 - Bob (seat 1) is assigned spawn cell `(-4, -1)`.
-- Both start with 2 tiles in hand, dealt from the safe zone.
-- One zombie starts at `(0, 0)`, which has a pre-placed Cross tile.
+- Both start with 1 tile in hand, dealt from the safe zone.
+- Two zombies start on the board: one at `(0, 0)` and one at `(2, 0)`, each on a pre-placed Cross tile.
 
 **Round 1, Alice's turn:**
 
@@ -319,9 +319,10 @@ qualifying actions — and ends his turn.
 **Round boundary:**
 
 Both seats have acted. Zombie movement begins. The zombie at `(0, 0)` rolls a 4
-— direction 4 is SW `(-1, +1)`. The Cross tile is open in direction 4 and the
-neighbouring cell `(-1, 1)` has a pre-placed Cross tile with direction 1 (NE,
-the opposite) open. The zombie moves to `(-1, 1)`. Round 2 starts.
+— direction 4 is SW `(-1, +1)`. The Cross tile at `(0, 0)` is open in direction
+4. If the neighbouring cell `(-1, 1)` already has a tile (placed by Alice or Bob
+during the round) with direction 1 (NE, the opposite) open, the connection rule
+is satisfied and the zombie moves there. Otherwise it stays put. Round 2 starts.
 
 **Later — exit revealed:**
 
@@ -348,4 +349,4 @@ characters to win.
 ---
 
 *Hex Escape is Meepliton's first co-op game. See `docs/specs/hexescape.md` for
-the full specification and acceptance criteria (AC-v2-1 through AC-v2-79).*
+the full specification and acceptance criteria (82 ACs total, AC-v2-1 through AC-v2-54).*
