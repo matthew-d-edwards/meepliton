@@ -1273,6 +1273,7 @@ public class HexEscapeModule : IGameModule, IGameHandler
         // Iterate ALL zombies alive at START of Phase 3 (includes Phase-2 spawns)
         var zombiesToMove = state.Zombies.ToList();  // snapshot at phase 3 start
         var cellSet = new HashSet<string>(state.Cells);
+        var exitZoneSet = new HashSet<string>(state.ExitZoneCells);
         var rolls = new List<ZombieRoll>();
 
         foreach (var zombie in zombiesToMove.OrderBy(z => z.Id))
@@ -1294,7 +1295,10 @@ public class HexEscapeModule : IGameModule, IGameHandler
                     var (dq, dr) = Directions[direction];
                     var newPos = CoordKey(zq + dq, zr + dr);
 
-                    if (cellSet.Contains(newPos) && state.Grid.ContainsKey(newPos))
+                    // Zombies may never enter an exit-zone cell, by any mechanism
+                    // (mirrors the spawn-path guards; preserves the exit-zone invariant
+                    // so a zombie can't squat on the exit cell and block the win).
+                    if (cellSet.Contains(newPos) && state.Grid.ContainsKey(newPos) && !exitZoneSet.Contains(newPos))
                     {
                         var neighbourTile = state.Grid[newPos];
                         int opposite = (direction + 3) % 6;
