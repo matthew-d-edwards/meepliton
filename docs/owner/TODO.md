@@ -8,6 +8,10 @@ Actions that only you can take. Agents add items here when they are blocked or n
 
 _Nothing urgent yet._
 
+## Hex Escape (Outbreak) — v2 known limitations
+
+- [ ] **2026-06-16** Hex Escape v2 ships with a known limitation: a disconnected player's seat stalls the round indefinitely (no auto-skip, no turn timer). This is acceptable for the current friend-group context but must be fixed before the game is opened to a broader audience. A follow-up story must add auto-skip or a per-seat turn timer. A `[Fact(Skip=...)]` test in `HexEscapeModuleTests.cs` documents the gap. Do not mark the hexescape game as publicly available until this is resolved. — blocks public launch of hexescape. (analyst)
+
 ## Needs your decision
 
 - [x] **2026-03-26** Admin portal — OQ-ADMIN-01: the request said "force reset a user". This spec interprets that as sending an admin-triggered password reset email. If you meant **account deletion** (hard delete or anonymisation), story-031b needs to be redesigned before backend work begins. Confirm: password reset email, or account deletion? — **Resolved 2026-03-26: "Force reset" means password reset email. Account deletion is separately supported via `DELETE /api/admin/users/{userId}`.** (analyst)
