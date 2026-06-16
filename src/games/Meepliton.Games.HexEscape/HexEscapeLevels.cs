@@ -25,7 +25,9 @@ namespace Meepliton.Games.HexEscape;
 ///   - hordeOriginCells ∩ spawnZoneCells = ∅ (H7)
 ///   - hordeOriginCells ∩ exitZoneCells = ∅
 ///   - spawnZoneCells ∩ exitZoneCells = ∅
-///   - structurally solvable (exit cross r0 connects to ≥2 non-exit-zone approach cells)
+///   - structurally solvable (exit cross r0 connects to ≥2 non-exit-zone approach cells
+///     against the SINGLE DETERMINISTIC exit cell — AC-v2-19/AC-v2-5 v8)
+///   - every zombie-hosting cell and every hordeOriginCell has a Cross r0 pre-placed tile (v8 D1)
 ///   - ApPoolSize[n] >= MinActionsPerTurn for all n (checked in tests)
 ///
 /// "tutorial-01" MUST remain the first entry — it is the AC-v2-2 fallback target.
@@ -34,92 +36,112 @@ public static class HexEscapeLevels
 {
     private static string C(int q, int r) => $"{q},{r}";
 
-    // ── tutorial-01 — "The Outbreak" (v7 rework — D1) ───────────────────────
+    // ── tutorial-01 — "The Outbreak" (v8 rework — D1, D2, D3) ──────────────────
     //
     // Board: q ∈ {-4,-3,-2,-1,0,1,2,3,4}, r ∈ {-2,-1,0,1,2} = 45 cells.
     //
-    // ── Zone layout ──────────────────────────────────────────────────────────
+    // ── Zone layout ──────────────────────────────────────────────────────────────
     //
     //   Spawn zone (left side): q=-4 (all r={-2,-1,0,1,2}) + (-3,-2) = 6 cells.
     //     No pre-placed tiles in spawn zone (H9). All 6 cells are empty at start.
     //
-    //   Exit zone (right side): q=4 (all r={-2,-1,0,1,2}) = 5 cells.
+    //   Exit zone (interior cluster, set back from east wall — v8 D2):
+    //     {(3,-1),(3,0),(3,1)} = 3 cells.
     //     No pre-placed tiles in exit zone (H9). Server places exit tile here.
+    //     The q=4 column is now NORMAL in-grid cells (players can tile and move there).
     //
     //   Horde origin: (-3,-1), (-3,0), (-3,1) — NOT in spawn zone (spawn uses q=-4
-    //     and q=-3,r=-2 only). NOT in exit zone. All three have pre-placed STRAIGHT
-    //     tiles (Straight r0 = edges {E(0),W(3)}). Per D1 design intent: Straight tiles
-    //     at horde-origin cells allow a second zombie piling onto these cells to become
-    //     contained (only 2 open edges), triggering the D1 anti-turtle break-out mechanic.
-    //     If Cross tiles were used, zombies would never be contained (4 open edges).
+    //     and q=-3,r=-2 only). NOT in exit zone. All three have pre-placed Cross r0
+    //     tiles per v8 D1: Cross tiles (not Straight) mean zombies here are never
+    //     trivially bypassable by adjacent-row detours (AD-OB-12b round-5 rationale).
     //
-    // ── Zone disjointness (AC-v2-5) ──────────────────────────────────────────
+    // ── Zone disjointness (AC-v2-5) ──────────────────────────────────────────────
     //
-    //   spawnZoneCells = {(-4,-2),(-4,-1),(-4,0),(-4,1),(-4,2),(-3,-2)}
-    //   exitZoneCells  = {(4,-2),(4,-1),(4,0),(4,1),(4,2)}
+    //   spawnZoneCells  = {(-4,-2),(-4,-1),(-4,0),(-4,1),(-4,2),(-3,-2)}
+    //   exitZoneCells   = {(3,-1),(3,0),(3,1)}
     //   hordeOriginCells = {(-3,-1),(-3,0),(-3,1)}
     //   spawn ∩ exit   = ∅ ✓
     //   spawn ∩ horde  = ∅ (horde uses q=-3 r={-1,0,1}; spawn uses q=-4 and (-3,-2)) ✓
-    //   horde ∩ exit   = ∅ ✓
+    //   horde ∩ exit   = ∅ (horde at q=-3; exit at q=3) ✓
     //
-    // ── Pre-placed tiles (v7: sparser, mostly non-Cross — D1) ────────────────
+    // ── Pre-placed tiles (v8: ALL zombie/horde cells use Cross r0 — D1) ──────────
     //
-    //   Horde-origin tiles (Straight r0):
-    //     (-3,-1): Straight r0 — edges {E(0),W(3)}. Horde origin, starts empty of zombies.
-    //     (-3, 0): Straight r0 — edges {E(0),W(3)}. Horde origin, starts empty of zombies.
-    //     (-3, 1): Straight r0 — edges {E(0),W(3)}. Horde origin, starts empty of zombies.
+    //   Horde-origin tiles (Cross r0 per v8 D1):
+    //     (-3,-1): Cross r0 — edges {E(0),NE(1),N(2),W(3)}.
+    //     (-3, 0): Cross r0 — edges {E(0),NE(1),N(2),W(3)}.
+    //     (-3, 1): Cross r0 — edges {E(0),NE(1),N(2),W(3)}.
+    //     Rationale (AD-OB-12b): Cross tiles prevent zombies from being trivially
+    //     bypassed by adjacent-row detours. The D1 break-out mechanic will rarely
+    //     fire on these cells in normal play (Cross tiles are almost never contained),
+    //     but the owner prioritises "zombies cannot be skipped" over reliable break-out.
     //
-    //   Route-blocking zombie tiles (Straight r0 — provides a tiled cell for starting zombies):
-    //     ( 0, 0): Straight r0 — edges {E(0),W(3)}. Starting zombie #1 here.
-    //              Not adjacent to spawn zone (spawn zone is q=-4 and q=-3,r=-2;
-    //              (0,0)'s neighbours are (1,0),(1,-1),(0,-1),(-1,0),(-1,1),(0,1) — none in spawn) ✓
-    //     ( 2, 0): Straight r0 — edges {E(0),W(3)}. Starting zombie #2 here.
+    //   Route-blocking starting zombie tiles (Cross r0 per v8 D1):
+    //     ( 0, 0): Cross r0 — edges {E(0),NE(1),N(2),W(3)}. Starting zombie #1 here.
+    //              Not adjacent to spawn zone (spawn is q=-4 and q=-3,r=-2;
+    //              (0,0)'s neighbours are (1,0),(1,-1),(0,-1),(-1,0),(-1,1),(0,1) —
+    //              none in spawn) ✓
+    //     ( 2, 0): Cross r0 — edges {E(0),NE(1),N(2),W(3)}. Starting zombie #2 here.
     //              Neighbours: (3,0),(3,-1),(2,-1),(1,0),(1,1),(2,1) — none in spawn ✓
+    //              Note: (3,0) and (3,-1) are in exit zone but that is fine — a zombie
+    //              at (2,0) is not itself in the exit zone.
     //
-    //   Near-exit approach tiles (Straight r0 — provide the ≥2 exit approach cells):
-    //     ( 3,-1): Straight r0 — edges {E(0),W(3)}.
-    //     ( 3, 0): Straight r0 — edges {E(0),W(3)}.
-    //     ( 3, 1): Straight r0 — edges {E(0),W(3)}.
+    //   No "near-exit approach tiles" pre-placed (exit zone is now at q=3, not q=4;
+    //   the q=4 column is normal interior and players tile it freely).
     //
-    // ── Starting zombies (2 route-blocking zombies — D1) ─────────────────────
+    // ── Starting zombies (2 route-blocking zombies — D1) ─────────────────────────
     //
     //   (0,0) and (2,0): both on the main E–W route between spawn and exit,
-    //   both have pre-placed Straight tiles (C4), neither is adjacent to any
+    //   both have pre-placed Cross r0 tiles (C4, D1), neither is adjacent to any
     //   spawn-zone cell. Players must navigate or clear these zombies.
     //
-    // ── Structural solvability and ≥2 exit approach cells (AC-v2-5) ──────────
+    // ── Deterministic exit cell computation (AC-v2-19, AC-v2-5 v8) ──────────────
     //
-    //   Board centroid = (0,0) (9-column × 5-row grid, symmetric).
-    //   Server places exit tile at the centroid-closest empty exit-zone cell,
-    //   tie-break lowest q then r. All exit-zone cells are at q=4; distances:
-    //     (4,0): sqrt(16+0) = 4.0   ← minimum
-    //     (4,±1): sqrt(16+1) ≈ 4.12
-    //     (4,±2): sqrt(16+4) ≈ 4.47
-    //   So exit tile is placed at (4,0), which is Cross r0 (edges {E(0),NE(1),N(2),W(3)}).
+    //   Board centroid: q∈{-4..4} × r∈{-2..2} = 45 cells.
+    //   Sum of all q = 9 rows × sum(-4..4) = 9 × 0 = 0. Average q = 0.
+    //   Sum of all r = 5 cols × sum(-2..2) = 5 × 0 = 0. Average r = 0.
+    //   Centroid = (0, 0).
     //
-    //   Exit approach cells: a non-exit-zone in-grid cell C adjacent to exit-zone cell E
-    //   is a valid approach if: the exit tile (Cross r0) at E has an open edge in direction
-    //   d toward C, AND C has a pre-placed tile with edge (d+3)%6 open.
+    //   Exit zone cells {(3,-1),(3,0),(3,1)}, Euclidean distance to centroid (0,0):
+    //     (3,-1): sqrt(3²+(-1)²) = sqrt(9+1) = sqrt(10) ≈ 3.162
+    //     (3, 0): sqrt(3²+0²)    = sqrt(9)   = 3.000  ← MINIMUM
+    //     (3, 1): sqrt(3²+1²)    = sqrt(9+1) = sqrt(10) ≈ 3.162
     //
-    //   From (4,0) [exit tile = Cross r0]:
-    //     dir E(0)→(5,0): off-board.
-    //     dir NE(1)→(5,-1): off-board.
-    //     dir N(2)→(4,-1): in exit zone — skip.
-    //     dir W(3)→(3,0): in-grid, non-exit-zone. (3,0) has Straight r0, edge E(0)=(dir 0)=(d+3)%6
-    //       where d=3, (3+3)%6=0. Straight r0 has E(0) ✓ → approach cell A1.
-    //     dir SW(4): Cross r0 has no edge 4. skip.
-    //     dir S(5): Cross r0 has no edge 5. skip.
+    //   DETERMINISTIC EXIT CELL = (3,0) (closest to centroid; no tie). ✓
     //
-    //   From (4,-1) [could also receive exit if (4,0) occupied; or for ≥2 check]:
-    //     dir W(3)→(3,-1): in-grid, non-exit-zone. (3,-1) has Straight r0, edge E(0)=(0+3)%6=no wait:
-    //       d=3, (d+3)%6=0. Straight r0 has E(0) ✓ → approach cell A2.
+    // ── ≥2 exit approach cells to deterministic exit cell (3,0) ─────────────────
     //
-    //   From (4,1):
-    //     dir W(3)→(3,1): in-grid, non-exit-zone. (3,1) has Straight r0, edge E(0) ✓ → approach cell A3.
+    //   Exit tile at (3,0) = Cross r0, open edges {E(0), NE(1), N(2), W(3)}.
     //
-    //   Approach cells: A1=(3,0), A2=(3,-1), A3=(3,1) — 3 distinct cells ≥ 2 required ✓
-    //   Each is adjacent to a reachable exit-zone cell, each has a pre-placed Straight r0
-    //   tile with E(0) open, satisfying the rotation-aware exit-connectivity check.
+    //   For each open-edge direction d of Cross r0, candidate approach cell C:
+    //     d=E(0)  → C=(4,0):  in-grid ✓, non-exit-zone ✓, player can place a tile
+    //                          with W(3)=(0+3)%6=3 open — ANY tile type can be
+    //                          oriented to open edge 3 → valid approach A1.
+    //     d=NE(1) → C=(4,-1): in-grid ✓, non-exit-zone ✓, player can place a tile
+    //                          with SW(4)=(1+3)%6=4 open — Tee or Cross can open
+    //                          edge 4 → valid approach A2.
+    //     d=N(2)  → C=(3,-1): IN exit zone — excluded.
+    //     d=W(3)  → C=(2,0):  in-grid ✓, non-exit-zone ✓, has pre-placed Cross r0
+    //                          with E(0)=(3+3)%6=0 open ✓ → valid approach A3.
+    //
+    //   Approaches: A1=(4,0), A2=(4,-1), A3=(2,0) — 3 distinct cells ≥ 2 required. ✓
+    //   (2,0) has a starting zombie on a Cross r0 tile — confirms it is tiled and
+    //   reachable from the spawn zone through the interior. (4,0) and (4,-1) are
+    //   normal in-grid cells reachable from the interior; players freely tile them.
+    //
+    // ── Structural solvability ───────────────────────────────────────────────────
+    //
+    //   Concrete path: spawn → ... → (0,0) [Cross r0, zombie] → (1,0) → (2,0)
+    //   [Cross r0, zombie] → any approach → (3,0) [exit, Cross r0].
+    //   Players must place/rotate tiles to route around or past both zombies.
+    //   Level is structurally solvable — not trivially so (zombies threaten the route).
+    //   Level is NOT pre-won (exitRevealed starts false, no characters start on exit).
+    //
+    // ── Why not adjacency-to-spawn violation? ───────────────────────────────────
+    //
+    //   Zombie at (0,0): neighbours = {(1,0),(1,-1),(0,-1),(-1,0),(-1,1),(0,1)}.
+    //     Spawn zone = {(-4,-2),(-4,-1),(-4,0),(-4,1),(-4,2),(-3,-2)}. None match. ✓
+    //   Zombie at (2,0): neighbours = {(3,0),(3,-1),(2,-1),(1,0),(1,1),(2,1)}.
+    //     (3,0) and (3,-1) are in exit zone, not spawn zone. None match. ✓
 
     public static readonly HexEscapeLevel Tutorial01 = new(
         Id:   "tutorial-01",
@@ -140,28 +162,26 @@ public static class HexEscapeLevels
             C( 1, -2), C( 1, -1), C( 1,  0), C( 1,  1), C( 1,  2),
             // q = 2
             C( 2, -2), C( 2, -1), C( 2,  0), C( 2,  1), C( 2,  2),
-            // q = 3
+            // q = 3 (exit zone at r={-1,0,1}; r={-2,2} are normal interior)
             C( 3, -2), C( 3, -1), C( 3,  0), C( 3,  1), C( 3,  2),
-            // q = 4 (exit zone — no pre-placed tiles per H9)
+            // q = 4 (normal interior cells — NOT exit zone in v8; players can tile here)
             C( 4, -2), C( 4, -1), C( 4,  0), C( 4,  1), C( 4,  2),
         ],
         PrePlacedTiles:
         [
-            // Horde origin cells (q=-3, r={-1,0,1}): Straight r=0 per D1 design intent.
-            // Straight tiles allow containment → break-out mechanic fires when a second zombie
-            // arrives here. All-Cross would prevent containment entirely.
-            new PrePlacedTile(C(-3, -1), HexTileType.Straight, 0),
-            new PrePlacedTile(C(-3,  0), HexTileType.Straight, 0),
-            new PrePlacedTile(C(-3,  1), HexTileType.Straight, 0),
-            // Route-blocking starting zombie cells: Straight r=0 on main E-W route.
+            // Horde origin cells (q=-3, r={-1,0,1}): Cross r0 per v8 D1.
+            // Cross tiles (edges {E(0),NE(1),N(2),W(3)}) ensure zombies here cannot be
+            // trivially bypassed by adjacent-row detours (AD-OB-12b round-5 rationale).
+            // The D1 break-out mechanic will rarely fire on these Cross cells (Cross tiles
+            // are almost never contained), but "cannot be skipped" is the design priority.
+            new PrePlacedTile(C(-3, -1), HexTileType.Cross, 0),
+            new PrePlacedTile(C(-3,  0), HexTileType.Cross, 0),
+            new PrePlacedTile(C(-3,  1), HexTileType.Cross, 0),
+            // Route-blocking starting zombie cells: Cross r0 on main E-W route (v8 D1).
             // Starting zombies are placed here (below), forcing players to navigate/clear them.
-            new PrePlacedTile(C( 0,  0), HexTileType.Straight, 0),
-            new PrePlacedTile(C( 2,  0), HexTileType.Straight, 0),
-            // Near-exit approach tiles: Straight r=0 at q=3. Each has E(0) open,
-            // providing ≥2 rotation-aware exit approach cells (see geometry comment above).
-            new PrePlacedTile(C( 3, -1), HexTileType.Straight, 0),
-            new PrePlacedTile(C( 3,  0), HexTileType.Straight, 0),
-            new PrePlacedTile(C( 3,  1), HexTileType.Straight, 0),
+            // Cross tiles: edges open in 4 directions, cannot be bypassed via adjacent rows.
+            new PrePlacedTile(C( 0,  0), HexTileType.Cross, 0),
+            new PrePlacedTile(C( 2,  0), HexTileType.Cross, 0),
         ],
         // Spawn zone: q=-4 (5 cells) + q=-3, r=-2 (1 cell) = 6 cells (>= MaxPlayers=6)
         // q=-3, r=-2 has no pre-placed tile (H9) and is NOT a horde origin cell.
@@ -170,20 +190,21 @@ public static class HexEscapeLevels
             C(-4, -2), C(-4, -1), C(-4,  0), C(-4,  1), C(-4,  2),
             C(-3, -2),
         ],
-        // Exit zone: q=4 (5 cells) — server places exit tile here when drawn.
-        // No pre-placed tiles here (H9). Server picks centroid-closest cell → (4,0).
+        // Exit zone: interior cluster {(3,-1),(3,0),(3,1)} = 3 cells (v8 D2 set-back).
+        // No pre-placed tiles here (H9). Server picks centroid-closest cell → (3,0).
+        // The q=4 column is normal interior in v8 (approach cells from the east).
         ExitZoneCells:
         [
-            C( 4, -2), C( 4, -1), C( 4,  0), C( 4,  1), C( 4,  2),
+            C( 3, -1), C( 3,  0), C( 3,  1),
         ],
-        // Horde origin: q=-3, r={-1,0,1}. All have pre-placed Straight r=0 tiles (F3).
+        // Horde origin: q=-3, r={-1,0,1}. All have pre-placed Cross r0 tiles (F3, v8 D1).
         // Not in spawn zone (spawn uses q=-4 and q=-3,r=-2 only). Not in exit zone.
         HordeOriginCells:
         [
             C(-3, -1), C(-3,  0), C(-3,  1),
         ],
-        // Starting zombies: 2 on main E–W route, not adjacent to spawn zone (D1, AC-v2-8b design note).
-        // (0,0) and (2,0) both have pre-placed Straight tiles (C4 requirement).
+        // Starting zombies: 2 on main E–W route, not adjacent to spawn zone (D1, v8).
+        // (0,0) and (2,0) both have pre-placed Cross r0 tiles (C4, D1 requirement).
         StartingZombies:
         [
             new StartingZombie(C( 0,  0)),
@@ -202,7 +223,7 @@ public static class HexEscapeLevels
         ]
     );
 
-    // ── Public catalogue ──────────────────────────────────────────────────────
+    // ── Public catalogue ──────────────────────────────────────────────────────────
 
     /// <summary>
     /// All authored levels indexed by ID.

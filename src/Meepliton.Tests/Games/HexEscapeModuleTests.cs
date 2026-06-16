@@ -1004,8 +1004,8 @@ public class HexEscapeModuleTests
         var players = Players(1);
         var state = GetInitialState(players);
 
-        // Set up exit
-        string exitCoord = "4,0";  // in exit zone
+        // Set up exit (arbitrary cell — win logic checks pos==exitCell, zone membership irrelevant)
+        string exitCoord = "4,0";
         state = state with
         {
             ExitRevealed = true,
@@ -2340,11 +2340,19 @@ public class HexEscapeModuleTests
     }
 
     /// <summary>
-    /// AC-v2-5: Level structural solvability (rotation-aware exit connectivity).
-    /// The exit tile is Cross r=0 (edges {0,1,2,3}). For each authored level,
-    /// assert that at least one non-exit-zone cell adjacent to any exit-zone cell
-    /// has a pre-placed tile with an edge that would connect to Cross r=0 if placed.
-    /// This confirms the tutorial level is not immediately unsolvable.
+    /// AC-v2-5 v8: Level structural solvability — rotation-aware exit connectivity
+    /// validated against the DETERMINISTIC exit cell (AC-v2-19/AC-v2-5 v8).
+    ///
+    /// For each authored level: compute the deterministic exit cell using the same
+    /// algorithm as AC-v2-19 (centroid-closest; tie-break lowest q, then lowest r).
+    /// Then assert that at least one non-exit-zone in-grid cell adjacent to the
+    /// deterministic exit cell has a pre-placed tile with an open edge connecting
+    /// to Cross r=0 (i.e., the opposite of the direction from exit to that cell).
+    ///
+    /// Note: the full ≥2 approach requirement per AC-v2-5 v8 is also verified by
+    /// Catalogue_Tutorial01_HasAtLeastTwoExitApproachCells_AgainstDeterministicExitCell
+    /// (which counts all in-grid non-exit-zone cells, not just pre-placed ones).
+    /// This test remains as a quick structural sanity guard.
     /// </summary>
     [Fact]
     public void Catalogue_AllLevels_StructurallySolvable_ExitConnectivityRotationAware()
@@ -2353,44 +2361,65 @@ public class HexEscapeModuleTests
         {
             // Exit tile is Cross r=0: edges {0,1,2,3}
             var exitTileEdges = HexEscapeModule.OpenEdges(HexTileType.Cross, 0);
-            var exitZoneSet = new HashSet<string>(level.ExitZoneCells);
-            var prePlacedSet = new HashSet<string>(level.PrePlacedTiles.Select(t => t.Coord));
+            var exitZoneSet   = new HashSet<string>(level.ExitZoneCells);
             var prePlacedDict = level.PrePlacedTiles.ToDictionary(t => t.Coord);
-            var cellSet = new HashSet<string>(level.Cells);
+            var cellSet       = new HashSet<string>(level.Cells);
 
-            bool foundSolvablePath = false;
-
-            foreach (string exitZoneCell in level.ExitZoneCells)
+            // Compute board centroid (AC-v2-19)
+            double sumQ = 0, sumR = 0;
+            foreach (var c in level.Cells)
             {
-                // Each exit-zone cell could have the exit tile placed there (Cross r=0)
-                // Check if any non-exit-zone neighbour has a pre-placed tile that can connect
-                var (eq, er) = HexEscapeModule.ParseCoord(exitZoneCell);
-                for (int dir = 0; dir < 6; dir++)
+                var (cq, cr) = HexEscapeModule.ParseCoord(c);
+                sumQ += cq; sumR += cr;
+            }
+            double centQ = sumQ / level.Cells.Count;
+            double centR = sumR / level.Cells.Count;
+
+            // Find deterministic exit cell: centroid-closest, tie-break lowest q then r
+            string? deterministicExitCell = null;
+            double minDist = double.MaxValue;
+            int minQ = int.MaxValue, minR = int.MaxValue;
+
+            foreach (var exitCell in level.ExitZoneCells)
+            {
+                var (eq, er) = HexEscapeModule.ParseCoord(exitCell);
+                double dq = eq - centQ, dr = er - centR;
+                double dist = Math.Sqrt(dq * dq + dr * dr);
+                bool better = dist < minDist - 1e-9
+                           || (Math.Abs(dist - minDist) < 1e-9 && (eq < minQ || (eq == minQ && er < minR)));
+                if (better) { minDist = dist; minQ = eq; minR = er; deterministicExitCell = exitCell; }
+            }
+
+            deterministicExitCell.Should().NotBeNull($"level '{level.Id}' must have at least one exit-zone cell");
+
+            // Check if at least one non-exit-zone neighbour of the deterministic exit cell
+            // has a pre-placed tile that connects to Cross r=0
+            bool foundSolvablePath = false;
+            var (xq, xr) = HexEscapeModule.ParseCoord(deterministicExitCell!);
+
+            for (int dir = 0; dir < 6; dir++)
+            {
+                if (!exitTileEdges.Contains(dir)) continue;
+                var (dq, dr) = HexEscapeModule.Directions[dir];
+                string neighbour = HexEscapeModule.CoordKey(xq + dq, xr + dr);
+
+                if (!cellSet.Contains(neighbour)) continue;
+                if (exitZoneSet.Contains(neighbour)) continue;
+                if (!prePlacedDict.TryGetValue(neighbour, out var preTile)) continue;
+
+                var preEdges = HexEscapeModule.OpenEdges(preTile.TileType, preTile.Rotation);
+                int opposite = (dir + 3) % 6;
+                if (preEdges.Contains(opposite))
                 {
-                    if (!exitTileEdges.Contains(dir)) continue; // exit tile has no edge in this dir
-                    var (dq, dr) = HexEscapeModule.Directions[dir];
-                    string neighbour = HexEscapeModule.CoordKey(eq + dq, er + dr);
-
-                    if (!cellSet.Contains(neighbour)) continue;
-                    if (exitZoneSet.Contains(neighbour)) continue; // must be non-exit-zone
-                    if (!prePlacedSet.Contains(neighbour)) continue; // must have pre-placed tile
-
-                    // Check if the pre-placed tile has an edge in the opposite direction
-                    var preTile = prePlacedDict[neighbour];
-                    var preEdges = HexEscapeModule.OpenEdges(preTile.TileType, preTile.Rotation);
-                    int opposite = (dir + 3) % 6;
-                    if (preEdges.Contains(opposite))
-                    {
-                        foundSolvablePath = true;
-                        break;
-                    }
+                    foundSolvablePath = true;
+                    break;
                 }
-                if (foundSolvablePath) break;
             }
 
             foundSolvablePath.Should().BeTrue(
                 $"level '{level.Id}' must have at least one non-exit-zone pre-placed tile " +
-                "that can connect to the Cross r=0 exit tile (rotation-aware AC-v2-5)");
+                $"adjacent to the deterministic exit cell ({deterministicExitCell}) that can " +
+                "connect to the Cross r=0 exit tile (rotation-aware AC-v2-5 v8, AC-v2-19)");
         }
     }
 
@@ -3087,13 +3116,19 @@ public class HexEscapeModuleTests
             "2+ qualifying available and 2 taken → required=2 satisfied → EndTurn accepted");
     }
 
-    // ── v7: Zombie-tile minimum spacing (AC-v2-1b, D2) ───────────────────────
+    // ── v8: Zombie-tile minimum spacing (AC-v2-1b, D3) ───────────────────────
 
     /// <summary>
-    /// AC-v2-1b, D2: In the constructed deck, no two zombie tiles should appear within
-    /// ZombieTileMinSpacing=2 positions of each other in the middle band (when the band
-    /// is large enough to honour the constraint — all 6 player counts satisfy this per
-    /// AD-OB-12 band math worked examples).
+    /// AC-v2-1b, D3 (v8): In the constructed deck, no two zombie tiles should appear within
+    /// ZombieTileMinSpacing=1 positions of each other in the middle band.
+    ///
+    /// With ZombieTileMinSpacing=1 and the corrected gate formula:
+    ///   minSlotsRequired = zombieCount + (zombieCount − 1) × (ZombieTileMinSpacing + 1)
+    ///                    = z + (z−1) × 2
+    /// All six player counts satisfy the constraint (none hit the fallback):
+    ///   1p: 3+(2×2)=7  ≤ 10 ✓   2p: 5+(4×2)=13 ≤ 18 ✓
+    ///   3p: 7+(6×2)=19 ≤ 23 ✓   4p: 10+(9×2)=28 ≤ 31 ✓
+    ///   5p: 12+(11×2)=34 ≤ 38 ✓  6p: 15+(14×2)=43 ≤ 45 ✓
     ///
     /// Middle band: [safeRemaining, exitBandStart-1] in deck indices.
     /// </summary>
@@ -3129,13 +3164,19 @@ public class HexEscapeModuleTests
                 zombiePosInMiddle.Add(i);
         }
 
-        int minSpacing = HexEscapeConstants.ZombieTileMinSpacing;
-        int zombieCount = HexEscapeConstants.ZombieTileCount[playerCount];
+        int minSpacing     = HexEscapeConstants.ZombieTileMinSpacing;
+        int zombieCount    = HexEscapeConstants.ZombieTileCount[playerCount];
         int middleBandSize = exitBandStart - safeRemaining;
-        int minSlotsRequired = zombieCount + (zombieCount - 1) * minSpacing;
 
-        // Only assert spacing when the band is large enough to honour the constraint
-        // (all 6 counts satisfy this per AD-OB-12; if somehow not, skip assertion gracefully)
+        // Corrected gate formula (D3): matches the placement loop's advancement step of
+        // (ZombieTileMinSpacing+1) positions per zombie:
+        //   minSlotsRequired = zombieCount + (zombieCount-1) * (ZombieTileMinSpacing+1)
+        // With spacing=1: minSlotsRequired = z+(z-1)*2. All six counts PASS (see header).
+        int minSlotsRequired = zombieCount + (zombieCount - 1) * (minSpacing + 1);
+
+        // With ZombieTileMinSpacing=1, all 6 player counts satisfy the corrected gate.
+        // The fallback (WARNING log + uniform random) should NOT fire for any count.
+        // Assert spacing is honoured for all six counts.
         if (middleBandSize >= minSlotsRequired)
         {
             for (int i = 1; i < zombiePosInMiddle.Count; i++)
@@ -3144,8 +3185,16 @@ public class HexEscapeModuleTests
                 gap.Should().BeGreaterThanOrEqualTo(
                     minSpacing + 1,
                     $"zombie tiles at deck positions {zombiePosInMiddle[i - 1]} and {zombiePosInMiddle[i]} " +
-                    $"are too close (gap={gap - 1} < ZombieTileMinSpacing={minSpacing}) for {playerCount}p (AC-v2-1b, D2)");
+                    $"are too close (gap={gap - 1} < ZombieTileMinSpacing={minSpacing}) for {playerCount}p (AC-v2-1b, D3)");
             }
+        }
+        else
+        {
+            // With spacing=1, this branch should never be reached for any supported player count.
+            // If it is, something is wrong with constants — fail explicitly.
+            middleBandSize.Should().BeGreaterThanOrEqualTo(minSlotsRequired,
+                $"ZombieTileMinSpacing=1 corrected gate should be satisfied for ALL 6 counts but FAILED for {playerCount}p " +
+                $"(middleBand={middleBandSize} < minSlotsRequired={minSlotsRequired}). Check constants (D3, v8).");
         }
     }
 
@@ -3201,13 +3250,19 @@ public class HexEscapeModuleTests
     }
 
     /// <summary>
-    /// v7 D2: ZombieTileMinSpacing constant is 2.
+    /// v8 D3: ZombieTileMinSpacing constant is 1 (changed from 2 in v8 D3).
+    /// With spacing=1 and the corrected gate formula (z+(z-1)*(spacing+1)), all six player
+    /// counts satisfy the constraint — no count falls back to uniform random placement.
+    /// spacing=2 was unsatisfiable for 3p–6p under the corrected gate, making the spacing
+    /// guarantee a no-op for the most common player counts. spacing=1 still ensures no two
+    /// zombie tiles are adjacent in the middle band while being satisfiable for all counts.
     /// </summary>
     [Fact]
-    public void Constants_ZombieTileMinSpacing_IsTwo()
+    public void Constants_ZombieTileMinSpacing_IsOne()
     {
-        HexEscapeConstants.ZombieTileMinSpacing.Should().Be(2,
-            "ZombieTileMinSpacing added in v7 D2 to prevent difficulty cliffs from clustered zombie draws");
+        HexEscapeConstants.ZombieTileMinSpacing.Should().Be(1,
+            "ZombieTileMinSpacing changed from 2 to 1 in v8 D3: satisfiable for all 6 player counts " +
+            "under the corrected gate formula (AC-v2-1b, D3)");
     }
 
     // ── v7: MF-1 character-free preference (AC-v2-8b, D4) ───────────────────
@@ -3245,7 +3300,8 @@ public class HexEscapeModuleTests
         // With D4 preference, it should pick the lowest character-free cell instead.
         // The lowest character-free candidate is (-3,0) (assuming no zombie there).
         //
-        // However we need to ensure (-3,-1) is not in exit zone and has a tile (it does: Straight r0).
+        // v8: (-3,-1) and (-3,0) are horde-origin cells with Cross r0 pre-placed tiles.
+        // Neither is in the exit zone {(3,-1),(3,0),(3,1)}.
         // We also need to remove any initial zombies from (-3,-1) to keep it as a candidate.
 
         string occupiedCell  = "-3,-1";   // character placed here; lowest overall (q,r)
@@ -3378,13 +3434,15 @@ public class HexEscapeModuleTests
     /// maps to a direction into the exit zone stays in place and moved=false is recorded,
     /// even when the connection rule would otherwise permit the move.
     ///
-    /// Setup: zombie at (3,0) on Cross r=0 (all edges open). Exit tile (Cross r=0) at (4,0)
-    /// [exit zone]. Die face 6 → direction 0 (E) → would move from (3,0) to (4,0) [exit zone].
-    /// Expected: zombie stays at (3,0), moved=false in lastZombieRolls.
+    /// v8 setup (exit zone now {(3,-1),(3,0),(3,1)}, NOT q=4 column):
+    ///   Zombie at (2,0) on Cross r=0 (all edges open).
+    ///   Exit tile (Cross r=0 fixed) at (3,0) [exit zone].
+    ///   Connection from (2,0) E(0) to (3,0): (2,0) has edge E(0) open AND (3,0) Cross r=0
+    ///   has W(3) open ✓ — the connection rule PERMITS the move.
+    ///   The exit-zone guard must BLOCK it: zombie must NOT move into (3,0).
     ///
-    /// We use a deterministic die face by patching: we craft a state where the zombie's only
-    /// possible move via the connection rule is into the exit zone, so any non-zero direction
-    /// that connects must be exit-zone. We verify that the zombie doesn't end up in the exit zone.
+    /// We verify that the zombie never ends up in any exit-zone cell after Phase 3.
+    /// If the roll was direction 0 (E → exit zone), moved=false must be recorded.
     /// </summary>
     [Fact]
     public void Phase3_ZombieMove_BlockedByExitZone_StaysInPlace_MovedFalse()
@@ -3396,18 +3454,21 @@ public class HexEscapeModuleTests
         var players = Players(1);
         var state = GetInitialState(players);
 
-        // Place zombie at (3,0) on a Cross r=0 tile (all edges open).
-        // Place the exit tile (Cross r=0 fixed) at (4,0) [exit zone].
-        // Connection from (3,0) E(0) to (4,0): (3,0) has edge E(0) open AND (4,0) Cross r=0 has W(3) open ✓
-        // So the connection rule PERMITS the move. The exit-zone guard must BLOCK it.
-        string zombieCell = "3,0";
-        string exitCell   = "4,0";
+        // v8 exit zone = {(3,-1),(3,0),(3,1)}. Place zombie at (2,0) adjacent to (3,0).
+        // (2,0) is non-exit-zone. Cross r=0 at (2,0): E(0) → (3,0) which is in exit zone.
+        // (3,0) will get the exit tile (Cross r=0 fixed).
+        string zombieCell = "2,0";   // non-exit-zone, in-grid
+        string exitCell   = "3,0";   // in exit zone (v8)
 
-        // (3,0) already has a Straight r=0 pre-placed tile; change to Cross so E(0) is open
+        state.ExitZoneCells.Should().Contain(exitCell,
+            "v8 exit zone must contain (3,0) — update this test if exit zone changes");
+        state.ExitZoneCells.Should().NotContain(zombieCell,
+            "zombie cell (2,0) must NOT be in exit zone for this test to be valid");
+
         var newGrid = new Dictionary<string, HexCell>(state.Grid)
         {
-            [zombieCell] = new HexCell(HexTileType.Cross, 0, Fixed: false),
-            [exitCell]   = new HexCell(HexTileType.Cross, 0, Fixed: true),   // exit tile in exit zone
+            [zombieCell] = new HexCell(HexTileType.Cross, 0, Fixed: false), // Cross r=0: E(0) toward (3,0)
+            [exitCell]   = new HexCell(HexTileType.Cross, 0, Fixed: true),  // exit tile in exit zone
         };
 
         // Place zombie at zombieCell; no character so no elimination concern
@@ -3446,7 +3507,7 @@ public class HexEscapeModuleTests
                 $"zombie {z.Id} must never enter an exit-zone cell by Phase-3 movement (AC-v2-32d, D5)");
         }
 
-        // Specific check: if the test zombie still exists and rolled direction 0 (E) → exit zone,
+        // Specific check: if the test zombie still exists and rolled direction 0 (E toward exit zone),
         // it must have stayed at zombieCell (or moved elsewhere non-exit if other directions opened).
         var testZ = newState.Zombies.FirstOrDefault(z => z.Id == "z-exit-test");
         if (testZ is not null)
@@ -3455,75 +3516,162 @@ public class HexEscapeModuleTests
                 "the test zombie specifically must not have entered the exit zone (AC-v2-32d, D5)");
         }
 
-        // Check lastZombieRolls: any roll that would have been direction 0 (E toward exit) from (3,0)
-        // must have moved=false if the only valid connection-rule move was into the exit zone.
+        // Check lastZombieRolls: any roll with direction 0 (E toward exit) from (2,0)
+        // leads to (3,0) [exit zone] — must have moved=false if that direction was rolled.
         var testZombieRoll = newState.LastZombieRolls.FirstOrDefault(r => r.ZombieId == "z-exit-test");
         if (testZombieRoll is not null && testZombieRoll.Direction == 0)
         {
-            // Direction E(0) from (3,0) leads to (4,0) [exit zone] — must be blocked
+            // Direction E(0) from (2,0) leads to (3,0) [exit zone] — must be blocked
             testZombieRoll.Moved.Should().BeFalse(
-                "zombie roll direction E(0) from (3,0) targets exit zone (4,0) — must NOT move (AC-v2-32d, D5)");
+                "zombie roll direction E(0) from (2,0) targets exit zone (3,0) — must NOT move (AC-v2-32d, D5, v8)");
         }
     }
 
     /// <summary>
-    /// Confirms the level-design invariant: tutorial-01 has ≥2 exit approach cells (AC-v2-5 D1).
-    /// Approach cells = non-exit-zone in-grid cells adjacent to any exit-zone cell that have a
-    /// pre-placed tile with the correct opposite edge to connect to Cross r=0.
+    /// AC-v2-5 v8: Tutorial-01 must have ≥2 exit approach cells to the DETERMINISTIC exit cell.
+    ///
+    /// Per AC-v2-5 and AC-v2-19, the deterministic exit cell is the centroid-closest empty
+    /// exit-zone cell (Euclidean distance; tie-break lowest q then r). For tutorial-01 v8:
+    ///   exitZone = {(3,-1),(3,0),(3,1)}, centroid = (0,0).
+    ///   Distances: (3,-1)=sqrt(10)≈3.162, (3,0)=3.0 (min), (3,1)=sqrt(10)≈3.162.
+    ///   DETERMINISTIC EXIT CELL = (3,0).
+    ///
+    /// Approach cells: in-grid, non-exit-zone cells C adjacent to (3,0) in direction d
+    /// where Cross r0 has an open edge, such that:
+    ///   (a) C is in-grid and non-exit-zone
+    ///   (b) a player CAN place/rotate a tile on C to open edge (d+3)%6 (any non-exit-zone
+    ///       in-grid cell qualifies since any tile type can be oriented to open any edge)
+    ///   (c) C is reachable from spawn through the interior (not isolated)
+    ///
+    /// Cross r0 open edges: {E(0), NE(1), N(2), W(3)}.
+    ///   E(0)  → (4,0):  in-grid ✓, non-exit-zone ✓ → approach A1
+    ///   NE(1) → (4,-1): in-grid ✓, non-exit-zone ✓ → approach A2
+    ///   N(2)  → (3,-1): IN exit zone → excluded
+    ///   W(3)  → (2,0):  in-grid ✓, non-exit-zone ✓ → approach A3
+    ///
+    /// Expected ≥ 2 approach cells. ✓
     /// </summary>
     [Fact]
-    public void Catalogue_Tutorial01_HasAtLeastTwoExitApproachCells()
+    public void Catalogue_Tutorial01_HasAtLeastTwoExitApproachCells_AgainstDeterministicExitCell()
     {
         var level = HexEscapeLevels.Tutorial01;
         var exitTileEdges = HexEscapeModule.OpenEdges(HexTileType.Cross, 0);  // {0,1,2,3}
-        var exitZoneSet = new HashSet<string>(level.ExitZoneCells);
-        var prePlacedDict = level.PrePlacedTiles.ToDictionary(t => t.Coord);
-        var cellSet = new HashSet<string>(level.Cells);
+        var exitZoneSet   = new HashSet<string>(level.ExitZoneCells);
+        var cellSet       = new HashSet<string>(level.Cells);
 
-        var approachCells = new HashSet<string>();
-
-        foreach (string exitZoneCell in level.ExitZoneCells)
+        // Step 1: compute the DETERMINISTIC exit cell (AC-v2-19 algorithm):
+        // board centroid = average of all cell (q,r) values.
+        double sumQ = 0, sumR = 0;
+        foreach (var c in level.Cells)
         {
-            var (eq, er) = HexEscapeModule.ParseCoord(exitZoneCell);
-            for (int dir = 0; dir < 6; dir++)
+            var (cq, cr) = HexEscapeModule.ParseCoord(c);
+            sumQ += cq; sumR += cr;
+        }
+        double centQ = sumQ / level.Cells.Count;
+        double centR = sumR / level.Cells.Count;
+
+        // centroid = (0,0) for the symmetric 9×5 tutorial board
+        centQ.Should().BeApproximately(0.0, 0.001, "tutorial-01 board is symmetric; centroid q = 0");
+        centR.Should().BeApproximately(0.0, 0.001, "tutorial-01 board is symmetric; centroid r = 0");
+
+        // All exit-zone cells start empty at level definition (H9 — no pre-placed tiles in exit zone).
+        // Select the one with minimum Euclidean distance to centroid; tie-break: lowest q, then lowest r.
+        string? deterministicExitCell = null;
+        double minDist = double.MaxValue;
+        int minQ = int.MaxValue, minR = int.MaxValue;
+
+        foreach (var exitCell in level.ExitZoneCells)
+        {
+            var (eq, er) = HexEscapeModule.ParseCoord(exitCell);
+            double dq = eq - centQ;
+            double dr = er - centR;
+            double dist = Math.Sqrt(dq * dq + dr * dr);
+
+            bool better = dist < minDist - 1e-9
+                       || (Math.Abs(dist - minDist) < 1e-9 && (eq < minQ || (eq == minQ && er < minR)));
+            if (better)
             {
-                if (!exitTileEdges.Contains(dir)) continue;
-                var (dq, dr) = HexEscapeModule.Directions[dir];
-                string neighbour = HexEscapeModule.CoordKey(eq + dq, er + dr);
-
-                if (!cellSet.Contains(neighbour)) continue;
-                if (exitZoneSet.Contains(neighbour)) continue;
-                if (!prePlacedDict.TryGetValue(neighbour, out var preTile)) continue;
-
-                var preEdges = HexEscapeModule.OpenEdges(preTile.TileType, preTile.Rotation);
-                int opposite = (dir + 3) % 6;
-                if (preEdges.Contains(opposite))
-                    approachCells.Add(neighbour);
+                minDist = dist;
+                minQ = eq;
+                minR = er;
+                deterministicExitCell = exitCell;
             }
         }
 
-        approachCells.Count.Should().BeGreaterThanOrEqualTo(2,
-            "tutorial-01 must have ≥2 distinct rotation-aware exit approach cells (AC-v2-5, D1)");
+        deterministicExitCell.Should().NotBeNull("exit zone must have at least one cell");
+        deterministicExitCell.Should().Be("3,0",
+            "tutorial-01 v8: deterministic exit cell must be (3,0) — closest to centroid at dist=3.0 (AC-v2-19)");
+
+        // Step 2: find approach cells adjacent to (3,0) in Cross-r0 open-edge directions.
+        // Per AC-v2-5 v8, condition (b) is: "a player CAN open their edge in direction (d+3)%6".
+        // Any in-grid non-exit-zone cell qualifies for (b) because a player can place ANY tile
+        // type there and rotate it to open any edge. We count all such cells.
+        var approachCells = new List<string>();
+        var (xq, xr) = HexEscapeModule.ParseCoord(deterministicExitCell!);
+
+        for (int dir = 0; dir < 6; dir++)
+        {
+            if (!exitTileEdges.Contains(dir)) continue;  // Cross r0 has no open edge in this dir
+            var (dq, dr) = HexEscapeModule.Directions[dir];
+            string neighbour = HexEscapeModule.CoordKey(xq + dq, xr + dr);
+
+            if (!cellSet.Contains(neighbour)) continue;      // off-board
+            if (exitZoneSet.Contains(neighbour)) continue;   // in exit zone — not an approach
+
+            // (b) any in-grid non-exit-zone cell can open (d+3)%6 via player tile placement
+            // (c) the cell is interior and reachable from spawn (not isolated behind exit zone)
+            // For the tutorial board with ≥1 interior connection, all such cells qualify.
+            approachCells.Add(neighbour);
+        }
+
+        approachCells.Should().HaveCountGreaterThanOrEqualTo(2,
+            $"tutorial-01 v8: deterministic exit cell ({deterministicExitCell}) must have ≥2 in-grid " +
+            "non-exit-zone approach cells in Cross-r0 open-edge directions (AC-v2-5 v8, D2). " +
+            $"Found: [{string.Join(", ", approachCells)}]");
     }
 
     /// <summary>
-    /// v7 D1: Tutorial-01 horde-origin cells must have Straight pre-placed tiles (not Cross).
-    /// Straight tiles enable containment → break-out mechanic. Cross tiles never get contained.
+    /// v8 D1: Tutorial-01 horde-origin cells AND all starting-zombie cells must have
+    /// Cross r0 pre-placed tiles (edges {E(0),NE(1),N(2),W(3)}).
+    ///
+    /// Changed from Straight (v7) to Cross (v8 D1) — rationale: Straight (E/W-only)
+    /// tiles allowed zombies to be bypassed by adjacent-row detours. Cross tiles open
+    /// edges in 4 directions, preventing trivial lateral bypasses (AD-OB-12b round-5).
+    ///
+    /// Accepted trade-off (AD-OB-12b): Cross tiles are almost never "contained" in the
+    /// Phase-2 sense, so the D1 break-out mechanic rarely fires on these cells.
+    /// The owner prioritises "zombies cannot be skipped" over reliable break-out.
     /// </summary>
     [Fact]
-    public void Catalogue_Tutorial01_HordeOriginTiles_AreStrait()
+    public void Catalogue_Tutorial01_ZombieAndHordeOriginTiles_AreCrossR0()
     {
         var level = HexEscapeLevels.Tutorial01;
         var prePlacedDict = level.PrePlacedTiles.ToDictionary(t => t.Coord);
 
+        // Horde-origin cells must have Cross r0 tiles
         foreach (var hordeCell in level.HordeOriginCells)
         {
             prePlacedDict.Should().ContainKey(hordeCell,
                 $"horde origin {hordeCell} must have a pre-placed tile (F3)");
             var tile = prePlacedDict[hordeCell];
-            tile.TileType.Should().Be(HexTileType.Straight,
-                $"horde origin {hordeCell} must have a Straight tile per v7 D1 design intent " +
-                "(enables containment → anti-turtle break-out mechanic)");
+            tile.TileType.Should().Be(HexTileType.Cross,
+                $"horde origin {hordeCell} must have a Cross tile per v8 D1 " +
+                "(zombies here cannot be bypassed by adjacent-row detours — AD-OB-12b)");
+            tile.Rotation.Should().Be(0,
+                $"horde origin {hordeCell} Cross tile must be at rotation 0 (v8 D1)");
+        }
+
+        // Starting-zombie cells must have Cross r0 tiles
+        foreach (var sz in level.StartingZombies)
+        {
+            prePlacedDict.Should().ContainKey(sz.Coord,
+                $"starting zombie at {sz.Coord} must have a pre-placed tile (C4)");
+            var tile = prePlacedDict[sz.Coord];
+            tile.TileType.Should().Be(HexTileType.Cross,
+                $"starting zombie at {sz.Coord} must have a Cross tile per v8 D1 " +
+                "(route zombies cannot be bypassed by adjacent-row detours — AD-OB-12b)");
+            tile.Rotation.Should().Be(0,
+                $"starting zombie at {sz.Coord} Cross tile must be at rotation 0 (v8 D1)");
         }
     }
 

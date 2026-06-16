@@ -77,10 +77,13 @@ public static class HexEscapeConstants
 
     /// <summary>
     /// Minimum deck-position gap between any two zombie tiles in the middle band during
-    /// construction (D2, AC-v2-1b). Prevents difficulty cliffs from clustered zombie draws.
-    /// Best-effort when band is too small to honour the gap. Balance TBD.
+    /// construction (D2, AC-v2-1b, D3/v8). Prevents difficulty cliffs from clustered zombie draws.
+    /// Reduced from 2→1: with the corrected gate formula (minSlotsRequired = z+(z-1)*(spacing+1)),
+    /// spacing=1 satisfies the constraint for all six player counts (1p–6p all PASS).
+    /// spacing=2 was unsatisfiable for 3p–6p under the corrected formula, making the spacing
+    /// guarantee effectively a no-op for those counts. Balance TBD by playtest.
     /// </summary>
-    public const int ZombieTileMinSpacing = 2;
+    public const int ZombieTileMinSpacing = 1;
 
     // ── Deck composition table (AD-OB-12) ────────────────────────────────────
     // postDealSize[count], zombieTiles[count] — indexed by player count 1–6.

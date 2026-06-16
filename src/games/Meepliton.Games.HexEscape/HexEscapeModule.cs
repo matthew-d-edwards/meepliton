@@ -330,9 +330,11 @@ public class HexEscapeModule : IGameModule, IGameHandler
         if (zombieTileCount > 0 && middleBandSize > 0)
         {
             // Check whether the band is large enough to honour ZombieTileMinSpacing.
-            // Minimum slots needed: zombieTileCount slots for zombies plus (zombieTileCount-1)
-            // gaps of ZombieTileMinSpacing each → zombieTileCount + (zombieTileCount-1)*ZombieTileMinSpacing.
-            int minSlotsRequired = zombieTileCount + (zombieTileCount - 1) * HexEscapeConstants.ZombieTileMinSpacing;
+            // The placement loop advances by (ZombieTileMinSpacing+1) positions per zombie,
+            // so minimum slots = zombieTileCount + (zombieTileCount-1)*(ZombieTileMinSpacing+1).
+            // (The old formula zombieTileCount+(zombieTileCount-1)*ZombieTileMinSpacing was
+            //  incorrect — it undercounted by omitting the +1 advancement step per zombie.)
+            int minSlotsRequired = zombieTileCount + (zombieTileCount - 1) * (HexEscapeConstants.ZombieTileMinSpacing + 1);
             if (middleBandSize < minSlotsRequired)
             {
                 // Band too small — best effort: place zombie tiles at uniform random positions
