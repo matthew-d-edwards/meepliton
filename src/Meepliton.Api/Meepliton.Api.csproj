@@ -35,6 +35,7 @@
     <ProjectReference Include="..\games\Meepliton.Games.SushiGo\Meepliton.Games.SushiGo.csproj" />
     <ProjectReference Include="..\games\Meepliton.Games.Coloretto\Meepliton.Games.Coloretto.csproj" />
     <ProjectReference Include="..\games\Meepliton.Games.Coup\Meepliton.Games.Coup.csproj" />
+    <ProjectReference Include="..\games\Meepliton.Games.HexEscape\Meepliton.Games.HexEscape.csproj" />
   </ItemGroup>
 
   <ItemGroup>
