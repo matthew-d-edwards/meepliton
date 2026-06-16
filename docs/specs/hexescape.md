@@ -1,41 +1,30 @@
-# Spec: Hex Escape
+# Spec: Hex Escape (Outbreak)
 
-**Status:** Implemented — pending CI verification
-**Date:** 2026-06-15
+**Status:** Agreed — v2 supersedes v1
+**Date:** 2026-06-16
 **Authors:** analyst + architect
-**Implementation note:** Level selection is wired via the generic `IGameModule.SetupOptions` mechanism (ADR-012). `HexEscapeModule.SetupOptions` declares a single `levelId` dropdown populated from `HexEscapeLevels.Ordered`. The platform renders it as a labelled dropdown in the lobby and transports the host's selection as `{ "levelId": "<id>" }` to `CreateInitialState` — satisfying the AD-9 prerequisite, which is now resolved. See `src/Meepliton.Contracts/GameSetupOption.cs`.
 
----
-
-## Round 3 — Analyst response
-
-All eight OQ decisions are accepted without contest. The architect's reasoning on each point is sound and the precedents from F'That and Skyline are directly applicable. The three "must fix" platform items are elevated to explicit architecture decisions below and must be tracked as blocking prerequisites before the level-selector flow can be tested end-to-end.
-
-No contested points.
+Supersedes the v1 threat-counter design (preserved in git history). v1's hex geometry, tile model, and connection rule carry forward unchanged.
 
 ---
 
 ## Problem
 
-Meepliton's game library is entirely competitive: every title has a winner and losers. There is no co-operative game where players unite against a shared system threat. For groups who want a lower-stakes, collaborative experience — or for solo sessions — the current library offers nothing. Hex Escape fills this gap with a co-op tile-placement puzzle in which players must connect survivors to an exit before the zombie threat overruns them.
+Meepliton's game library is entirely competitive: every title has a winner and losers. Hex Escape v1 introduced co-op tile placement but used a passive threat counter that never manifested on the board. Players had no spatial pressure — the game was a pipe-puzzle with a countdown bolted on. Hex Escape v2 (Outbreak) replaces the counter with actual zombie tokens that move on the grid and eliminate characters, creating genuine co-op tension and making every tile placement matter.
 
 ---
 
 ## Solution
 
-Hex Escape is played on a sparse hexagonal grid. The map consists of up to 49 named hex cells arranged in an axial coordinate system (q, r). Some cells are pre-filled by the level definition; the remainder are empty connection points or impassable terrain. Six directional edges connect each hex to its neighbours. Survivors start at one or more designated source cells; a single exit cell is the win target.
+Hex Escape (Outbreak) is played on a sparse hexagonal grid identical to v1. Players collectively draw tiles from a shared deck each round and place or rotate them to create open paths. Characters representing each player start at designated survivor cells and must all reach the exit. Zombie tokens start at spawn points defined by the level and move each round based on a d6 roll; any character sharing a cell with a zombie is eliminated. Play ends when all non-eliminated characters reach the exit (win) or all characters are eliminated (loss). A zombie tile drawn from the deck must be placed immediately, spawning a new zombie at that cell.
 
-Players place pipe-shaped tiles from their shared hand onto empty grid cells, one action per turn. Each tile has a type (straight, elbow, tee, cross, or dead-end — five types in v1) and a rotation expressed in 60-degree increments (0–5). A placed tile creates open passages on its active edges and blocks the rest. Players may also rotate a previously placed (player-placed) tile on their turn, or pass if no useful move is available. Between each full round — once every seated player has acted — the threat counter advances by one. If the threat counter reaches or exceeds the level's threat threshold, the zombies overrun and all players lose. Players win the moment the server's BFS connectivity check confirms that a continuous open-edge path exists from every survivor to the exit — checked BEFORE any threat increment within the same Handle call.
-
-Before the game starts, the host selects a level from a fixed catalogue defined as static C# data in the game module. The level definition specifies the grid layout, pre-placed tiles, survivor start positions, exit position, the starting tile hand counts per type, and the threat threshold. No procedural generation, no database tables, and no migration are needed for v1. A level selector screen is presented to the host in the lobby before the game is started; other players see the host's selection in real time via the existing room SignalR channel.
-
-The game supports 1–6 players. A single-player session is a valid and explicitly supported mode; the round boundary advances after that one player acts.
+The game is implemented as a rewrite of the v1 module in place under the same game id `hexescape`. The level loader and `SetupOptions` dropdown from v1 carry forward; v2 ships one level (the tutorial) with the loader already wired for follow-up levels.
 
 ---
 
 ## Hex geometry and tile model
 
-This section is the single source of truth for both backend BFS and frontend rendering. Backend and frontend must not define a second or divergent coordinate convention.
+This section is the single source of truth for both backend BFS and frontend rendering. Backend and frontend must not define a second or divergent coordinate convention. This section is carried forward verbatim from v1.
 
 ### Axial coordinate system
 
@@ -66,7 +55,7 @@ An open edge whose neighbour cell does not exist in the level grid is a dead end
 
 Rotation k ∈ {0..5} maps each base edge index e to **(e + k) mod 6**. A tile's open edges after rotation are `{ (e + k) mod 6 | e in base_edges }`.
 
-### Tile types (v1 — five types)
+### Tile types (five types)
 
 | Tile type  | Base edges (before rotation) |
 |------------|------------------------------|
@@ -76,269 +65,254 @@ Rotation k ∈ {0..5} maps each base edge index e to **(e + k) mod 6**. A tile's
 | `cross`    | {0, 1, 2, 3}                 |
 | `deadend`  | {0}                          |
 
-Y-junction is excluded from v1. These five types and their base-edge sets are the complete tile vocabulary.
+Y-junction is excluded. These five types and their base-edge sets are the complete tile vocabulary.
 
 ### BFS direction (win check)
 
-BFS runs **from the exit cell outward** over open shared edges (both sides of the edge must satisfy the connection rule above). `connectedSurvivors` = the number of survivor start cells reachable from the exit via this BFS. Win condition: `connectedSurvivors == totalSurvivors`.
-
-### Level field contract
-
-A `HexEscapeLevel` carries:
-
-| Field                  | Type                     | Description                                                  |
-|------------------------|--------------------------|--------------------------------------------------------------|
-| `id`                   | string                   | Unique level identifier, e.g. `"tutorial-01"`                |
-| `cells`                | list of (q, r)           | Every valid cell in the grid (defines the board boundary)    |
-| `walls`                | list of (q, r)           | Cells that exist but are always impassable (no tile allowed) |
-| `prePlacedTiles`       | list of {coord, type, rotation} | Fixed tiles; cannot be rotated or replaced by players  |
-| `survivorStartCells`   | list of (q, r)           | Where survivors begin (must be ≥ 1 per valid level)          |
-| `exitCell`             | (q, r)                   | The win target                                               |
-| `tileHandCounts`       | map of tileType → int    | Starting count of each tile type in the shared hand          |
-| `threatThreshold`      | int                      | Threat counter value at or above which the game is lost      |
-
-The `"tutorial-01"` level must be authored first — it is the fallback target. Its absence causes a `KeyNotFoundException` that defeats AD-10.
-
-### Options wire schema
-
-```json
-{ "levelId": "<string>" }
-```
+BFS runs **from the exit cell outward** over open shared edges (both sides of the edge must satisfy the connection rule above). `connectedCharacters` = the number of non-eliminated character positions reachable from the exit via this BFS. Win condition: `connectedCharacters == nonEliminatedCharacterCount` and `nonEliminatedCharacterCount >= 1`.
 
 ---
 
 ## Acceptance criteria
 
-- [ ] **AC-1 — Level setup:** Given a host selects a valid level and starts the game, when `CreateInitialState` is called, then: the grid is populated with the level's pre-placed tiles; every survivor is at its designated start cell; the exit cell is marked; the threat counter is 0; `seatsActedThisRound` is an empty set; `phase` is `Playing`; each player's `seatIndex` is assigned in join order. `CreateInitialState` does NOT evaluate the win condition — the first win check occurs only after the first accepted action.
+### Setup
 
-- [ ] **AC-2 — Place tile (valid):** Given a player whose seat index is NOT in `seatsActedThisRound` dispatches `PlaceTile { coord, tileType, rotation }`, and the target coord exists in the level grid, is not occupied (pre-placed or player-placed), and the hand contains at least one tile of that type, and rotation is in 0–5, then: the cell is populated with the specified tile; the hand count for that type decrements by 1; BFS connectivity is recomputed; `seatsActedThisRound` gains the player's seat index. **Win check runs first:** if `connectedSurvivors == totalSurvivors`, `phase` → `GameOver`, `outcome` → `Escaped`, emit `GameOverEffect(winnerId: null)`, and the threat increment is NOT applied. If no win, and all seat indices are now in `seatsActedThisRound`, the threat counter increments by 1 and `seatsActedThisRound` resets to empty; if threat counter >= threatThreshold, `phase` → `GameOver`, `outcome` → `Overrun`, emit `GameOverEffect(winnerId: null)`. State is broadcast.
+- [ ] **AC-v2-1 — Initial state:** Given a host selects a valid level and starts the game, when `CreateInitialState` is called, then: the grid is populated with pre-placed tiles; each player has a character at the designated survivor start cell (or shared start cell if fewer positions than players); each player's hand is empty (draw happens in the first Drawing phase); the deck is shuffled using `Random.Shared`; `phase` is `Drawing`; `roundNumber` is 1; `zombies` contains all level-defined starting zombie tokens with stable string ids; `seatsActedThisRound` is empty; `lastZombieRolls` is empty. `CreateInitialState` does NOT evaluate the win condition.
 
-- [ ] **AC-3 — Rotate tile (valid and rejected paths):** Given a player whose seat index is NOT in `seatsActedThisRound` dispatches `RotateTile { coord, rotation }`, and rotation is in 0–5, then:
-  - If the target cell contains a player-placed tile: the tile's rotation is updated to the new value (even if it equals the current rotation — same-rotation rotate is allowed and consumes the turn); BFS is recomputed; `seatsActedThisRound` and win/threat logic proceed identically to AC-2 (win check before threat increment).
-  - If the target cell contains a pre-placed (fixed) tile: rejected with `"Cannot rotate a fixed tile."` State unchanged.
-  - If the target cell is empty: rejected with `"No tile to rotate."` State unchanged.
-  - If rotation is outside 0–5: rejected with `"Invalid rotation."` State unchanged.
+- [ ] **AC-v2-2 — Null options fallback:** Given `CreateInitialState` receives null or malformed options, then it silently substitutes the default level (`"tutorial-01"`), returns valid initial state, and emits a server-side WARNING log: `"HexEscape: options missing/unknown level '{id}', falling back to tutorial-01"`.
 
-- [ ] **AC-4 — Pass:** Given a player whose seat index is NOT in `seatsActedThisRound` dispatches `Pass`, then: `seatsActedThisRound` gains the player's seat index; the grid is unchanged. Win check runs first (BFS result before any threat increment): if win condition met, `phase` → `GameOver`, `outcome` → `Escaped`, emit `GameOverEffect(null)`, no threat increment. If no win, and all seats have now acted, threat counter increments and `seatsActedThisRound` resets; if threat >= threatThreshold, `phase` → `GameOver`, `outcome` → `Overrun`, emit `GameOverEffect(null)`.
+- [ ] **AC-v2-3 — Zero-survivor level rejected:** Given `CreateInitialState` is called with a level whose `survivorStartCells` list is empty, then it throws `ArgumentException`. A catalogue-validation unit test asserts no authored level has 0 survivors.
 
-- [ ] **AC-5 — Win condition (priority and ordering):** Within a single `Handle` call, the win check runs BEFORE the threat increment. If placing or rotating a tile (or passing, on the rare case BFS is already satisfied) causes `connectedSurvivors == totalSurvivors`, the module emits `GameOverEffect(winnerId: null)` with `outcome = Escaped` and does NOT apply the threat increment or advance the round boundary. This ordering is invariant and applies to all three action types. The value of `connectedSurvivors` in the broadcast state is frozen at the value computed in the final winning action. The result screen uses `outcome` (not `connectedSurvivors`) to branch between "Escaped!" and "Overrun!".
+- [ ] **AC-v2-4 — Pre-won level disallowed:** No authored level may start with all non-eliminated characters already connected to the exit. A catalogue-validation unit test asserts this for every authored level.
 
-- [ ] **AC-6 — Lose condition (threat threshold):** Given the threat counter increments (because the win check did NOT trigger first) and the new value is >= the level's `threatThreshold`, then: `phase` → `GameOver`; `outcome` is `Overrun`; `Handle` returns a `GameResult` with `Effects` containing `GameOverEffect(winnerId: null)`.
+### Drawing phase
 
-- [ ] **AC-7 — Turn validation (free-order model):** Given any player dispatches any action when that player's own seat index is ALREADY present in `seatsActedThisRound` for the current round, the action is rejected with the exact string `"It is not your turn."` and state is unchanged. Seat indices may be non-contiguous (after pre-game leave); the logic uses set membership only, never index arithmetic or sequential ordering.
+- [ ] **AC-v2-5 — Draw to hand size:** At the start of each round (phase = Drawing), the server draws tiles from the top of the deck for each player until that player's hand reaches 3 tiles, or the deck is exhausted. If the deck has fewer tiles than needed, players receive whatever remains; no crash occurs and no reshuffle happens. Drawing is server-computed inside `Handle` at the round boundary — there is no client "draw" action.
 
-- [ ] **AC-8 — Null options fallback:** Given `CreateInitialState` receives a null or malformed `options` argument (e.g. from an old client or the pre-fix platform path), then the module silently substitutes the default level (`"tutorial-01"`) and returns valid initial state without throwing. The module emits a server-side WARNING log line: `"HexEscape: options missing/unknown level '{id}', falling back to tutorial-01"` (see AD-10).
+- [ ] **AC-v2-6 — Zombie tile drawn:** A zombie tile drawn by a player enters that player's hand as a `HeldTile { tileType, rotation: null, isZombieTile: true }`. That player must PlaceZombieTile as their first action in the Actions phase before any other action is accepted. If the player attempts any other action while holding a zombie tile, the action is rejected with the exact string `"You must place your zombie tile first."`.
 
-- [ ] **AC-9 — BFS correctness (observable):** `connectedSurvivors` in the broadcast state equals the number of survivor start cells from which a continuous open-edge path to the exit exists, using the canonical axial offsets defined in the "Hex geometry and tile model" section; 0 when none; recomputed on every accepted action.
+- [ ] **AC-v2-7 — Deck exhaustion (no crash):** Given the deck is empty when a Drawing phase begins, all players receive zero new tiles. The Actions phase proceeds normally. Players with empty hands may only Pass.
 
-- [ ] **AC-10 — Zero-survivor level rejected:** Given `CreateInitialState` is called with a level whose `survivorStartCells` list is empty, then it throws `ArgumentException`. A catalogue-validation unit test must assert that no authored level has 0 survivors.
+### Actions phase
 
-- [ ] **AC-11 — Hand exhaustion (PlaceTile type with 0 remaining):** Given a player dispatches `PlaceTile` for a tile type whose hand count is currently 0, the action is rejected with `"No tiles of that type remaining."` State is unchanged. A hand fully exhausted with no path to the exit is an accepted design outcome — players continue to Pass each round until the threat counter reaches `threatThreshold` and the game ends as Overrun.
+- [ ] **AC-v2-8 — PlaceTile (valid):** Given a player whose seat is NOT in `seatsActedThisRound` dispatches `PlaceTile { coord, tileType, rotation }`, and the coord exists in the level grid, is unoccupied, the player's hand contains that tile type with `isZombieTile: false`, and rotation is in 0–5, then: the cell is populated; the tile is removed from hand; BFS is recomputed; the seat is added to `seatsActedThisRound`. Win check runs immediately (see AC-v2-14).
 
-- [ ] **AC-12 — Invalid rotation rejected:** Given `PlaceTile` or `RotateTile` is dispatched with a `rotation` value outside 0–5, the action is rejected with `"Invalid rotation."` State is unchanged.
+- [ ] **AC-v2-9 — PlaceZombieTile (valid):** Given a player holding a zombie tile dispatches `PlaceZombieTile { coord }`, and coord is an EMPTY cell (not occupied by any tile or a zombie), then: the cell is populated with the zombie tile (fixed, non-rotatable); the tile is removed from hand; a new zombie token is spawned at coord with a stable generated id; the seat is added to `seatsActedThisRound`. Win check runs immediately.
 
-- [ ] **AC-13 — Out-of-bounds coord rejected:** Given `PlaceTile` is dispatched with a coord that is not present in the level's cell list, the action is rejected with `"Cell is not on the board."` State is unchanged.
+- [ ] **AC-v2-10 — PlaceZombieTile on occupied cell rejected:** Given `PlaceZombieTile` targets a coord already occupied by a tile, the action is rejected with `"Cell is already occupied."`. State unchanged.
 
-- [ ] **AC-14 — Occupied cell rejected:** Given `PlaceTile` is dispatched to a coord that is already occupied (pre-placed OR player-placed), the action is rejected with `"Cell is already occupied."` State is unchanged. No overwrite is permitted.
+- [ ] **AC-v2-11 — PlaceZombieTile with no legal cell:** Given a player holds a zombie tile but every cell on the board is occupied, the zombie tile is discarded (appended to `discardPile`, no spawn), and the seat is added to `seatsActedThisRound` as if the player placed normally. Win check runs immediately.
 
-- [ ] **AC-15 — Pre-won level disallowed:** No authored level in the catalogue may start in a state where BFS immediately returns `connectedSurvivors == totalSurvivors` (all survivors already connected to the exit before any action is taken). A catalogue-validation unit test must assert this for every authored level.
+- [ ] **AC-v2-12 — RotateTile (valid):** Given a player whose seat is NOT in `seatsActedThisRound` dispatches `RotateTile { coord, rotation }`, rotation is in 0–5, and the cell contains a player-placed non-zombie tile, then: the rotation is updated; BFS is recomputed; seat added to `seatsActedThisRound`. Same-rotation RotateTile is accepted and consumes the turn. Win check runs immediately.
 
-- [ ] **AC-16 — Disconnected seat stalls round (known limitation — skip test in v1):** The round only advances when all currently-seated players have acted. A disconnected seat that never dispatches an action will stall the round indefinitely. This is a v1 known limitation; the corresponding test is authored as:
-  ```csharp
-  [Fact(Skip="v1 known limitation: disconnected seat stalls round; see follow-up")]
-  public void DisconnectedSeat_DoesNotAdvanceRound() { ... }
-  ```
+- [ ] **AC-v2-13 — MoveCharacter (valid):** Given a player whose seat is NOT in `seatsActedThisRound` dispatches `MoveCharacter { toCoord }`, and the player's character is non-eliminated, and the connection rule is satisfied in both directions between the character's current cell and `toCoord` (i.e. current cell's edge toward toCoord is open AND toCoord's opposite edge is open AND toCoord exists in the level grid), then: the character's `pos` is updated to `toCoord`; seat is added to `seatsActedThisRound`. Win check runs immediately. Movement is one hex per action (no multi-hex sprint).
+
+- [ ] **AC-v2-14 — Win check (after each action):** After every accepted action (PlaceTile, PlaceZombieTile, RotateTile, MoveCharacter, or Pass), the server checks: if all non-eliminated characters are on the exit cell AND at least one non-eliminated character exists, then `phase` → `GameOver`, `outcome` → `Escaped`, emit `GameOverEffect(winnerId: null)`. When the win triggers, the ZombieMovement phase is NOT run and the round boundary is NOT advanced.
+
+- [ ] **AC-v2-15 — Pass:** Given a player whose seat is NOT in `seatsActedThisRound` dispatches `Pass`, then: the seat is added to `seatsActedThisRound`; state unchanged. Win check runs immediately (per AC-v2-14). If no win, and round boundary is reached, ZombieMovement runs (per AC-v2-16).
+
+- [ ] **AC-v2-16 — Round boundary — ZombieMovement and loss check:** When the last seated player completes their action (all seat indices are in `seatsActedThisRound`), in the SAME `Handle` invocation: (1) phase transitions to `ZombieMovement`; (2) for each zombie in order: roll `Random.Shared.Next(1, 7)` (1–6), map die face to direction (face mod 6), check the full connection rule (zombie's edge open AND neighbour exists AND neighbour's opposite edge open); if satisfied move the zombie, else it stays; store `{ zombieId, dieFace, direction, moved }` in `lastZombieRolls`; (3) any character sharing a cell with any zombie after all moves is marked `eliminated: true`; (4) loss check: if ALL characters are eliminated, `phase` → `GameOver`, `outcome` → `Overrun`, emit `GameOverEffect(winnerId: null)` — stop processing; (5) if no loss: run Drawing for the next round (each player draws to hand size 3 from deck), increment `roundNumber`, set `seatsActedThisRound` to empty, set `phase` → `Actions`.
+
+- [ ] **AC-v2-17 — Loss excludes win:** Win (AC-v2-14) is checked after each individual action in the Actions phase. Loss (AC-v2-16) is checked only after ZombieMovement completes. They cannot resolve in the same `Handle` call because they occur in different phases.
+
+- [ ] **AC-v2-18 — Eliminated player still participates:** An eliminated player's character no longer counts toward win or loss tracking, but that player still draws tiles, must PlaceZombieTile when holding one, and may otherwise Pass. Their seat remains in the round and must still be included in `seatsActedThisRound` for the round boundary to advance.
+
+### Validation (rejection cases)
+
+- [ ] **AC-v2-19 — Repeat action rejected:** A player whose seat is already in `seatsActedThisRound` dispatching any action is rejected with `"It is not your turn."`. State unchanged.
+
+- [ ] **AC-v2-20 — PlaceTile coord not on board:** Rejected with `"Cell is not on the board."`.
+
+- [ ] **AC-v2-21 — PlaceTile on occupied cell:** Rejected with `"Cell is already occupied."`.
+
+- [ ] **AC-v2-22 — PlaceTile with 0 of that type in hand:** Rejected with `"No tiles of that type remaining."`.
+
+- [ ] **AC-v2-23 — Invalid rotation:** `PlaceTile` or `RotateTile` with rotation outside 0–5 rejected with `"Invalid rotation."`.
+
+- [ ] **AC-v2-24 — RotateTile on empty cell:** Rejected with `"No tile to rotate."`.
+
+- [ ] **AC-v2-25 — RotateTile on pre-placed tile:** Rejected with `"Cannot rotate a fixed tile."`.
+
+- [ ] **AC-v2-26 — MoveCharacter along closed edge:** Rejected with `"No open path to that cell."`.
+
+- [ ] **AC-v2-27 — MoveCharacter by eliminated character:** Rejected with `"Your character has been eliminated."`.
+
+### State projection
+
+- [ ] **AC-v2-28 — Projection hides other players' hands:** Given `HasStateProjection = true` and `ProjectStateForPlayer` is called for player P, then: P's own hand is returned in full; every other player's hand is returned as an empty list; `handSizes: { playerId → int }` exposes each player's true tile count; `deck` is returned as an empty list; `deckSize: int` exposes the true deck count. Board, zombies, characters, phase, roundNumber, lastZombieRolls, and discard count are all returned unmasked.
+
+- [ ] **AC-v2-29 — Projection is pure:** `ProjectStateForPlayer` never mutates the input state. It deserializes, constructs a new state value using `with`-expressions or equivalent, and reserializes. It does not project from live object references.
 
 ---
 
 ## Architecture decisions
 
-### AD-1 (OQ-HE-01): Implement `IGameModule + IGameHandler` directly
+### AD-OB-1: Replace v1 in place (game id `hexescape`)
 
-`HexEscapeModule` implements `IGameModule` and `IGameHandler` as a single class. It does not extend `ReducerGameModule<,,>`.
+v2 rewrites the existing `hexescape` module on branch `claude/hex-pipe-zombie-coop-mtlx2m`. The game id, `SetupOptions` mechanism (ADR-012), `GameSetupOption.cs`, `IGameModule.SetupOptions`, AD-9 `room.GameOptions` transport, ADR-013 optional `ILogger`, lobby SetupOptions chrome, and the frontend `HexBoard` axial-to-pixel rendering and geometry are all KEPT without modification.
 
-Rationale: `ReducerGameModule.Handle()` (ReducerGameModule.cs:31–39) returns `new GameResult(Serialize(newState))` with no effects and the method is not virtual. `GameDispatcher.cs:88–90` keys room-finished and `GameFinished` SignalR events off `GameOverEffect` appearing in `result.Effects`. Hex Escape must emit `GameOverEffect(null)` on both win and loss. The only path to emit effects is to implement `IGameHandler.Handle()` directly, following the F'That precedent (FThatModule.cs). `GameOverEffect.WinnerId` is already nullable (GameResult.cs:16), so a null winner ID on co-op win requires no contract change.
+Files to DELETE/REWRITE: `HexEscapeModule.cs`, `Models/HexEscapeModels.cs`, `HexEscapeLevels.cs`, frontend `types.ts`, frontend `Game.tsx`, and `HexEscapeModuleTests.cs`.
 
-### AD-2 (OQ-HE-02): Sparse `Dictionary<string, HexCell>` grid keyed `"q,r"`
+Prerequisite before deleting `HexEscapeModuleTests.cs`: PORT the pure-geometry tests (OpenEdges rotation, opposite-edge, connection rule, BFS reachability) into the new test file. Do not lose math coverage.
 
-The canonical grid representation is `Dictionary<string, HexCell>` where each key is the string `$"{q},{r}"`. Empty cells are absent from the dictionary; only occupied cells (pre-placed or player-placed) appear as entries. This mirrors the Skyline board pattern (`Dictionary<string, string>` in SkylineModels.cs:8) and keeps state compact.
+### AD-OB-2: RNG via `Random.Shared` inside `Apply` — no seed in state
 
-### AD-3 (OQ-HE-03): Server runs BFS; `connectedSurvivors` is a derived broadcast field
+All randomness (deck shuffle at start; per-zombie d6 each round) uses `Random.Shared` called inside `Apply`/`Handle`, matching the SushiGo/LoveLetter precedent. The resulting rolls are stored in state as `lastZombieRolls: [{ zombieId, dieFace, direction, moved }]` for animation and audit. No RNG seed is stored in state. No change to `GameContext`.
 
-On every action, the server runs BFS from the exit cell outward over shared open edges across the `Dictionary<string, HexCell>`. With at most 49 cells this is trivially fast. The computed connectivity count is stored as `connectedSurvivors` in the state broadcast to all clients. The frontend renders this value only — it performs no connectivity computation.
+Rationale: nothing in the platform replays `Handle` from the action log. `GameDispatcher` invokes `Handle` once; the only re-run is a post-rollback retry against the same committed state. Storing a seed buys nothing.
 
-### AD-4 (OQ-HE-04): Static readonly C# level data; no `DbContext` or migration
+### AD-OB-3: `HasStateProjection = true`; implement `ProjectStateForPlayer`
 
-All level definitions are static readonly C# objects inside the game module. No `HexEscapeDbContext`, no EF migrations, and no `__EFMigrationsHistory_hexescape` table. ADR-004 reserves game database tables for leaderboards and statistics only; v1 Hex Escape has neither. There is no embedded-JSON-resource precedent in `src/games/` and we deliberately avoid introducing one — static C# is simpler and immediately navigable by all agents.
+v2 flips `HasStateProjection` from `false` (v1) to `true`. `ProjectStateForPlayer` follows the LoveLetter template: own hand is returned in full; other players' hands are masked to empty lists with real counts in `handSizes`; deck is stripped to an empty list with `deckSize` exposed. Board/grid, zombies, characters, phase, roundNumber, lastZombieRolls, and discard count are all public. Projection must be pure (deserialize / `with` / reserialize — never mutate input or project off live references).
 
-### AD-5 (OQ-HE-05): Three action types — `PlaceTile`, `RotateTile`, `Pass`
+### AD-OB-4: State shape
 
-The action discriminated union has exactly three members: `PlaceTile { coord, tileType, rotation }`, `RotateTile { coord, rotation }`, and `Pass`. `Pass` is required so a player who cannot make a useful move can still advance the round boundary without blocking the threat track.
+Top-level fields:
 
-### AD-6 (OQ-HE-06): `HasStateProjection = false`
+- `characters: [{ playerId, pos, eliminated }]` — SEPARATE from `players`; eliminated applies to the character, not the player slot.
+- `players` — pure identity slots, unchanged from platform convention.
+- `hands: { playerId → HeldTile[] }` — `HeldTile { tileType, rotation?, isZombieTile }`.
+- `deck: DeckEntry[]` — `DeckEntry { tileType, isZombieTile }`. Present in full server-side; stripped to `[]` with `deckSize` in projection.
+- `discardPile: DeckEntry[]` — present but inert in v2; retained as a hook for follow-up (reshuffle, etc.).
+- `zombies: [{ id, pos }]` — stable string ids for animation continuity across rounds.
+- `roundNumber: int`.
+- `phase: HexEscapePhase`.
+- `lastZombieRolls: [{ zombieId, dieFace, direction, moved }]` — reset each ZombieMovement run.
+- `seatsActedThisRound: int[]` — distinct list, not `HashSet<int>` (clean JSON round-trip).
+- `connectedCharacters: int` — derived BFS count, broadcast for UI.
+- `outcome: HexEscapeOutcome?` — null until GameOver.
 
-All game state (grid contents, threat counter, survivor positions) is public information in Hex Escape. The module does not override the default `HasStateProjection => false` (IGameModule.cs:32). `GameDispatcher` broadcasts the full state to the group (GameDispatcher.cs:119–124).
+Directions: int 0–5 reusing the v1 direction table. Every new enum carries `[JsonConverter(typeof(JsonStringEnumConverter))]`. The module keeps the global `JsonStringEnumConverter` in `SerializerOptions`. `types.ts` mirrors enums as PascalCase string unions; all field and action prop names in camelCase.
 
-### AD-7 (OQ-HE-07): `SupportsUndo = false` in v1
+### AD-OB-5: Phase model
 
-Co-op undo requires a consent model (all players must agree to roll back a shared state). That model is out of scope per ADR-009. `SupportsUndo` returns false.
+New enum `HexEscapePhase { Drawing, Actions, ZombieMovement, GameOver }`. New enum `HexEscapeOutcome { Escaped, Overrun }`.
 
-### AD-8 (OQ-HE-08): `MinPlayers = 1`, `MaxPlayers = 6`
+Only the Actions phase accepts client actions. Drawing and ZombieMovement are server-computed inside `Handle` at the round boundary (same invocation as the last Actions-phase action). No client "advance phase" or "roll dice" action exists.
 
-Solo play is a first-class mode and the cleanest contract test for the round-boundary logic (a single seat immediately triggers threat advance). `MinPlayers` is a free int on `IGameModule` (IGameModule.cs:14); setting it to 1 requires no contract change.
+### AD-OB-6: Round structure
 
-### AD-9 (PLATFORM FIX): `POST /rooms` must populate `room.GameOptions` from `req.Options`
+1. **Drawing** — each player draws from the top of the shared shuffled deck until their hand reaches the fixed hand size (3), or the deck is exhausted. A drawn zombie tile enters the player's hand and creates a forced PlaceZombieTile obligation.
+2. **Actions** — free-order (reusing `seatsActedThisRound`). One action per seat per round: `PlaceTile`, `PlaceZombieTile`, `RotateTile`, `MoveCharacter`, or `Pass`. A player holding a zombie tile MUST PlaceZombieTile before any other action. If no legal cell exists for the zombie tile, it is discarded with no spawn.
+3. **ZombieMovement** (server) — per zombie, roll d6 → direction (die face mod 6); move iff the zombie's edge is open AND the neighbour exists AND the neighbour's opposite edge is open (full v1 connection rule); else the zombie stays. After all moves, any character sharing a zombie's cell is eliminated.
 
-`RoomEndpoints.cs:143–158` currently constructs the `Room` entity without ever reading `req.Options` (declared as `object?` in `CreateRoomRequest`, line 347). As a result `room.GameOptions` is always null when `CreateInitialState` is called at line 223. `Room.GameOptions` is already a `JsonDocument?` column with no schema change required (Room.cs:14).
+### AD-OB-7: Win/loss ordering
 
-Fix: serialize `req.Options` to `JsonDocument` and assign it to `room.GameOptions` inside the `MapPost("/rooms")` handler before calling `db.SaveChangesAsync()`. The platform must transport the opaque options blob unchanged — it must not parse or understand level IDs. Level schema stays entirely inside the game module.
+WIN is checked after each individual action in the Actions phase. The team wins (`Escaped`, `GameOverEffect(null)`) when all non-eliminated characters are on the exit cell AND at least one non-eliminated character exists.
 
-Backward safety: No existing game (FThat, Skyline, LiarsDice) passes non-null options today — all pass null. Populating `room.GameOptions` from `req.Options` is therefore backward-safe; when `req.Options` is null the column remains null and existing games are unaffected. An integration test must confirm that existing games still start correctly with null options after this fix.
+LOSS is checked after the server-run ZombieMovement. The team loses (`Overrun`, `GameOverEffect(null)`) when ALL characters are eliminated.
 
-This is a shared platform change. It must land on the session branch before level-selector behaviour can be tested end-to-end. Architect sign-off is required before merging.
+Win and loss cannot resolve in the same `Handle` call because they are checked in different phases. This ordering is invariant.
 
-### AD-10 (PLATFORM FIX): `CreateInitialState` must defend against null/malformed options
+### AD-OB-8: Forced zombie tile with no legal cell
 
-Even after AD-9 is deployed, old clients, integration tests, or manually created rooms may omit options. `HexEscapeModule.CreateInitialState` must treat a null or malformed `JsonDocument?` options argument as a signal to fall back to the default level (`"tutorial-01"`) rather than throwing. A thrown exception at this call site (RoomEndpoints.cs:223) returns a 500 and leaves the room in an unstarted state with no error message visible to the host. The fallback emits a server-side WARNING log line via `ILogger`:
+If a player holds a zombie tile and every cell on the board is occupied, the tile is appended to `discardPile` with no zombie spawned. The player's seat is added to `seatsActedThisRound` as normal. Eliminated players still draw and must attempt to place zombie tiles; if no cell is available the same discard rule applies.
 
-```
-HexEscape: options missing/unknown level '{id}', falling back to tutorial-01
-```
+### AD-OB-9: Zombie tile scaling (balance TBD)
 
-This warning fires for both the null case and the unknown-level-id case. It is observable in the Aspire dashboard and Azure Monitor logs.
+The proportion of zombie tiles in the deck scales with player count. The following table is the starting point — numbers are explicitly marked as **balance TBD by playtest** and must be tunable constants in one place (not scattered or frozen as a contract):
 
-### AD-11 (ROUND BOUNDARY): Explicit `seatsActedThisRound` state field
+| Players | Zombie tiles | Total deck size |
+|---------|-------------|-----------------|
+| 1       | 3           | 30              |
+| 2       | 5           | 40              |
+| 3       | 7           | 50              |
+| 4       | 10          | 60              |
+| 5       | 12          | 70              |
+| 6       | 15          | 80              |
 
-The state record carries `seatsActedThisRound` as a **set of seat indices** (e.g., `int[]` or `List<int>` with a distinct guard — NOT `HashSet<int>`, which does not round-trip cleanly through JSON). Serializes to a JSON array. `Handle` appends the acting seat on every accepted action, with a distinct check before appending. When all currently-assigned seat indices are present in `seatsActedThisRound`, the threat counter increments and `seatsActedThisRound` resets to empty in the same `Handle` call — atomically, in one state transition.
+### AD-OB-10: First-cut scope trims (locked for v2)
 
-Seat indices may be non-contiguous after a pre-game leave (e.g., seats 0, 2, 4 with no seats 1 or 3). All logic must use set membership (`seatsActedThisRound.Contains(seatIndex)`) and never assume seats are 0..N-1 or use index arithmetic.
+These are deliberately constrained to keep v2 shippable. Each trim leaves a field or constant hook so the follow-up is purely additive:
 
-### AD-12 (FRONTEND): Frontend must handle `GameFinished` with `winnerId = null`
+- No discard reshuffle — deck empties and stays empty; `discardPile` field is present.
+- No multi-hex sprint — one hex per MoveCharacter; constant `MaxMoveDistance = 1`.
+- No zombie-tile overwrite — zombie tiles may only target empty cells.
+- Fixed hand size 3 — constant `HandSize = 3`.
+- Ship one v2 level (the tutorial) — level loader and SetupOptions dropdown remain wired; more levels are a follow-up.
 
-`GameDispatcher` emits a `GameFinished` SignalR event that includes `winnerId`. For Hex Escape, `winnerId` is always null (co-op — no individual winner). The frontend result screen must use `outcome` (`Escaped` vs `Overrun`) as the sole discriminator for result messaging. It must never render "null won" or attempt to look up a player by a null ID.
+### AD-OB-11: No database changes
 
-A frontend task is required to verify that existing lobby chrome (the platform-level post-game screen) tolerates a null `winnerId` without throwing or rendering a broken state. This applies to all screens that branch on `winnerId`.
+All state lives in the JSONB blob. No `DbContext`, no tables, no migrations. Contract impact: zero changes to `IGameModule`, `IGameHandler`, `GameContext`, `GameResult`, or the TypeScript `GameModule`/`GameContext` interfaces. The only opt-in change is flipping `HasStateProjection` from `false` to `true` — an existing mechanism.
 
----
+### Carried-forward ADRs from v1
 
-## Known limitations (v1)
+The following v1 architecture decisions remain in effect unchanged:
 
-### Disconnected seat deadlock
-
-The round only advances when every seated player has dispatched an action in the current round. A player who disconnects mid-game and never dispatches will stall the round indefinitely. There is no host-initiated "skip seat" or timeout mechanism in v1. Follow-up story: host-initiated skip-seat / per-seat timeout.
-
-### Hand exhaustion loss path
-
-If the shared tile hand is fully exhausted before a winning path is established, players have no moves other than `Pass`. They will pass each round, the threat counter will advance each round, and eventually the game ends as `Overrun`. This is an intended design outcome, not an error. The system correctly processes it without special handling.
+- **ADR-012** — `IGameModule.SetupOptions` and `GameSetupOption.cs` (generic level selector mechanism).
+- **AD-9** — `POST /rooms` populates `room.GameOptions` from `req.Options` (already resolved in v1 implementation).
+- **ADR-013** — Optional `ILogger` injection.
+- **AD-1** — Implement `IGameModule + IGameHandler` directly (not `ReducerGameModule`), required to emit `GameOverEffect`.
+- **AD-2** — Sparse `Dictionary<string, HexCell>` grid keyed `"q,r"`.
+- **AD-7** — `SupportsUndo = false`.
+- **AD-8** — `MinPlayers = 1`, `MaxPlayers = 6`.
+- **AD-11** — `seatsActedThisRound` as `List<int>` with distinct guard (not `HashSet<int>`); all seat logic uses set membership.
+- **AD-12** — Frontend must handle `GameFinished` with `winnerId = null`; use `outcome` as sole discriminator.
 
 ---
 
 ## Out of scope
 
-- Procedural level generation
-- Y-junction tile type (deferred to v2)
-- Moving zombie tokens on the board (threat is a counter only in v1)
-- Breach-cell loss trigger (individual cells being overrun; only the threshold matters in v1)
-- Co-op undo or rollback with player consent
-- Host-initiated skip-seat or per-seat disconnect timeout (follow-up story)
-- Leaderboard, statistics, or match-history tables (`HexEscapeDbContext` deferred)
+- Survivors-to-rescue mechanic (future story)
+- Discard reshuffle
+- Multi-hex sprint (more than one hex per MoveCharacter)
+- Zombie tile overwrite of occupied cells
+- Dynamic balance tuning at runtime
+- Additional levels beyond the tutorial (follow-up story)
+- Any RNG seed stored in state or passed via `GameContext`
+- Any change to `IGameModule`, `IGameHandler`, `GameContext`, `GameResult`, or TypeScript `GameModule`/`GameContext`
+- Database tables, EF migrations, or `HexEscapeDbContext`
+- Host-initiated skip-seat or per-seat disconnect timeout
 - Spectator mode or late-join
-- Embedded JSON resources in the game project (no precedent; use static C#)
-- Any changes to `IGameModule`, `IGameHandler`, `GameContext`, `GameResult`, or the TypeScript `GameModule`/`GameContext` interfaces
+- Co-op undo with player consent
+- Y-junction tile type
+- Procedural level generation
 
 ---
 
 ## Implementation hints
 
-**Platform prerequisite — must land first:**
-- `{agent: backend}` In `RoomEndpoints.cs` `MapPost("/rooms")` handler (lines 143–158): deserialize `req.Options` into a `JsonDocument?` and assign to `room.GameOptions` before `db.SaveChangesAsync()`. `CreateRoomRequest.Options` is already `object?`; replace its type with `JsonDocument?` or serialize via `JsonSerializer`. No migration needed. `{agent: architect}` sign-off required before this merges.
-- `{agent: tester}` Integration test: existing games (FThat, Skyline, LiarsDice) still start correctly with null options after the AD-9 fix.
+### Backend (rewrite module / models / levels)
 
-**Backend:**
-- `{agent: backend}` Implement `HexEscapeModule` as a single class implementing both `IGameModule` and `IGameHandler`, following FThatModule.cs as the template.
-- Author `"tutorial-01"` level first — it is the fallback target; all other levels may follow.
-- Static level data as `static readonly HexEscapeLevel[]` inside the module or a companion `HexEscapeLevels.cs` file.
-- BFS runs from the exit cell outward on every accepted action using the canonical axial offsets in the "Hex geometry and tile model" section; result written to `connectedSurvivors` before serialisation.
-- Win check runs BEFORE threat increment inside `Handle` — this ordering is invariant.
-- Tile hand is finite; `PlaceTile` must check hand count before accepting.
-- `seatsActedThisRound` uses `List<int>` with a distinct guard (not `HashSet<int>`); all seat logic uses set membership, never index arithmetic.
-- Both `HexEscapePhase` and `HexEscapeActionType` enums must carry `[JsonConverter(typeof(JsonStringEnumConverter))]`.
+- Implement `HexEscapeModule` implementing both `IGameModule` and `IGameHandler` (AD-1), following `FThatModule.cs` as template.
+- Port pure-geometry tests (OpenEdges rotation, opposite-edge, connection rule, BFS reachability) into the new test file BEFORE deleting `HexEscapeModuleTests.cs`.
+- All randomness via `Random.Shared` inside `Handle`/`Apply` — no seed in state (AD-OB-2).
+- `HasStateProjection = true`; implement `ProjectStateForPlayer` as pure deserialize/with/reserialize (AD-OB-3).
+- Author the tutorial level first — it is the fallback target; its absence breaks the AD-10 null-options fallback.
+- Every enum (`HexEscapePhase`, `HexEscapeOutcome`, tile type enums) must carry `[JsonConverter(typeof(JsonStringEnumConverter))]`.
+- `seatsActedThisRound` as `List<int>` with distinct guard; all logic uses `.Contains()`, never index arithmetic (AD-11).
+- Win check after each action BEFORE round boundary processing; loss check after ZombieMovement (AD-OB-7).
+- `CreateInitialState` falls back to `"tutorial-01"` with ILogger WARNING when options are null or malformed (AD-10).
+- `CreateInitialState` throws `ArgumentException` if resolved level has 0 survivors.
 - No `HexEscapeDbContext`; no EF migrations.
-- `CreateInitialState` falls back to `"tutorial-01"` when options are null or unparseable and logs an `ILogger` WARNING (AD-10).
-- `CreateInitialState` throws `ArgumentException` if the resolved level has 0 survivors (AC-10).
-- `CreateInitialState` does NOT evaluate the win condition.
 
-**Frontend:**
-- `{agent: frontend, ux}` Hex board rendered from `state.grid` (sparse dictionary); empty cells rendered as blank hexagons.
-- Tile rotation UI: clicking a placed tile offers a rotate action; clicking an empty cell offers a place-tile picker.
-- Level selector pre-game screen shown to the host in the lobby; dispatches the selected level ID as part of the `CreateRoomRequest.Options` payload (`{ "levelId": "..." }`); other players see the selection via the room SignalR channel.
-- Result screen: "Escaped!" (win) or "Overrun!" (loss) — both trigger off `phase === 'GameOver'` with `outcome` as the sole discriminator. Must handle `winnerId === null` — never render null winner. Verify platform lobby chrome also tolerates null `winnerId` (AD-12).
-- `registry.ts` one-line add: `import hexescape from './hexescape'` and entry in the registry object.
+### Frontend (rewrite types.ts and Game.tsx; keep HexBoard)
 
-**Tests — happy path:**
-- `{agent: tester}` BFS: fully connected path → `connectedSurvivors == totalSurvivors`.
-- BFS: broken path → `connectedSurvivors < totalSurvivors`.
-- BFS: partial path (some but not all survivors reachable) → intermediate value.
-- Threat counter reaching `>= threatThreshold` triggers `Overrun` + `GameOverEffect(null)`.
-- BFS win triggers `Escaped` + `GameOverEffect(null)` without applying threat increment.
-- Win check fires before threat increment in the same round-boundary `Handle` call.
-- `seatsActedThisRound` resets to empty after all seats have acted.
-- Solo game (1 seat): single `PlaceTile` immediately advances threat if no win.
-- `Pass` advances round boundary; threat increments when all seats have passed.
-- All-pass stalemate repeats until `Overrun` — this is intentional and testable.
-- Null-options fallback selects `"tutorial-01"`.
-- Same-rotation `RotateTile` is accepted and consumes the turn.
-- Catalogue validation: no authored level has 0 survivors.
-- Catalogue validation: no authored level is pre-won (BFS passes before any action).
+- Keep `HexBoard` axial-to-pixel rendering and geometry unchanged.
+- Rewrite `types.ts` to mirror the v2 state shape (AD-OB-4) in camelCase.
+- Add zombie token layer and character token layer over `HexBoard`.
+- Render per-player hands, deck size, round number, and phase indicator.
+- Animate `lastZombieRolls` — show dice result and movement arrow per zombie.
+- Result screen: `outcome === 'Escaped'` → "Escaped!"; `outcome === 'Overrun'` → "Overrun!". Never render null winner. Verify platform lobby chrome tolerates `winnerId === null` without crashing (AD-12).
+- Highlight that a player holding a zombie tile must place it first (block other action buttons with a tooltip: "You must place your zombie tile first.").
+- TypeScript enums mirror as PascalCase string unions; all field names camelCase.
 
-**Tests — unhappy path (rejection cases):**
-- `PlaceTile` on occupied cell (pre-placed) → `"Cell is already occupied."`
-- `PlaceTile` on occupied cell (player-placed) → `"Cell is already occupied."`
-- `PlaceTile` to coord not in level grid → `"Cell is not on the board."`
-- `PlaceTile` with rotation outside 0–5 → `"Invalid rotation."`
-- `PlaceTile` with hand count = 0 for that type → `"No tiles of that type remaining."`
-- `RotateTile` on empty cell → `"No tile to rotate."`
-- `RotateTile` on pre-placed tile → `"Cannot rotate a fixed tile."`
-- `RotateTile` with rotation outside 0–5 → `"Invalid rotation."`
-- Repeat action by seat already in `seatsActedThisRound` → `"It is not your turn."`
-- `CreateInitialState` with 0-survivor level → `ArgumentException`.
+### Tester
 
-**Tests — known limitation (skip):**
-- Disconnected seat stalls round → `[Fact(Skip="v1 known limitation: disconnected seat stalls round; see follow-up")]`
+- Port pure-geometry tests first, before the old test file is deleted.
+- New test suite covers: deck shuffle produces correct zombie-tile count; Drawing phase deals to hand size 3; deck exhaustion deals fewer tiles without crash; PlaceZombieTile spawns zombie; PlaceZombieTile with no legal cell discards with no spawn; ZombieMovement rolls and moves correctly; eliminated character not counted in win check; win requires at least one non-eliminated character; loss requires ALL characters eliminated; win check fires before ZombieMovement in the same Handle call; projection hides other players' hands and deck.
+- Port unhappy-path rejection tests from v1 (occupied cell, not-on-board, invalid rotation, repeat action, etc.) updating for v2 action set.
+- Disconnected seat stalls round: `[Fact(Skip="v1 known limitation: disconnected seat stalls round; see follow-up")]`.
 
-**Integration tests:**
-- AD-9: existing games (FThat, Skyline, LiarsDice) start correctly with null options after the `room.GameOptions` fix.
-- AD-12: frontend null-winner `GameFinished` does not crash lobby chrome or render "null won".
+### DevOps
 
-**CI / DevOps:**
-- `{agent: devops}` No migration and no new DbContext — no CI action required unless that changes in a future story.
+No migration and no new DbContext — no CI action required for v2.
 
 ---
 
 ## Story review
 
-**Reviewed by:** adversarial analyst + tester
-**Review date:** 2026-06-15
-**Round:** 3 (final)
-**Challenges raised:** 28
-**Challenges resolved:** 28
-**Criteria added:** 7 (AC-10 through AC-16; AC-1–AC-9 substantially rewritten for testability)
-**Total AC count:** 16
-**Total AD count:** 12
-
-**Verdict: Ready for implementation.**
-
-**Key edge cases that must not be missed:**
-
-1. Win check ALWAYS runs before threat increment in the same `Handle` call (AC-2, AC-3, AC-4, AC-5).
-2. Seat indices are a free set — may be non-contiguous after pre-game leave; no index arithmetic (AD-11, AC-7).
-3. `GameOverEffect(winnerId: null)` for both win and loss — frontend must not render null winner (AD-12, AC-5, AC-6).
-4. Pre-placed tiles are immutable: cannot be rotated or overwritten (AC-3, AC-14).
-5. Same-rotation `RotateTile` is accepted (AC-3) — keeps validation simple.
-6. Hand is finite; PlaceTile must guard against zero remaining (AC-11).
-7. BFS runs from exit outward; dead edges at the grid boundary are not errors (Hex geometry section).
-8. `"tutorial-01"` must be authored first; its absence breaks the AD-10 fallback (AD-10, AC-8).
-9. All-pass stalemate is intentional — no special handling required (AC-4, AC-15 validation, known limitations).
-10. Disconnected seat deadlock is a v1 known limitation — test is skipped with `[Fact(Skip=...)]` (AC-16).
-
-**Test complexity note:** Pure `Handle` and BFS unit tests are straightforward xUnit — no running hub required, no DB, no migrations. The AD-9 platform fix (`room.GameOptions` propagation) and AD-12 null-winner `GameFinished` require integration tests against the running hub and lobby chrome respectively. These are the two tests with the highest setup cost and should be implemented by `{agent: tester}` after backend and frontend are committed.
+**Verdict:** Approved — conditional on 7 Must-fix items (all encoded above as ACs and ADs). Zero contract changes.
+**Spec round:** 3 (final — analyst + architect aligned)
+**Total AC count:** 29 (AC-v2-1 through AC-v2-29)
+**Total AD count:** 11 new (AD-OB-1 through AD-OB-11) + 10 carried forward from v1
