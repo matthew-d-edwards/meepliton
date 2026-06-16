@@ -44,7 +44,7 @@ const BASE_EDGES: Record<HexTileType, number[]> = {
 }
 
 /** Open edges after applying rotation k */
-function openEdges(tileType: HexTileType, rotation: number): number[] {
+export function openEdges(tileType: HexTileType, rotation: number): number[] {
   return BASE_EDGES[tileType].map(e => (e + rotation) % 6)
 }
 
@@ -52,7 +52,7 @@ function openEdges(tileType: HexTileType, rotation: number): number[] {
  * For a flat-top hex, direction d points to angle (60 * d) degrees from centre.
  * The inradius is HEX_SIZE * sqrt(3)/2.
  */
-function edgeMidpoint(cx: number, cy: number, dir: number): { x: number; y: number } {
+export function edgeMidpoint(cx: number, cy: number, dir: number): { x: number; y: number } {
   const angle = (Math.PI / 180) * (60 * dir)
   const inradius = HEX_SIZE * (SQRT3 / 2)
   return {
@@ -66,6 +66,9 @@ export function parseCoord(key: string): { q: number; r: number } {
   const [qs, rs] = key.split(',')
   return { q: parseInt(qs, 10), r: parseInt(rs, 10) }
 }
+
+/** HEX_SIZE constant exported for use by TilePreview */
+export const HEX_PREVIEW_SIZE = HEX_SIZE
 
 // ── HexBoard Props ────────────────────────────────────────────────────────────
 
@@ -91,6 +94,10 @@ export interface HexBoardProps {
   /** Coords the active player can actually act on right now. When provided,
    *  cells not in the set are announced as disabled (focusable to read, but inert). */
   actionableCoords?: Set<string>
+  /** Show debug coordinate labels. Defaults to import.meta.env.DEV. */
+  showCoords?: boolean
+  /** When true, the exit cell renders a pulsing highlight (exit-just-revealed ceremony). */
+  exitJustRevealed?: boolean
 }
 
 export function HexBoard({
@@ -108,6 +115,8 @@ export function HexBoard({
   onCellClick,
   canInteract,
   actionableCoords,
+  showCoords = import.meta.env.DEV,
+  exitJustRevealed = false,
 }: HexBoardProps) {
   // Build pixel positions for each cell
   const positions = new Map<string, { x: number; y: number }>()
@@ -167,6 +176,7 @@ export function HexBoard({
           const isSpawnZone = spawnSet.has(key)
           const isExitZone = exitZoneSet.has(key)
           const isExitCell = exitRevealed && key === exitCell
+          const isPulsingExit = isExitCell && exitJustRevealed
           const cell: HexCell | undefined = grid[key]
           const isOccupied = cell !== undefined
           const isFixed = cell?.fixed ?? false
@@ -207,6 +217,15 @@ export function HexBoard({
               } : undefined}
             >
               <polygon points={cornersStr} className={polyClass} />
+
+              {/* Exit-reveal pulse ring (animates on reveal; respects prefers-reduced-motion via CSS) */}
+              {isPulsingExit && (
+                <polygon
+                  points={cornersStr}
+                  className={styles.hexExitPulse}
+                  aria-hidden="true"
+                />
+              )}
 
               {/* Tile connection lines */}
               {cell && (
@@ -294,10 +313,12 @@ export function HexBoard({
                 />
               )}
 
-              {/* Cell coord label (small, non-distracting dev aid) */}
-              <text x={x} y={y + HEX_SIZE * 0.65} className={styles.cellLabel} aria-hidden="true">
-                {key}
-              </text>
+              {/* Cell coord label — dev-only aid; hidden in production */}
+              {showCoords && (
+                <text x={x} y={y + HEX_SIZE * 0.65} className={styles.cellLabel} aria-hidden="true">
+                  {key}
+                </text>
+              )}
             </g>
           )
         })}
@@ -308,7 +329,7 @@ export function HexBoard({
 
 // ── Tile line renderer ────────────────────────────────────────────────────────
 
-interface TileLinesProps {
+export interface TileLinesProps {
   cx: number
   cy: number
   tileType: HexTileType
@@ -316,7 +337,7 @@ interface TileLinesProps {
   fixed: boolean
 }
 
-function TileLines({ cx, cy, tileType, rotation, fixed }: TileLinesProps) {
+export function TileLines({ cx, cy, tileType, rotation, fixed }: TileLinesProps) {
   const edges = openEdges(tileType, rotation)
   const pathClass = fixed ? styles.tilePathFixed : styles.tilePath
 

@@ -1041,3 +1041,153 @@
   font-weight: 700;
   color: var(--text-bright);
 }
+
+/* Smaller variant for long text values (e.g. level name) */
+.gameOverStatValueSmall {
+  font-size: 1rem;
+}
+
+/* ── Player name "(you)" label — no inline styles ── */
+.playerNameYou {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* ── Exit reveal banner ── */
+.exitRevealBanner {
+  position: fixed;
+  top: var(--space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 250;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: color-mix(in srgb, var(--accent) 15%, var(--surface-overlay));
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--glow-md) color-mix(in srgb, var(--accent) 35%, transparent);
+  animation: exitRevealSlideIn 350ms ease-out;
+  white-space: nowrap;
+}
+
+@keyframes exitRevealSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exitRevealBanner {
+    animation: none;
+  }
+}
+
+.exitRevealBannerIcon {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--accent);
+  text-shadow: var(--glow-sm) var(--accent-glow);
+}
+
+.exitRevealBannerText {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  text-shadow: var(--glow-sm) var(--accent-glow);
+}
+
+.exitRevealBannerDismiss {
+  background: transparent;
+  border: 1px solid var(--accent-glow);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: color 100ms;
+  min-height: 28px;
+  min-width: 28px;
+}
+
+.exitRevealBannerDismiss:hover {
+  color: var(--text-bright);
+}
+
+.exitRevealBannerDismiss:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Exit cell pulse (reveal ceremony on the board) ── */
+.hexExitPulse {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  opacity: 0;
+  animation: exitPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes exitPulse {
+  0%   { opacity: 0; stroke-width: 2; }
+  40%  { opacity: 0.7; stroke-width: 4; }
+  100% { opacity: 0; stroke-width: 6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hexExitPulse {
+    animation: none;
+    opacity: 0.6;
+    stroke-width: 3;
+  }
+}
+
+/* ── Rotation section: preview + controls side-by-side ── */
+.rotationSection {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* ── Tile preview SVG ── */
+.tilePreviewWrap {
+  flex-shrink: 0;
+}
+
+.tilePreviewSvg {
+  display: block;
+  width: 72px;
+  height: 72px;
+}
+
+.tilePreviewHex {
+  fill: var(--surface-float);
+  stroke: var(--neon-cyan);
+  stroke-width: 1.5;
+}
+
+.tilePreviewPath {
+  stroke: var(--neon-cyan);
+  stroke-width: 3;
+  stroke-linecap: round;
+  fill: none;
+}
+
+/* ── Rotation note (replaces inline style) ── */
+.rotNote {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
