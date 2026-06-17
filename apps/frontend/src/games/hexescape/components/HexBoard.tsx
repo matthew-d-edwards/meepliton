@@ -49,11 +49,24 @@ export function openEdges(tileType: HexTileType, rotation: number): number[] {
 }
 
 /**
- * For a flat-top hex, direction d points to angle (60 * d) degrees from centre.
- * The inradius is HEX_SIZE * sqrt(3)/2.
+ * Physical screen angle (degrees, SVG y-down) of each axial direction, in the same
+ * order as the backend's Directions table [E, NE, N, W, SW, S].
+ *
+ * For a FLAT-TOP hex the six neighbours sit at the EDGE MIDPOINTS, not the corners.
+ * These angles are derived from the hexToPixel deltas of each direction:
+ *   dir 0 (+1, 0)  → 30°    dir 1 (+1,-1) → -30°   dir 2 (0,-1) → -90°
+ *   dir 3 (-1, 0)  → -150°  dir 4 (-1,+1) → 150°   dir 5 (0,+1) →  90°
+ * (Using 60*dir here was the old bug — it pointed roads at the corners.)
+ */
+export const DIR_ANGLE_DEG = [30, -30, -90, -150, 150, 90]
+
+/**
+ * Midpoint of the hex edge facing direction `dir`. Roads run from the cell centre
+ * to this point, so connected tiles meet exactly at the shared edge.
+ * The inradius (centre→edge distance) of a flat-top hex is HEX_SIZE * sqrt(3)/2.
  */
 export function edgeMidpoint(cx: number, cy: number, dir: number): { x: number; y: number } {
-  const angle = (Math.PI / 180) * (60 * dir)
+  const angle = (Math.PI / 180) * DIR_ANGLE_DEG[dir]
   const inradius = HEX_SIZE * (SQRT3 / 2)
   return {
     x: cx + inradius * Math.cos(angle),
@@ -227,6 +240,19 @@ export function HexBoard({
                 />
               )}
 
+              {/* City blocks: solid buildings fill the hex; streets carve through.
+                  Drawn before the roads so the streets (and their sidewalk curbs)
+                  overlay them cleanly. */}
+              {cell && (
+                <TileBlocks
+                  cx={x}
+                  cy={y}
+                  coord={key}
+                  tileType={cell.tileType}
+                  rotation={cell.rotation}
+                />
+              )}
+
               {/* Tile connection lines */}
               {cell && (
                 <TileLines
@@ -337,33 +363,153 @@ export interface TileLinesProps {
   fixed: boolean
 }
 
-export function TileLines({ cx, cy, tileType, rotation, fixed }: TileLinesProps) {
-  const edges = openEdges(tileType, rotation)
-  const pathClass = fixed ? styles.tilePathFixed : styles.tilePath
+// ── Road tile renderer ──────────────────────────────────────────────────────
+// Tiles render as city streets: a wide asphalt band with lighter curbs and a
+// dashed centre lane line, all meeting at a central intersection. Each open edge
+// is one road segment running from the cell centre to that edge's midpoint, so
+// roads on connected tiles meet exactly at the shared edge.
+
+const ROAD_CASING_W = 19       // curb/sidewalk band width
+const ROAD_SURFACE_W = 11.5    // asphalt width (narrower → wider sidewalk strip)
+const ROAD_HUB_CASING_R = 9.5  // intersection curb radius
+const ROAD_HUB_SURFACE_R = 5.75 // intersection asphalt radius
+const LANE_START_T = 0.34      // lane dashes start this far out from centre…
+const LANE_END_T = 0.94        // …and stop just short of the edge
+
+export interface RoadTileProps {
+  cx: number
+  cy: number
+  /** Edge midpoints (one per open edge) the roads run to. */
+  ends: { x: number; y: number }[]
+  fixed: boolean
+}
+
+/** Draws a hex tile as a set of city streets meeting at a central intersection. */
+export function RoadTile({ cx, cy, ends, fixed }: RoadTileProps) {
+  const casingClass = fixed ? styles.roadCasingFixed : styles.roadCasing
+  const surfaceClass = fixed ? styles.roadSurfaceFixed : styles.roadSurface
+  const hubCasingClass = fixed ? styles.roadHubCasingFixed : styles.roadHubCasing
+  const hubClass = fixed ? styles.roadHubFixed : styles.roadHub
 
   return (
     <>
-      {edges.map(dir => {
-        const mid = edgeMidpoint(cx, cy, dir)
+      {/* Curb / sidewalk casing (widest, painted first) */}
+      {ends.map((end, i) => (
+        <line key={`c${i}`} x1={cx} y1={cy} x2={end.x.toFixed(2)} y2={end.y.toFixed(2)}
+              className={casingClass} strokeWidth={ROAD_CASING_W} />
+      ))}
+      <circle cx={cx} cy={cy} r={ROAD_HUB_CASING_R} className={hubCasingClass} />
+
+      {/* Asphalt surface */}
+      {ends.map((end, i) => (
+        <line key={`s${i}`} x1={cx} y1={cy} x2={end.x.toFixed(2)} y2={end.y.toFixed(2)}
+              className={surfaceClass} strokeWidth={ROAD_SURFACE_W} />
+      ))}
+      <circle cx={cx} cy={cy} r={ROAD_HUB_SURFACE_R} className={hubClass} />
+
+      {/* Dashed centre lane markings (skip the cluttered intersection itself) */}
+      {ends.map((end, i) => {
+        const sx = cx + (end.x - cx) * LANE_START_T
+        const sy = cy + (end.y - cy) * LANE_START_T
+        const ex = cx + (end.x - cx) * LANE_END_T
+        const ey = cy + (end.y - cy) * LANE_END_T
         return (
-          <line
-            key={dir}
-            x1={cx.toFixed(2)}
-            y1={cy.toFixed(2)}
-            x2={mid.x.toFixed(2)}
-            y2={mid.y.toFixed(2)}
-            className={pathClass}
-          />
+          <line key={`l${i}`} x1={sx.toFixed(2)} y1={sy.toFixed(2)} x2={ex.toFixed(2)} y2={ey.toFixed(2)}
+                className={styles.roadLane} />
         )
       })}
-      <circle
-        cx={cx}
-        cy={cy}
-        r={3}
-        fill="var(--neon-cyan)"
-        opacity={fixed ? 0.9 : 0.7}
-      />
     </>
+  )
+}
+
+export function TileLines({ cx, cy, tileType, rotation, fixed }: TileLinesProps) {
+  const ends = openEdges(tileType, rotation).map(dir => edgeMidpoint(cx, cy, dir))
+  return <RoadTile cx={cx} cy={cy} ends={ends} fixed={fixed} />
+}
+
+// ── City blocks (top-down, Zombies!!!-style) ──────────────────────────────────
+// A placed tile is a top-down city block. The whole hex is built up: the wedges
+// between the streets are filled as SOLID building blocks, and the streets are
+// carved through on top. The street's light curb band reads as the sidewalk that
+// lines each building, so no separate sidewalk geometry is needed. Block shades
+// vary deterministically per cell so adjacent blocks read as distinct buildings.
+
+const CITY_BLOCK_CLASSES = [
+  styles.cityBlock0, styles.cityBlock1, styles.cityBlock2, styles.cityBlock3, styles.cityBlock4,
+]
+
+/** Stable hash of a coord string → small unsigned int. */
+function hashCoord(coord: string): number {
+  let h = 0
+  for (let i = 0; i < coord.length; i++) h = (h * 31 + coord.charCodeAt(i)) >>> 0
+  return h
+}
+
+/** Distance from centre to the flat-top hex boundary at screen angle `deg`. */
+function hexBoundaryRadius(deg: number): number {
+  const m = 30 + 60 * Math.round((deg - 30) / 60)  // nearest edge-midpoint angle
+  return (HEX_SIZE * (SQRT3 / 2)) / Math.cos((deg - m) * (Math.PI / 180))
+}
+
+/** A point on the hex boundary at screen angle `deg`, as an "x,y" string. */
+function boundaryPoint(cx: number, cy: number, deg: number): string {
+  const r = hexBoundaryRadius(deg)
+  const a = deg * (Math.PI / 180)
+  return `${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`
+}
+
+/** Hex corner angles (multiples of 60°) strictly between a and b. */
+function cornersBetween(a: number, b: number): number[] {
+  const out: number[] = []
+  for (let k = -1; k <= 7; k++) {
+    const c = 60 * k
+    if (c > a + 0.01 && c < b - 0.01) out.push(c)
+  }
+  return out
+}
+
+/** Angular block lots between consecutive streets, as [start, end] screen angles. */
+function tileWedges(openDirs: number[]): { a: number; b: number }[] {
+  const angles = [...new Set(openDirs.map(d => ((DIR_ANGLE_DEG[d] % 360) + 360) % 360))]
+    .sort((x, y) => x - y)
+  if (angles.length === 0) return [{ a: 0, b: 360 }]
+  const out: { a: number; b: number }[] = []
+  for (let i = 0; i < angles.length; i++) {
+    const a = angles[i]
+    const b = i + 1 < angles.length ? angles[i + 1] : angles[0] + 360
+    out.push({ a, b })
+  }
+  return out
+}
+
+interface TileBlocksProps {
+  cx: number
+  cy: number
+  coord: string
+  tileType: HexTileType
+  rotation: number
+}
+
+/** Solid building blocks filling the hex between the streets (drawn under the roads). */
+function TileBlocks({ cx, cy, coord, tileType, rotation }: TileBlocksProps) {
+  const wedges = tileWedges(openEdges(tileType, rotation))
+  const seed = hashCoord(coord)
+  return (
+    <g aria-hidden="true">
+      {wedges.map(({ a, b }, i) => {
+        // Sector polygon: centre → boundary(a) → hex corners between → boundary(b).
+        // The two straight sides run along the street centrelines and are covered
+        // by the asphalt drawn on top, leaving each block bounded by sidewalks.
+        const points = [
+          `${cx.toFixed(2)},${cy.toFixed(2)}`,
+          boundaryPoint(cx, cy, a),
+          ...cornersBetween(a, b).map(c => boundaryPoint(cx, cy, c)),
+          boundaryPoint(cx, cy, b),
+        ].join(' ')
+        const shade = CITY_BLOCK_CLASSES[(seed + i) % CITY_BLOCK_CLASSES.length]
+        return <polygon key={i} points={points} className={`${styles.cityBlock} ${shade}`} />
+      })}
+    </g>
   )
 }
 

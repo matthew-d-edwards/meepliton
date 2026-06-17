@@ -267,7 +267,7 @@
 
 .hexPlaced {
   fill: var(--surface-overlay);
-  stroke: var(--neon-cyan);
+  stroke: var(--edge-strong);
   stroke-width: 1.5;
 }
 
@@ -325,18 +325,44 @@
   stroke-width: 2.5;
 }
 
-/* ── Tile paths ── */
-.tilePath {
-  stroke: var(--neon-cyan);
-  stroke-width: 3;
-  stroke-linecap: round;
+/* ── City blocks (solid buildings filling the hex, streets carved on top) ── */
+.cityBlock {
+  stroke: var(--city-wall);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+.cityBlock0 { fill: var(--city-1); }
+.cityBlock1 { fill: var(--city-2); }
+.cityBlock2 { fill: var(--city-3); }
+.cityBlock3 { fill: var(--city-4); }
+.cityBlock4 { fill: var(--city-5); }
+
+/* ── Road tiles (city streets) ──
+   Layered render: curb casing (widest) → asphalt surface → dashed lane line.
+   Widths are set inline on the <line> elements; colour comes from theme tokens. */
+.roadCasing,
+.roadCasingFixed,
+.roadSurface,
+.roadSurfaceFixed {
   fill: none;
+  stroke-linecap: butt;
 }
 
-.tilePathFixed {
-  stroke: var(--neon-cyan);
-  stroke-width: 4;
-  stroke-linecap: round;
+.roadCasing { stroke: var(--road-curb); }
+.roadCasingFixed { stroke: var(--road-curb-fixed); }
+.roadSurface { stroke: var(--road-asphalt); }
+.roadSurfaceFixed { stroke: var(--road-asphalt-fixed); }
+
+.roadHubCasing { fill: var(--road-curb); }
+.roadHubCasingFixed { fill: var(--road-curb-fixed); }
+.roadHub { fill: var(--road-asphalt); }
+.roadHubFixed { fill: var(--road-asphalt-fixed); }
+
+.roadLane {
+  stroke: var(--road-lane);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+  stroke-linecap: butt;
   fill: none;
   opacity: 0.9;
 }
