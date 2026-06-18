@@ -1835,24 +1835,25 @@ public class HexEscapeModuleTests
     }
 
     /// <summary>
-    /// v9 spread + multiply + D4 char-safety: a contained zombie adjacent to a survivor advances
-    /// into an EMPTY neighbour (laying a zombie tile and stepping onto it), heading toward the
-    /// survivor, and leaves a clone in the vacated cell. It never lands on the survivor's tiled
-    /// cell, so the break-out cannot eliminate an adjacent character.
+    /// v9 spread + multiply + D4 char-safety: a contained zombie grows by laying a connecting tile
+    /// on a RANDOM (d6) adjacent EMPTY cell and advancing onto it, leaving a clone in the vacated
+    /// cell. The growth direction is random, so the assertions are roll-independent: the zombie
+    /// lands on SOME previously-empty neighbour (never the survivor's tiled cell), the laid tile
+    /// connects back, and the survivor is unharmed.
     /// </summary>
     [Fact]
-    public void Containment_BreakOut_AdvancesIntoEmpty_DoesNotEliminateAdjacentCharacter()
+    public void Containment_BreakOut_Spreads_RandomConnectingTile_SparesAdjacentCharacter()
     {
         var players = Players(1);
         var state = GetInitialState(players);
 
-        // Region with no pre-placed tiles. Zombie on a Deadend pointing E at the (tiled) survivor,
-        // which does NOT connect back (so the zombie is contained). (0,1) is the nearest empty cell.
+        // Zombie on a Deadend pointing E at the (tiled) survivor, which does NOT connect back, so
+        // the zombie is contained. Its empty neighbours are (0,1), (-1,1) and (-2,2).
         const string zombieCell = "-1,2";
-        const string charCell   = "0,2";  // dir 0 (E) from the zombie — tiled, holds the survivor
-        const string advanceTo  = "0,1";  // dir 1 (NE) — the nearest empty cell to the survivor
+        const string charCell   = "0,2";  // dir 0 (E) — tiled, holds the survivor
+        var emptyNeighbours = new[] { "0,1", "-1,1", "-2,2" };
 
-        foreach (var c in new[] { zombieCell, charCell, advanceTo })
+        foreach (var c in new[] { zombieCell, charCell }.Concat(emptyNeighbours))
         {
             state.Cells.Should().Contain(c);
             state.ExitZoneCells.Should().NotContain(c);
@@ -1860,7 +1861,7 @@ public class HexEscapeModuleTests
 
         var grid = new Dictionary<string, HexCell>(state.Grid)
         {
-            [zombieCell] = new HexCell(HexTileType.Deadend, 0, Fixed: false, IsZombieTile: true), // opens E only
+            [zombieCell] = new HexCell(HexTileType.Deadend, 0, Fixed: false, IsZombieTile: true),  // opens E only
             [charCell]   = new HexCell(HexTileType.Deadend, 0, Fixed: false, IsZombieTile: false), // opens E only → no W back-edge
         };
         int tilesBefore = grid.Count;
@@ -1887,14 +1888,70 @@ public class HexEscapeModuleTests
         rEnd.RejectionReason.Should().BeNull();
         var s = GetState(rEnd.NewState);
 
+        // Phase 3 movement runs after the break-out and may move the zombie TOKENS along the new
+        // connection, so assert on the TILES laid (which don't move) plus roll-independent invariants.
         s.Characters.Single(c => c.PlayerId == players[0].Id).Eliminated.Should().BeFalse(
-            "advancing into an empty cell must never eliminate the adjacent survivor");
-        s.Zombies.Any(z => z.Pos == charCell).Should().BeFalse("no zombie should occupy the survivor's cell");
-        s.Zombies.Any(z => z.Pos == advanceTo).Should().BeTrue("the zombie advances toward the survivor's nearest empty cell");
-        s.Zombies.Any(z => z.Pos == zombieCell).Should().BeTrue("a new zombie takes its place (multiply)");
-        s.Zombies.Count.Should().Be(2, "spread + multiply: one zombie advanced and a clone replaced it");
-        s.Grid.Count.Should().BeGreaterThan(tilesBefore, "break-out lays a new zombie road tile");
-        s.Grid[advanceTo].IsZombieTile.Should().BeTrue("the laid tile is a zombie-owned tile");
+            "growing into an empty cell must never eliminate the adjacent survivor");
+        s.Zombies.Any(z => z.Pos == charCell).Should().BeFalse("no zombie may occupy the survivor's cell");
+        s.Zombies.Count.Should().Be(2, "spread + multiply: the zombie advanced and a clone replaced it");
+
+        var laid = emptyNeighbours.Where(c => s.Grid.ContainsKey(c)).ToList();
+        laid.Should().HaveCount(1, "the break-out lays exactly one new tile, on a random empty neighbour");
+        s.Grid[laid[0]].IsZombieTile.Should().BeTrue("the laid tile is zombie-owned");
+        s.Grid.Count.Should().Be(tilesBefore + 1, "only the one growth tile is added");
+        Enumerable.Range(0, 6).Any(d => HexEscapeModule.AreConnected(s.Grid, cellSet, zombieCell, d))
+            .Should().BeTrue("the laid tile connects back to the zombie's cell (it can move along it)");
+    }
+
+    /// <summary>
+    /// v9 corner case (end-game): a contained zombie that is fully boxed in — no empty, in-grid
+    /// neighbour to grow into — grows IN PLACE, stacking a new zombie on its own cell. No tile is
+    /// laid. (Should be rare; only when the board around the zombie is packed.)
+    /// </summary>
+    [Fact]
+    public void Containment_BreakOut_FullyBoxed_GrowsInPlace()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Corner cell (4,2) has only two in-grid neighbours: (4,1) and (3,2). Tile both so there is
+        // no empty cell to grow into; the zombie's Deadend points E off-board → contained.
+        const string zombieCell = "4,2";
+        foreach (var c in new[] { zombieCell, "4,1", "3,2" }) state.Cells.Should().Contain(c);
+        state.ExitZoneCells.Should().NotContain(zombieCell);
+
+        var grid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [zombieCell] = new HexCell(HexTileType.Deadend, 0, Fixed: false, IsZombieTile: true), // opens E → off-board (5,2)
+            ["4,1"]      = new HexCell(HexTileType.Straight, 0, Fixed: false, IsZombieTile: false),
+            ["3,2"]      = new HexCell(HexTileType.Straight, 0, Fixed: false, IsZombieTile: false),
+        };
+        int tilesBefore = grid.Count;
+        var zombies = new List<ZombieToken> { new ZombieToken("zb", zombieCell) };
+
+        state = state with
+        {
+            Grid = grid,
+            Zombies = zombies,
+            Characters = [new CharacterState(players[0].Id, null, Eliminated: false)],
+            RoundNumber = 1,
+            ActiveSeat = 0,
+            ActionPointsRemaining = 1,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+            SeatsActedThisRound = [],
+        };
+
+        var cellSet = new HashSet<string>(state.Cells);
+        Enumerable.Range(0, 6).Any(d => HexEscapeModule.AreConnected(state.Grid, cellSet, zombieCell, d))
+            .Should().BeFalse("zombie must be contained");
+
+        var rEnd = _module.Handle(MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id));
+        rEnd.RejectionReason.Should().BeNull();
+        var s = GetState(rEnd.NewState);
+
+        s.Grid.Count.Should().Be(tilesBefore, "no tile can be laid when the zombie is fully boxed");
+        s.Zombies.Count.Should().Be(2, "the horde still grows — in place");
+        s.Zombies.Count(z => z.Pos == zombieCell).Should().Be(2, "the new zombie stacks on the boxed zombie's own cell");
     }
 
     /// <summary>
