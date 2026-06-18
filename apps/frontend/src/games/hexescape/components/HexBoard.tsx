@@ -80,6 +80,48 @@ export function parseCoord(key: string): { q: number; r: number } {
   return { q: parseInt(qs, 10), r: parseInt(rs, 10) }
 }
 
+/**
+ * Axial direction offsets (Δq, Δr), indexed the same as the backend's
+ * HexEscapeModule.Directions table: 0=E 1=NE 2=N 3=W 4=SW 5=S.
+ */
+export const DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
+  [+1, 0], [+1, -1], [0, -1], [-1, 0], [-1, +1], [0, +1],
+]
+
+/**
+ * Legal one-step move destinations from `fromCoord`: adjacent cells that are on
+ * the board, hold a placed tile, and share an open road edge in both directions.
+ * Mirrors the backend's HexEscapeModule.AreConnected so the UI only offers moves
+ * the server will accept. Fixed tiles (e.g. the exit Cross) are valid targets —
+ * stepping onto the exit is how the game is won.
+ */
+export function connectedMoveTargets(
+  grid: Record<string, HexCell>,
+  cells: Set<string>,
+  fromCoord: string,
+): Set<string> {
+  const targets = new Set<string>()
+  const fromTile = grid[fromCoord]
+  if (!fromTile) return targets
+
+  const fromEdges = new Set(openEdges(fromTile.tileType, fromTile.rotation))
+  const { q, r } = parseCoord(fromCoord)
+
+  for (let d = 0; d < 6; d++) {
+    if (!fromEdges.has(d)) continue
+    const [dq, dr] = DIRECTIONS[d]
+    const toCoord = `${q + dq},${r + dr}`
+    if (!cells.has(toCoord)) continue
+    const toTile = grid[toCoord]
+    if (!toTile) continue
+    const opposite = (d + 3) % 6
+    if (openEdges(toTile.tileType, toTile.rotation).includes(opposite)) {
+      targets.add(toCoord)
+    }
+  }
+  return targets
+}
+
 /** HEX_SIZE constant exported for use by TilePreview */
 export const HEX_PREVIEW_SIZE = HEX_SIZE
 

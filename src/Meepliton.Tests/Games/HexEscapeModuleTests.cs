@@ -1771,6 +1771,164 @@ public class HexEscapeModuleTests
         }
     }
 
+    // ── 3b. Early-round horde grace window (safe opening) ────────────────────
+
+    /// <summary>
+    /// Horde grace: round boundaries before <see cref="HexEscapeConstants.HordeStartRound"/> spawn
+    /// no horde zombies. Starting from an empty zombie list isolates the horde from break-out spread,
+    /// so the count staying at zero proves the horde itself is suppressed during the grace window.
+    /// </summary>
+    [Fact]
+    public void RoundBoundary_BeforeHordeStartRound_NoHordeSpawn()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+        state.RoundNumber.Should().BeLessThan(HexEscapeConstants.HordeStartRound,
+            "test assumes round 1 is inside the horde grace window");
+
+        state = state with
+        {
+            Zombies = [],   // isolate the horde from break-out spread
+            ActiveSeat = 0,
+            ActionPointsRemaining = 1,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+            SeatsActedThisRound = [],
+        };
+
+        var rEnd = _module.Handle(MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id));
+        rEnd.RejectionReason.Should().BeNull();
+        var endState = GetState(rEnd.NewState);
+
+        endState.RoundNumber.Should().Be(2, "round advances after the boundary");
+        endState.Zombies.Should().BeEmpty(
+            $"no horde spawns before round {HexEscapeConstants.HordeStartRound} (grace window)");
+    }
+
+    /// <summary>
+    /// Once the grace window ends, the horde resumes: a boundary at HordeStartRound spawns exactly
+    /// HordeRatePerRound zombies. Starting from an empty zombie list isolates the horde spawn from
+    /// break-out spread.
+    /// </summary>
+    [Fact]
+    public void RoundBoundary_AtHordeStartRound_HordeSpawns()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        state = state with
+        {
+            Zombies = [],   // isolate the horde from break-out spread
+            RoundNumber = HexEscapeConstants.HordeStartRound,
+            ActiveSeat = 0,
+            ActionPointsRemaining = 1,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+            SeatsActedThisRound = [],
+        };
+
+        var rEnd = _module.Handle(MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id));
+        rEnd.RejectionReason.Should().BeNull();
+        var endState = GetState(rEnd.NewState);
+        endState.Phase.Should().NotBe(HexEscapePhase.GameOver, "no character placed — cannot be a loss");
+
+        endState.Zombies.Count.Should().Be(HexEscapeConstants.HordeRatePerRound[1],
+            "the horde resumes once the grace window ends");
+    }
+
+    /// <summary>
+    /// v9 spread + multiply + D4 char-safety: a contained zombie adjacent to a survivor advances
+    /// into an EMPTY neighbour (laying a zombie tile and stepping onto it), heading toward the
+    /// survivor, and leaves a clone in the vacated cell. It never lands on the survivor's tiled
+    /// cell, so the break-out cannot eliminate an adjacent character.
+    /// </summary>
+    [Fact]
+    public void Containment_BreakOut_AdvancesIntoEmpty_DoesNotEliminateAdjacentCharacter()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Region with no pre-placed tiles. Zombie on a Deadend pointing E at the (tiled) survivor,
+        // which does NOT connect back (so the zombie is contained). (0,1) is the nearest empty cell.
+        const string zombieCell = "-1,2";
+        const string charCell   = "0,2";  // dir 0 (E) from the zombie — tiled, holds the survivor
+        const string advanceTo  = "0,1";  // dir 1 (NE) — the nearest empty cell to the survivor
+
+        foreach (var c in new[] { zombieCell, charCell, advanceTo })
+        {
+            state.Cells.Should().Contain(c);
+            state.ExitZoneCells.Should().NotContain(c);
+        }
+
+        var grid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [zombieCell] = new HexCell(HexTileType.Deadend, 0, Fixed: false, IsZombieTile: true), // opens E only
+            [charCell]   = new HexCell(HexTileType.Deadend, 0, Fixed: false, IsZombieTile: false), // opens E only → no W back-edge
+        };
+        int tilesBefore = grid.Count;
+        var zombies = new List<ZombieToken> { new ZombieToken("z0", zombieCell) };
+        var characters = new List<CharacterState> { new CharacterState(players[0].Id, charCell, Eliminated: false) };
+
+        state = state with
+        {
+            Grid = grid,
+            Zombies = zombies,
+            Characters = characters,
+            RoundNumber = 1,
+            ActiveSeat = 0,
+            ActionPointsRemaining = 1,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+            SeatsActedThisRound = [],
+        };
+
+        var cellSet = new HashSet<string>(state.Cells);
+        Enumerable.Range(0, 6).Any(d => HexEscapeModule.AreConnected(state.Grid, cellSet, zombieCell, d))
+            .Should().BeFalse("zombie must be contained to break out");
+
+        var rEnd = _module.Handle(MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id));
+        rEnd.RejectionReason.Should().BeNull();
+        var s = GetState(rEnd.NewState);
+
+        s.Characters.Single(c => c.PlayerId == players[0].Id).Eliminated.Should().BeFalse(
+            "advancing into an empty cell must never eliminate the adjacent survivor");
+        s.Zombies.Any(z => z.Pos == charCell).Should().BeFalse("no zombie should occupy the survivor's cell");
+        s.Zombies.Any(z => z.Pos == advanceTo).Should().BeTrue("the zombie advances toward the survivor's nearest empty cell");
+        s.Zombies.Any(z => z.Pos == zombieCell).Should().BeTrue("a new zombie takes its place (multiply)");
+        s.Zombies.Count.Should().Be(2, "spread + multiply: one zombie advanced and a clone replaced it");
+        s.Grid.Count.Should().BeGreaterThan(tilesBefore, "break-out lays a new zombie road tile");
+        s.Grid[advanceTo].IsZombieTile.Should().BeTrue("the laid tile is a zombie-owned tile");
+    }
+
+    /// <summary>
+    /// v9: players may rotate zombie-laid road tiles (Fixed:false, IsZombieTile:true) to redirect
+    /// the spread / deny a zombie a contained break-out. (Fixed pre-placed tiles stay locked —
+    /// covered by Containment_BreakOut_SkipsRotation_ForFixedLevelTile.)
+    /// </summary>
+    [Fact]
+    public void RotateTile_ZombieTile_IsAllowed()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+        string coord = GetEmptyNonSpawnNonExitCell(state);
+
+        var grid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [coord] = new HexCell(HexTileType.Straight, 0, Fixed: false, IsZombieTile: true)
+        };
+        state = state with
+        {
+            Grid = grid,
+            ActiveSeat = 0,
+            ActionPointsRemaining = 3,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+        };
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.RotateTile, Coord: coord, Rotation: 2), players[0].Id);
+        var r = _module.Handle(ctx);
+
+        r.RejectionReason.Should().BeNull("zombie-laid tiles must be rotatable by players (v9 control mechanic)");
+        GetState(r.NewState).Grid[coord].Rotation.Should().Be(2, "the zombie tile should rotate to the requested orientation");
+    }
+
     // ── 4. Containment break-out / MF-2 frozen snapshot ──────────────────────
 
     /// <summary>
@@ -2669,31 +2827,8 @@ public class HexEscapeModuleTests
             "RotateTile on pre-placed level tile must be rejected (AC-v2-43)");
     }
 
-    /// <summary>
-    /// AC-v2-43: RotateTile on zombie-placed tile → "Cannot rotate a fixed tile."
-    /// Zombie tiles are IsZombieTile=true; the rotate handler checks tile.Fixed || tile.IsZombieTile.
-    /// </summary>
-    [Fact]
-    public void Rejection_RotateTile_OnZombiePlacedTile_ExactMessage()
-    {
-        var players = Players(1);
-        var state = GetInitialState(players);
-
-        // Place a zombie-placed tile at an empty cell
-        string coord = GetEmptyNonSpawnNonExitCell(state);
-        var newGrid = new Dictionary<string, HexCell>(state.Grid)
-        {
-            [coord] = new HexCell(HexTileType.Straight, 0, Fixed: false, IsZombieTile: true)
-        };
-        state = state with { Grid = newGrid, ActiveSeat = 0, ActionPointsRemaining = 3 };
-
-        var ctx = MakeContext(ToDoc(state),
-            new HexEscapeAction(HexActionType.RotateTile, Coord: coord, Rotation: 2),
-            players[0].Id);
-        var result = _module.Handle(ctx);
-        result.RejectionReason.Should().Be("Cannot rotate a fixed tile.",
-            "RotateTile on zombie-placed tile must be rejected with same message (AC-v2-43)");
-    }
+    // (v9) Removed Rejection_RotateTile_OnZombiePlacedTile_ExactMessage — zombie-laid tiles are now
+    // intentionally rotatable by players (redirect/contain the spread). See RotateTile_ZombieTile_IsAllowed.
 
     /// <summary>
     /// AC-v2-40: PlaceTile with tile type not in hand → "No tiles of that type remaining."

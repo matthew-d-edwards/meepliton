@@ -68,6 +68,29 @@ public static class HexEscapeConstants
     public static readonly int[] HordeRatePerRound = [0, 1, 1, 1, 2, 2, 2];
 
     /// <summary>
+    /// First round whose boundary spawns the horde. Round boundaries before this
+    /// spawn no horde zombies, giving players a safe window to lay an opening path
+    /// before pressure ramps. This complements the deck's <see cref="SafeOpeningFraction"/>:
+    /// the safe opening only guarantees the tiles you DRAW are zombie-free — it does
+    /// nothing about horde spawns, which previously began at the very first boundary
+    /// right beside the spawn zone (no real safe window). RoundNumber starts at 1 and is
+    /// the round being closed out (pre-increment), so a value of 3 keeps the round-1 and
+    /// round-2 boundaries horde-free and the first horde appears entering round 4.
+    /// This is the primary early-difficulty dial — balance TBD by playtest.
+    /// </summary>
+    public const int HordeStartRound = 3;
+
+    /// <summary>
+    /// D1 break-out (v9 "spread"): a contained zombie advances onto a freshly-laid zombie tile,
+    /// heading toward the nearest survivor. When this is true it ALSO leaves a new zombie in the
+    /// cell it vacated ("a new zombie takes its place") — the front both advances and grows.
+    /// When false the front advances/spreads without multiplying. The player's counter is to
+    /// rotate zombie tiles to deny the zombie a contained break-out (redirect/contain the spread).
+    /// Balance knob — TBD by playtest.
+    /// </summary>
+    public const bool BreakoutMultiplies = true;
+
+    /// <summary>
     /// Exit tile placed randomly in the last X fraction of the deck (post-deal);
     /// higher fraction = earlier exit for low counts (DD2, F7, D2).
     /// Raised mid counts so exit surfaces earlier (3p fix: 0.30→0.40).

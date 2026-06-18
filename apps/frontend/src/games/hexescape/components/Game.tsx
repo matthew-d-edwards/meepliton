@@ -9,7 +9,7 @@ import type {
   CharacterState,
   PlayerSlot,
 } from '../types'
-import { HexBoard, openEdges, RoadTile, DIR_ANGLE_DEG } from './HexBoard'
+import { HexBoard, openEdges, RoadTile, DIR_ANGLE_DEG, connectedMoveTargets } from './HexBoard'
 import '../hexescape.css'
 import styles from '../styles.module.css'
 
@@ -137,6 +137,17 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
 
   const zombieCoords = state.zombies.map(z => z.pos)
 
+  // Legal one-step move destinations for my character right now: adjacent, tiled,
+  // and connected by open road edges (mirrors the backend's AreConnected). A
+  // character moves tile-to-tile along roads — including onto the fixed exit Cross
+  // to win — so these are computed from the grid, not from "empty" cells.
+  const canMoveNow =
+    isMyTurn && ap > 0 && !hasZombieObligation &&
+    myCharPlaced && myChar?.pos != null && !myCharEliminated
+  const moveTargets = canMoveNow
+    ? connectedMoveTargets(state.grid, new Set(state.cells), myChar!.pos!)
+    : new Set<string>()
+
   // Cells the active player can actually act on right now — mirrors handleCellClick's
   // "opens a picker" branches. Drives aria-disabled on the board so keyboard/screen-reader
   // users aren't sent to dead cells with no feedback.
@@ -155,10 +166,14 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
         continue
       }
       if (inExitZone) continue
-      if ((myCharPlaced && myChar?.pos && !myCharEliminated) || hasPlaceableTile) {
+      // Empty cells are only actionable for placing a tile — characters never move
+      // onto empty cells, so character placement no longer makes them clickable.
+      if (hasPlaceableTile) {
         actionableCoords.add(coord)
       }
     }
+    // Connected adjacent tiles (incl. the fixed exit) are move destinations.
+    for (const t of moveTargets) actionableCoords.add(t)
   }
 
   // ── Dispatch helpers ─────────────────────────────────────────────────────────
@@ -193,11 +208,19 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
       return
     }
 
+    // Move takes priority: clicking a connected adjacent tile moves the character
+    // there. This is the only way to reach the exit (a fixed tile), so it must win
+    // out over the rotate branch below.
+    if (moveTargets.has(coord)) {
+      setPicker({ kind: 'move', toCoord: coord })
+      return
+    }
+
     const cell = state.grid[coord]
     const isExitZone = state.exitZoneCells.includes(coord)
 
     if (cell) {
-      // Placed tile: offer rotate if non-fixed, and not in exit zone
+      // Placed tile that isn't a move target: offer rotate if non-fixed.
       if (!cell.fixed) {
         setPicker({ kind: 'rotate', coord, rotation: cell.rotation })
       }
@@ -209,19 +232,13 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
       return
     }
 
-    // Empty cell: check move vs place
-    // If my character is placed and adjacent cell is connected → offer move
-    if (myCharPlaced && myChar?.pos && !myCharEliminated) {
-      // Offer move (server validates connectivity)
-      setPicker({ kind: 'move', toCoord: coord })
-    } else {
-      // Offer place tile
-      const firstAvailable = TILE_TYPES.find(t =>
-        myHand.some(h => h.tileType === t && !h.isZombieTile)
-      ) ?? null
-      if (myHand.filter(h => !h.isZombieTile).length > 0) {
-        setPicker({ kind: 'place', coord, tileType: firstAvailable, rotation: 0 })
-      }
+    // Empty cell: place a tile. Characters never move onto empty cells, so there is
+    // no move branch here — movement is handled by the moveTargets check above.
+    const firstAvailable = TILE_TYPES.find(t =>
+      myHand.some(h => h.tileType === t && !h.isZombieTile)
+    ) ?? null
+    if (myHand.filter(h => !h.isZombieTile).length > 0) {
+      setPicker({ kind: 'place', coord, tileType: firstAvailable, rotation: 0 })
     }
   }
 
