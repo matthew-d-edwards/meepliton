@@ -137,15 +137,15 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
 
   const zombieCoords = state.zombies.map(z => z.pos)
 
-  // Legal one-step move destinations for my character right now: adjacent, tiled,
-  // and connected by open road edges (mirrors the backend's AreConnected). A
-  // character moves tile-to-tile along roads — including onto the fixed exit Cross
-  // to win — so these are computed from the grid, not from "empty" cells.
+  // Every cell my character can slide to right now: a flood-fill along connected open
+  // roads (mirrors the backend's ConnectedReachable), not just one hex. A single move
+  // slides the full clear length of the pipe — including onto the fixed exit Cross to
+  // win — and zombies block the tunnel, so they're passed in to route around them.
   const canMoveNow =
     isMyTurn && ap > 0 && !hasZombieObligation &&
     myCharPlaced && myChar?.pos != null && !myCharEliminated
   const moveTargets = canMoveNow
-    ? connectedMoveTargets(state.grid, new Set(state.cells), myChar!.pos!)
+    ? connectedMoveTargets(state.grid, new Set(state.cells), myChar!.pos!, new Set(zombieCoords))
     : new Set<string>()
 
   // Cells the active player can actually act on right now — mirrors handleCellClick's
@@ -208,9 +208,10 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
       return
     }
 
-    // Move takes priority: clicking a connected adjacent tile moves the character
-    // there. This is the only way to reach the exit (a fixed tile), so it must win
-    // out over the rotate branch below.
+    // Move takes priority: clicking any cell the character can reach along the
+    // connected pipe slides it the whole way there (not just one hex). This is the
+    // only way to reach the exit (a fixed tile), so it must win out over the rotate
+    // branch below — even when the clicked tile is non-fixed and far away.
     if (moveTargets.has(coord)) {
       setPicker({ kind: 'move', toCoord: coord })
       return

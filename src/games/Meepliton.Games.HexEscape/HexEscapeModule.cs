@@ -115,6 +115,47 @@ public class HexEscapeModule : IGameModule, IGameHandler
         return toEdges.Contains(opposite);
     }
 
+    // ── BFS: connected-pipe reachability for movement (v10) ───────────────────
+
+    /// <summary>
+    /// Every cell the character can slide to from <paramref name="start"/> in a single
+    /// MoveCharacter action: flood-fill outward over shared open pipe edges
+    /// (<see cref="AreConnected"/>). Zombies block the tunnel — a zombie-occupied tile can be
+    /// neither entered nor passed through — so the reachable set routes around them.
+    /// The start cell is excluded (you must move somewhere else). This is the heart of the
+    /// movement asymmetry: the player travels the full clear length of the connected network
+    /// for one AP, while a zombie advances only one tile per round.
+    /// </summary>
+    internal static HashSet<string> ConnectedReachable(HexEscapeState state, string start)
+    {
+        var grid     = state.Grid;
+        var cellSet  = new HashSet<string>(state.Cells);
+        var zombies  = new HashSet<string>(state.Zombies.Select(z => z.Pos));
+
+        var visited = new HashSet<string> { start };
+        var queue   = new Queue<string>();
+        queue.Enqueue(start);
+
+        while (queue.Count > 0)
+        {
+            var current  = queue.Dequeue();
+            var (cq, cr) = ParseCoord(current);
+            for (int dir = 0; dir < 6; dir++)
+            {
+                if (!AreConnected(grid, cellSet, current, dir)) continue;
+                var (dq, dr)  = Directions[dir];
+                var neighbour = CoordKey(cq + dq, cr + dr);
+                if (visited.Contains(neighbour)) continue;
+                if (zombies.Contains(neighbour)) continue;   // zombie blocks the pipe
+                visited.Add(neighbour);
+                queue.Enqueue(neighbour);
+            }
+        }
+
+        visited.Remove(start);
+        return visited;
+    }
+
     // ── BFS: exitConnectedCount ───────────────────────────────────────────────
 
     /// <summary>
@@ -1060,28 +1101,18 @@ public class HexEscapeModule : IGameModule, IGameHandler
         if (character.Eliminated)
             return Reject(ctx, "Your character has been eliminated.");
 
-        // AC-v2-44: connection rule must be satisfied in both directions
+        // Movement (v10): the character slides along the connected pipe network as far as it
+        // likes in a single action — not just one hex. Zombies block the tunnel, so the path
+        // may neither pass through nor land on a zombie-occupied tile. One AP buys the whole
+        // slide; a zombie, by contrast, advances only one tile per round. That asymmetry is
+        // what makes a long pipe powerful and the rotate/sever lever worth using.
         string fromCoord = character.Pos;
-        var cellSet = new HashSet<string>(state.Cells);
+        if (toCoord == fromCoord)
+            return Reject(ctx, "Your character is already there.");
 
-        // Find which direction from→to
-        var (fq, fr) = ParseCoord(fromCoord);
-        var (tq, tr) = ParseCoord(toCoord);
-        int dq = tq - fq, dr = tr - fr;
-        int? moveDir = null;
-        for (int d = 0; d < 6; d++)
-        {
-            if (Directions[d].Dq == dq && Directions[d].Dr == dr)
-            {
-                moveDir = d;
-                break;
-            }
-        }
-        if (!moveDir.HasValue)
-            return Reject(ctx, "No open path to that cell.");
-
-        if (!AreConnected(state.Grid, cellSet, fromCoord, moveDir.Value))
-            return Reject(ctx, "No open path to that cell.");
+        var reachable = ConnectedReachable(state, fromCoord);
+        if (!reachable.Contains(toCoord))
+            return Reject(ctx, "No connected path to that cell.");
 
         // Move character
         var newCharacters = state.Characters.ToList();

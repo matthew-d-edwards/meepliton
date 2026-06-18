@@ -42,7 +42,13 @@ public static class HexEscapeConstants
     /// <summary>Maximum tiles in hand. Structurally fixed for v2.</summary>
     public const int HandSize = 3;
 
-    /// <summary>Hexes per MoveCharacter action. Structurally fixed for v2.</summary>
+    /// <summary>
+    /// Per-action movement cap. v10: a MoveCharacter action now slides the character the FULL
+    /// clear length of the connected pipe network (zombies block the tunnel), so distance is no
+    /// longer capped at one hex — this constant is retained only for wire/back-compat and is not
+    /// consulted by the movement rule. The asymmetry is deliberate: the player travels far on one
+    /// AP while a zombie advances a single tile per round.
+    /// </summary>
     public const int MaxMoveDistance = 1;
 
     /// <summary>JSONB growth safety cap. Structurally fixed for v2.</summary>

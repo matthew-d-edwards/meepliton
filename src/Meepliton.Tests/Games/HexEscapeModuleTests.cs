@@ -2666,21 +2666,20 @@ public class HexEscapeModuleTests
     }
 
     /// <summary>
-    /// AC-v2-44: MoveCharacter along a closed edge → "No open path to that cell."
-    /// Player character is at (0,0) on Cross r=0. Target (-2,-2) is not adjacent → rejected.
-    /// Also test non-adjacent: target too far away.
+    /// AC-v2-44 (v10): a cell with no connected pipe path from the character is unreachable →
+    /// "No connected path to that cell." Character sits on a Deadend whose only open edge points
+    /// at an EMPTY cell, so nothing is reachable and any move is rejected.
     /// </summary>
     [Fact]
-    public void Rejection_MoveCharacter_ClosedEdge_NoOpenPath()
+    public void Rejection_MoveCharacter_NoConnectedPath()
     {
         var players = Players(1);
         var state = GetInitialState(players);
 
-        // Use a Deadend tile at spawnCell and try to move to a cell that's not connected
         string spawnCell = state.ReservedSpawnCells[players[0].Id];
         var newGrid = new Dictionary<string, HexCell>(state.Grid)
         {
-            [spawnCell] = new HexCell(HexTileType.Deadend, 0, Fixed: false)  // Deadend r0: only E(0)
+            [spawnCell] = new HexCell(HexTileType.Deadend, 0, Fixed: false)  // opens only E(0), into an empty cell
         };
         var newChars = state.Characters.Select(c =>
             c.PlayerId == players[0].Id ? c with { Pos = spawnCell } : c).ToList();
@@ -2693,38 +2692,29 @@ public class HexEscapeModuleTests
             ActionPointsRemaining = 3,
         };
 
-        // Try to move to a neighbour in direction W(3) — Deadend r0 has no edge 3
-        var (sq, sr) = HexEscapeModule.ParseCoord(spawnCell);
-        string westNeighbour = HexEscapeModule.CoordKey(sq - 1, sr); // W direction
-
-        // Only attempt if the neighbour is a valid board cell
-        if (!state.Cells.Contains(westNeighbour))
-            return; // board boundary; test not applicable
-
+        // Target a real on-board cell that shares no connected pipe with the character.
+        string target = state.Cells.First(c => c != spawnCell && !state.Grid.ContainsKey(c));
         var ctx = MakeContext(ToDoc(state),
-            new HexEscapeAction(HexActionType.MoveCharacter, Coord: westNeighbour),
+            new HexEscapeAction(HexActionType.MoveCharacter, Coord: target),
             players[0].Id);
         var result = _module.Handle(ctx);
-        result.RejectionReason.Should().Be("No open path to that cell.",
-            "movement along a closed edge must be rejected (AC-v2-44)");
+        result.RejectionReason.Should().Be("No connected path to that cell.",
+            "a cell with no connected pipe route from the character must be rejected (AC-v2-44, v10)");
     }
 
     /// <summary>
-    /// AC-v2-31a: MoveCharacter onto a zombie cell → character eliminated (not win).
-    /// Character moves to exitCell where a zombie is present; eliminated, not win.
+    /// v10: a zombie blocks the tunnel. Moving onto a zombie-occupied tile — even the exit —
+    /// is rejected (you can neither enter nor pass it), the character stays put, alive, no win.
+    /// This is what makes clearing/rerouting the road with the rotate-sever lever matter.
     /// </summary>
     [Fact]
-    public void Rejection_MoveCharacter_OntoZombieCell_Elimination_NotWin()
+    public void MoveCharacter_ZombieBlocksTunnel_MoveRejected()
     {
         var players = Players(1);
         var state = GetInitialState(players);
 
-        // Set up: player at spawnCell on a Cross; exitCell reachable via dir E
-        string spawnCell = state.ReservedSpawnCells[players[0].Id];
-        // Use (0,0) and (1,0) as from→to for determinism
-        // The tutorial has a pre-placed Cross at (0,0); put player there
         string fromCell = "0,0"; // pre-placed Cross r=0
-        string toCell   = "1,0"; // needs a tile; place a Cross so connection works
+        string toCell   = "1,0"; // adjacent, would be the exit — but a zombie sits on it
 
         state.Cells.Should().Contain(fromCell);
         state.Cells.Should().Contain(toCell);
@@ -2735,14 +2725,8 @@ public class HexEscapeModuleTests
         };
         var newChars = state.Characters.Select(c =>
             c.PlayerId == players[0].Id ? c with { Pos = fromCell } : c).ToList();
+        var zombies = new List<ZombieToken>(state.Zombies) { new ZombieToken("z-blocker", toCell) };
 
-        // Place a zombie at toCell
-        var zombies = new List<ZombieToken>(state.Zombies)
-        {
-            new ZombieToken("z-blocker", toCell)
-        };
-
-        // Set exitCell to toCell so this is the exit; if player enters, they'd win — but zombie blocks
         state = state with
         {
             Grid         = newGrid,
@@ -2760,21 +2744,80 @@ public class HexEscapeModuleTests
             players[0].Id);
         var result = _module.Handle(ctx);
 
-        // Must not be rejected (move is valid path-wise)
-        // But player gets eliminated, not win
-        result.RejectionReason.Should().BeNull("movement to zombie cell is a valid move, not rejected");
-
+        result.RejectionReason.Should().Be("No connected path to that cell.",
+            "a zombie blocks the tunnel — you cannot move onto its tile");
         var newState = GetState(result.NewState);
-        var movedChar = newState.Characters.First(c => c.PlayerId == players[0].Id);
-        movedChar.Eliminated.Should().BeTrue(
-            "moving onto a zombie cell eliminates the character (AC-v2-31a)");
-        // Phase must NOT be GameOver/Escaped (eliminated character doesn't win)
-        if (newState.Phase == HexEscapePhase.GameOver)
+        var ch = newState.Characters.First(c => c.PlayerId == players[0].Id);
+        ch.Pos.Should().Be(fromCell, "the rejected move leaves the character where it was");
+        ch.Eliminated.Should().BeFalse("a blocked move does not eliminate the character");
+        newState.Phase.Should().NotBe(HexEscapePhase.GameOver);
+    }
+
+    /// <summary>
+    /// v10 core mechanic: a single MoveCharacter slides the character the FULL clear length of
+    /// the connected pipe (here three straights in a row), not just one hex, for one AP.
+    /// </summary>
+    [Fact]
+    public void MoveCharacter_SlidesFullConnectedRun_OneAction()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // Straight east run along r=-2: spawn(-4,-2) - (-3,-2) - (-2,-2), all Straight rot0 (opens E&W).
+        string a = "-4,-2", b = "-3,-2", c = "-2,-2";
+        foreach (var k in new[] { a, b, c }) state.Cells.Should().Contain(k);
+
+        var grid = new Dictionary<string, HexCell>(state.Grid)
         {
-            // Could be Overrun (loss) if all placed characters now eliminated
-            newState.Outcome.Should().Be(HexEscapeOutcome.Overrun,
-                "if game ends after elimination, outcome must be Overrun not Escaped");
-        }
+            [a] = new HexCell(HexTileType.Straight, 0, Fixed: false),
+            [b] = new HexCell(HexTileType.Straight, 0, Fixed: false),
+            [c] = new HexCell(HexTileType.Straight, 0, Fixed: false),
+        };
+        var chars = state.Characters.Select(ch =>
+            ch.PlayerId == players[0].Id ? ch with { Pos = a } : ch).ToList();
+
+        // No zombies on the run.
+        state = state with
+        {
+            Grid = grid, Characters = chars, Zombies = [],
+            ActiveSeat = 0, ActionPointsRemaining = 3, QualifyingActionsThisTurn = 0,
+        };
+
+        // Reachability helper sees both b and c from a.
+        HexEscapeModule.ConnectedReachable(state, a).Should().BeEquivalentTo(new[] { b, c });
+
+        var ctx = MakeContext(ToDoc(state),
+            new HexEscapeAction(HexActionType.MoveCharacter, Coord: c),  // two hops in one action
+            players[0].Id);
+        var result = _module.Handle(ctx);
+
+        result.RejectionReason.Should().BeNull("a clear connected pipe lets the character slide its full length");
+        var ns = GetState(result.NewState);
+        ns.Characters.First(ch => ch.PlayerId == players[0].Id).Pos.Should().Be(c, "the character slid two hops to the far end");
+        ns.ActionPointsRemaining.Should().Be(2, "the whole slide costs a single AP");
+    }
+
+    /// <summary>
+    /// v10: ConnectedReachable stops at a zombie — cells beyond a zombie on the pipe are not
+    /// reachable (the player must clear or reroute around it).
+    /// </summary>
+    [Fact]
+    public void ConnectedReachable_StopsAtZombieMidPipe()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        string a = "-4,-2", b = "-3,-2", c = "-2,-2";
+        var grid = new Dictionary<string, HexCell>(state.Grid)
+        {
+            [a] = new HexCell(HexTileType.Straight, 0, Fixed: false),
+            [b] = new HexCell(HexTileType.Straight, 0, Fixed: false),
+            [c] = new HexCell(HexTileType.Straight, 0, Fixed: false),
+        };
+        state = state with { Grid = grid, Zombies = [ new ZombieToken("z1", b) ] };  // zombie mid-pipe
+
+        var reachable = HexEscapeModule.ConnectedReachable(state, a);
+        reachable.Should().BeEmpty("the only neighbour is the zombie tile, which blocks the tunnel — c is beyond it");
     }
 
     /// <summary>

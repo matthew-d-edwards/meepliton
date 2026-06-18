@@ -89,37 +89,46 @@ export const DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
 ]
 
 /**
- * Legal one-step move destinations from `fromCoord`: adjacent cells that are on
- * the board, hold a placed tile, and share an open road edge in both directions.
- * Mirrors the backend's HexEscapeModule.AreConnected so the UI only offers moves
- * the server will accept. Fixed tiles (e.g. the exit Cross) are valid targets —
- * stepping onto the exit is how the game is won.
+ * Every cell the character can slide to from `fromCoord` in a single move: a flood-fill
+ * outward over shared open road edges (not just one hex). Mirrors the backend's
+ * HexEscapeModule.ConnectedReachable so the UI only offers moves the server will accept.
+ * Zombies block the tunnel — a zombie-occupied tile can be neither entered nor passed
+ * through — so pass the current zombie coords to route around them. Fixed tiles (e.g. the
+ * exit Cross) are valid targets; sliding onto the exit is how the game is won.
  */
 export function connectedMoveTargets(
   grid: Record<string, HexCell>,
   cells: Set<string>,
   fromCoord: string,
+  zombies?: Set<string>,
 ): Set<string> {
-  const targets = new Set<string>()
-  const fromTile = grid[fromCoord]
-  if (!fromTile) return targets
+  const visited = new Set<string>()
+  if (!grid[fromCoord]) return visited
+  const blocked = zombies ?? new Set<string>()
 
-  const fromEdges = new Set(openEdges(fromTile.tileType, fromTile.rotation))
-  const { q, r } = parseCoord(fromCoord)
-
-  for (let d = 0; d < 6; d++) {
-    if (!fromEdges.has(d)) continue
-    const [dq, dr] = DIRECTIONS[d]
-    const toCoord = `${q + dq},${r + dr}`
-    if (!cells.has(toCoord)) continue
-    const toTile = grid[toCoord]
-    if (!toTile) continue
-    const opposite = (d + 3) % 6
-    if (openEdges(toTile.tileType, toTile.rotation).includes(opposite)) {
-      targets.add(toCoord)
+  visited.add(fromCoord)
+  const queue: string[] = [fromCoord]
+  while (queue.length > 0) {
+    const cur = queue.shift() as string
+    const curTile = grid[cur]
+    if (!curTile) continue
+    const curEdges = new Set(openEdges(curTile.tileType, curTile.rotation))
+    const { q, r } = parseCoord(cur)
+    for (let d = 0; d < 6; d++) {
+      if (!curEdges.has(d)) continue
+      const [dq, dr] = DIRECTIONS[d]
+      const toCoord = `${q + dq},${r + dr}`
+      if (visited.has(toCoord) || !cells.has(toCoord)) continue
+      const toTile = grid[toCoord]
+      if (!toTile) continue
+      if (!openEdges(toTile.tileType, toTile.rotation).includes((d + 3) % 6)) continue
+      if (blocked.has(toCoord)) continue // zombie blocks the pipe
+      visited.add(toCoord)
+      queue.push(toCoord)
     }
   }
-  return targets
+  visited.delete(fromCoord)
+  return visited
 }
 
 /** HEX_SIZE constant exported for use by TilePreview */
