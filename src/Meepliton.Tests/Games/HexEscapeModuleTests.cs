@@ -1947,6 +1947,72 @@ public class HexEscapeModuleTests
     }
 
     /// <summary>
+    /// v11: drawing a zombie card grows the horde from the centre seeds — it never enters the hand.
+    /// A fresh zombie takes a seed and the one already there is shoved outward; since its neighbours
+    /// start empty, the spawn lays a zombie road tile to make room (the spawn tile "places a tile").
+    /// </summary>
+    [Fact]
+    public void DrawZombieCard_GrowsHordeFromCentreSeed_LayingRoadToMakeRoom()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+        int zombiesBefore = state.Zombies.Count;   // 2 seed zombies
+        int gridBefore    = state.Grid.Count;       // 2 fixed seeds
+        var seeds = state.Grid.Where(kv => kv.Value.Fixed).Select(kv => kv.Key).ToHashSet();
+
+        // Zombie card on top of the deck; AP to spare so the turn does not auto-end.
+        state = state with
+        {
+            Deck = new List<DeckEntry> { new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false) }
+                .Concat(state.Deck).ToList(),
+            ActiveSeat = 0,
+            ActionPointsRemaining = 3,
+            QualifyingActionsThisTurn = 0,
+        };
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().BeNull();
+
+        var ns = GetState(result.NewState);
+        ns.Zombies.Count.Should().Be(zombiesBefore + 1, "drawing a zombie card grows the horde by one, from the centre");
+        ns.Hands[players[0].Id].Should().NotContain(t => t.IsZombieTile, "the zombie card spawns at the centre, never entering the hand");
+        ns.Zombies.Should().Contain(z => seeds.Contains(z.Pos), "a fresh zombie occupies a centre seed");
+        ns.Grid.Count.Should().BeGreaterThan(gridBefore, "the spawn lays a road tile to shove the existing zombie out and make room");
+        ns.Grid.Should().Contain(kv => kv.Value.IsZombieTile && !kv.Value.Fixed, "the laid tile is a non-fixed zombie road tile");
+    }
+
+    /// <summary>
+    /// v11: a zombie card drawn as the LAST action point still spawns at the centre and auto-ends the
+    /// turn — there is no held zombie tile and no placement obligation left dangling.
+    /// </summary>
+    [Fact]
+    public void DrawZombieCard_AsLastAp_SpawnsAtCentre_AndEndsTurn()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+        int zombiesBefore = state.Zombies.Count;
+
+        state = state with
+        {
+            Deck = new List<DeckEntry> { new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false) }
+                .Concat(state.Deck).ToList(),
+            ActiveSeat = 0,
+            ActionPointsRemaining = 1,                 // this draw is the last AP
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+        };
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().BeNull();
+
+        var ns = GetState(result.NewState);
+        ns.Zombies.Count.Should().BeGreaterThan(zombiesBefore, "the horde grows from the centre even on the last AP");
+        ns.Hands[players[0].Id].Should().NotContain(t => t.IsZombieTile, "no zombie tile is ever held");
+        ns.ActiveSeat.Should().BeNull("AP hit 0 → the turn auto-ended (seat released)");
+    }
+
+    /// <summary>
     /// v9: players may rotate zombie-laid road tiles (Fixed:false, IsZombieTile:true) to redirect
     /// the spread / deny a zombie a contained break-out. (Fixed pre-placed tiles stay locked —
     /// covered by Containment_BreakOut_SkipsRotation_ForFixedLevelTile.)

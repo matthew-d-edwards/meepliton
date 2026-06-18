@@ -704,31 +704,24 @@ public class HexEscapeModule : IGameModule, IGameHandler
             return new GameResult(Serialize(state));
         }
 
-        // ── Zombie tile drawn (MF-1: atomic resolution if last AP) ───────────
-        // First: update state with the draw
+        // ── Zombie card drawn (v11) ──────────────────────────────────────────
+        // The horde grows from the centre spawn tiles, not the player's hand. The card is consumed;
+        // a zombie spawns on a seed and shoves the existing line outward, laying road / rotating a
+        // pipe to make room. The drawn card never enters the hand, so there is no placement
+        // obligation. A shove can run a character over → the loss is caught at the next round boundary
+        // (or immediately, when this draw also exhausts AP and auto-ends the turn).
         state = state with
         {
             Deck                    = newDeck,
             ActionPointsRemaining   = newAp,
             QualifyingActionsThisTurn = newQualifying,
         };
+        state = SpawnHordeAtCentre(state);
 
         if (newAp == 0)
-        {
-            // MF-1 — DrawTile-as-last-AP atomic resolution (AC-v2-8b):
-            // Resolve forced zombie tile placement ATOMICALLY in this Handle call.
-            // Never leave the player holding a zombie tile with AP = 0.
-            state = AtomicZombieResolution(state, actor);
             return EndTurnAndAdvance(ctx, state, actor);
-        }
-        else
-        {
-            // AP remaining: add zombie tile to hand (obligation enforced by AC-v2-46)
-            var newHand = new List<HeldTile>(hand) { new HeldTile(drawnEntry.TileType, IsZombieTile: true, IsExitTile: false) };
-            var newHands = new Dictionary<string, List<HeldTile>>(state.Hands) { [actor.Id] = newHand };
-            state = state with { Hands = newHands };
-            return new GameResult(Serialize(state));
-        }
+
+        return new GameResult(Serialize(state));
     }
 
     // ── MF-1: Atomic zombie resolution ───────────────────────────────────────
@@ -1302,8 +1295,9 @@ public class HexEscapeModule : IGameModule, IGameHandler
     //   2. ROTATE an adjacent NON-FIXED pipe (a player's tile) to splice itself onto that network —
     //      opening a path toward a survivor — when it cannot move; it chases along it next round.
     // An isolated zombie with nothing to move onto or rotate simply waits. New zombies enter ONLY
-    // from drawn zombie cards (prefilled into the deck per player count), so the horde is bounded by
-    // deck composition rather than growing every round. Players' counter: re-rotate pipes to cut the
+    // when a zombie card is drawn — which grows the horde from the centre seeds (see
+    // SpawnHordeAtCentre), shoving the line outward and laying road to make room — so the horde is
+    // bounded by deck composition rather than the clock. Players' counter: re-rotate pipes to cut the
     // chasers off while keeping a clear road to the exit. (Movement is deterministic → LastZombieRolls
     // stays empty.) The method name is historical; it no longer grows the horde.
     private HexEscapeState RunPhase2HordeGrowth(HexEscapeState state)
@@ -1587,6 +1581,140 @@ public class HexEscapeModule : IGameModule, IGameHandler
         }
 
         return changed ? state with { Characters = newCharacters } : state;
+    }
+
+    // ── v11: zombie-card horde growth from the centre spawn tiles ──────────────
+
+    /// <summary>
+    /// A drawn zombie card grows the horde from the centre spawn tiles (the fixed seeds), not the
+    /// player's hand. One zombie spawns on a seed; if a zombie already sits there it is SHOVED one
+    /// step outward along the connected road toward the nearest survivor. If it has nowhere to go,
+    /// the spawn MAKES ROOM — rotating an adjacent non-fixed pipe, or, failing that, laying a new
+    /// zombie road tile toward the survivor (so the spawn tile "places a tile to help the move").
+    /// The new zombie then takes the seed. If both seeds are hopelessly boxed, the growth is skipped.
+    /// Pressure grows from the middle and spreads outward toward the player.
+    /// </summary>
+    private HexEscapeState SpawnHordeAtCentre(HexEscapeState state)
+    {
+        if (state.Zombies.Count >= HexEscapeConstants.MaxZombies) return state;
+
+        var cellSet     = new HashSet<string>(state.Cells);
+        var exitZoneSet = new HashSet<string>(state.ExitZoneCells);
+        var (eq, er)    = ParseCoord(state.ExitCell ?? "3,0");
+        var survivors   = state.Characters
+            .Where(c => c.Pos is not null && !c.Eliminated)
+            .Select(c => ParseCoord(c.Pos!))
+            .ToList();
+        int Dist(int q, int r) => survivors.Count == 0
+            ? HexDistance(q, r, eq, er)
+            : survivors.Min(s => HexDistance(q, r, s.Q, s.R));
+
+        // Spawn seeds = fixed, non-exit-zone grid tiles. Push from the seed nearest a survivor first.
+        var seeds = state.Grid
+            .Where(kv => kv.Value.Fixed && !exitZoneSet.Contains(kv.Key))
+            .Select(kv => kv.Key)
+            .OrderBy(k => { var (q, r) = ParseCoord(k); return Dist(q, r); })
+            .ThenBy(k => ParseCoord(k).Q).ThenBy(k => ParseCoord(k).R)
+            .ToList();
+        if (seeds.Count == 0) return state;
+
+        // Slide the zombie at `from` one step in `dir`, running over any character it lands on.
+        void Shove(string from, int dir)
+        {
+            var (fq, fr) = ParseCoord(from);
+            var (dq, dr) = Directions[dir];
+            var to = CoordKey(fq + dq, fr + dr);
+            var moved = state.Zombies.ToList();
+            int zi = moved.FindIndex(z => z.Pos == from);
+            if (zi >= 0) moved[zi] = moved[zi] with { Pos = to };
+            state = state with { Zombies = moved };
+            state = EliminateCharactersAt(state, to);
+        }
+
+        // Free `cell` of its zombie by shoving it one step outward (toward a survivor), making room
+        // with a rotation or a freshly-laid zombie road tile when no open move exists.
+        bool Vacate(string cell)
+        {
+            if (!state.Zombies.Any(z => z.Pos == cell)) return true;
+            var (cq, cr) = ParseCoord(cell);
+            if (!state.Grid.TryGetValue(cell, out var cTile)) return false;
+            var cEdges = OpenEdges(cTile.TileType, cTile.Rotation);
+            bool cFixed = cTile.Fixed;
+            var occ = new HashSet<string>(state.Zombies.Select(z => z.Pos));
+
+            // 1) MOVE: connected, unoccupied road neighbour closest to a survivor.
+            int moveDir = -1, moveBest = int.MaxValue;
+            for (int d = 0; d < 6; d++)
+            {
+                if (!cEdges.Contains(d)) continue;
+                var (dq, dr) = Directions[d]; var n = CoordKey(cq + dq, cr + dr);
+                if (!cellSet.Contains(n) || exitZoneSet.Contains(n)) continue;
+                if (!state.Grid.TryGetValue(n, out var nT)) continue;
+                if (!OpenEdges(nT.TileType, nT.Rotation).Contains((d + 3) % 6)) continue;
+                if (occ.Contains(n)) continue;
+                var (nq, nr) = ParseCoord(n); int nd = Dist(nq, nr);
+                if (nd < moveBest) { moveBest = nd; moveDir = d; }
+            }
+            if (moveDir >= 0) { Shove(cell, moveDir); return true; }
+
+            // 2) ROTATE an adjacent non-fixed pipe (and our own tile, if non-fixed) to open a move.
+            for (int d = 0; d < 6; d++)
+            {
+                var (dq, dr) = Directions[d]; var n = CoordKey(cq + dq, cr + dr);
+                if (!cellSet.Contains(n) || exitZoneSet.Contains(n)) continue;
+                if (!state.Grid.TryGetValue(n, out var nT) || nT.Fixed) continue;
+                if (occ.Contains(n)) continue;
+                if (!cEdges.Contains(d) && cFixed) continue;  // our own tile is fixed and shut this way
+                var newGrid = new Dictionary<string, HexCell>(state.Grid)
+                {
+                    [n] = nT with { Rotation = RotationToOpen(nT.TileType, (d + 3) % 6) }
+                };
+                if (!cEdges.Contains(d)) newGrid[cell] = cTile with { Rotation = RotationToOpen(cTile.TileType, d) };
+                state = state with { Grid = newGrid };
+                Shove(cell, d);
+                return true;
+            }
+
+            // 3) LAY a zombie road tile on an empty neighbour toward the survivor, then move onto it.
+            int layDir = -1, layBest = int.MaxValue;
+            for (int d = 0; d < 6; d++)
+            {
+                if (cFixed && !cEdges.Contains(d)) continue;
+                var (dq, dr) = Directions[d]; var n = CoordKey(cq + dq, cr + dr);
+                if (!cellSet.Contains(n) || exitZoneSet.Contains(n)) continue;
+                if (state.Grid.ContainsKey(n)) continue;
+                var (nq, nr) = ParseCoord(n); int nd = Dist(nq, nr);
+                if (nd < layBest) { layBest = nd; layDir = d; }
+            }
+            if (layDir >= 0)
+            {
+                var (dq, dr) = Directions[layDir]; var n = CoordKey(cq + dq, cr + dr);
+                int rot = layDir < 3 ? layDir : layDir - 3;
+                var newGrid = new Dictionary<string, HexCell>(state.Grid)
+                {
+                    [n] = new HexCell(HexTileType.Straight, rot, Fixed: false, IsZombieTile: true)
+                };
+                if (!cFixed && !cEdges.Contains(layDir))
+                    newGrid[cell] = cTile with { Rotation = RotationToOpen(cTile.TileType, layDir) };
+                state = state with { Grid = newGrid };
+                Shove(cell, layDir);
+                return true;
+            }
+
+            return false;  // hopelessly boxed
+        }
+
+        foreach (var seed in seeds)
+        {
+            if (Vacate(seed))
+            {
+                state = SpawnZombieAt(state, seed, out var nz);
+                state = state with { Zombies = nz };
+                state = EliminateCharactersAt(state, seed);
+                return state;
+            }
+        }
+        return state;  // both seeds boxed — skip this growth
     }
 
     // ── Reserved cell helpers ─────────────────────────────────────────────────
