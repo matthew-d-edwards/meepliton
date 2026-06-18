@@ -39,8 +39,11 @@ public static class HexEscapeConstants
     /// <summary>Minimum qualifying actions per turn before EndTurn is legal (DD1, F1). Balance TBD.</summary>
     public const int MinActionsPerTurn = 2;
 
-    /// <summary>Maximum tiles in hand. Structurally fixed for v2.</summary>
-    public const int HandSize = 3;
+    /// <summary>
+    /// Maximum tiles in hand. Raised 3→5 (v10) so a bad draw (e.g. a Dead End) no longer deadlocks
+    /// the road and the player has room to stock tiles and pre-plan an opening before committing.
+    /// </summary>
+    public const int HandSize = 5;
 
     /// <summary>
     /// Per-action movement cap. v10: a MoveCharacter action now slides the character the FULL
@@ -54,8 +57,12 @@ public static class HexEscapeConstants
     /// <summary>JSONB growth safety cap. Structurally fixed for v2.</summary>
     public const int MaxZombies = 200;
 
-    /// <summary>Non-zombie, non-exit tiles dealt per player at CreateInitialState (DD3, D2). Balance TBD.</summary>
-    public const int StartingHandSize = 1;
+    /// <summary>
+    /// Non-zombie, non-exit tiles dealt per player at CreateInitialState (DD3, D2). Raised 1→3 (v10)
+    /// so the player opens with enough tiles to pre-plan a route instead of placing blind. Dealt from
+    /// the guaranteed-safe top slots, so the opening hand is always zombie/exit-free. Balance TBD.
+    /// </summary>
+    public const int StartingHandSize = 3;
 
     /// <summary>Top fraction of raw pool guaranteed zombie/exit-free (DD3, F2, D2). Balance TBD.</summary>
     public const double SafeOpeningFraction = 0.20;

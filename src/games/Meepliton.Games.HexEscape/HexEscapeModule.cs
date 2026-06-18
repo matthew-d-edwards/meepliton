@@ -1294,18 +1294,18 @@ public class HexEscapeModule : IGameModule, IGameHandler
         };
     }
 
-    // ── Zombie phase (v9 chase model) ─────────────────────────────────────────
+    // ── Zombie phase (v10 chase model — bounded horde) ────────────────────────
     //
-    // Each existing zombie HUNTS the nearest survivor on the SHARED road network (the streets the
-    // players built), in priority order:
+    // Existing zombies HUNT the nearest survivor along the SHARED road network (the streets the
+    // players built). They never multiply on their own and never lay their own road. Each, in order:
     //   1. MOVE one step along a connected, unoccupied road that gets it closer to a survivor.
     //   2. ROTATE an adjacent NON-FIXED pipe (a player's tile) to splice itself onto that network —
     //      opening a path toward a survivor — when it cannot move; it chases along it next round.
-    //   3. PLACE a new connecting tile if it is isolated (nothing adjacent to step onto or rotate),
-    //      e.g. at the start of the game.
-    // Then the two centre tiles (the fixed seeds) each spawn one new zombie on a connected tile
-    // (the population). Players' counter: re-rotate their pipes to cut the chasers off while keeping
-    // a road open to the exit. (Movement is deterministic, so LastZombieRolls stays empty.)
+    // An isolated zombie with nothing to move onto or rotate simply waits. New zombies enter ONLY
+    // from drawn zombie cards (prefilled into the deck per player count), so the horde is bounded by
+    // deck composition rather than growing every round. Players' counter: re-rotate pipes to cut the
+    // chasers off while keeping a clear road to the exit. (Movement is deterministic → LastZombieRolls
+    // stays empty.) The method name is historical; it no longer grows the horde.
     private HexEscapeState RunPhase2HordeGrowth(HexEscapeState state)
     {
         var cellSet     = new HashSet<string>(state.Cells);
@@ -1388,63 +1388,11 @@ public class HexEscapeModule : IGameModule, IGameHandler
                 continue;  // chases along the new connection next round
             }
 
-            // 3) PLACE a tile: isolated (nothing adjacent to step onto or rotate). Lay a connecting
-            //    Straight on an empty neighbour toward a survivor — as at the start of the game.
-            int placeDir = -1, placeDist = int.MaxValue;
-            for (int d = 0; d < 6; d++)
-            {
-                if (cFixed && !cEdges.Contains(d)) continue;   // fixed tile: only its open directions connect
-                var (dq, dr) = Directions[d]; var n = CoordKey(cq + dq, cr + dr);
-                if (!cellSet.Contains(n) || exitZoneSet.Contains(n)) continue;
-                if (state.Grid.ContainsKey(n)) continue;       // empty
-                var (nq, nr) = ParseCoord(n); int nd = Dist(nq, nr);
-                if (nd < placeDist) { placeDist = nd; placeDir = d; }
-            }
-            if (placeDir >= 0)
-            {
-                var (dq, dr) = Directions[placeDir]; var n = CoordKey(cq + dq, cr + dr);
-                int rot = placeDir < 3 ? placeDir : placeDir - 3;
-                var newGrid = new Dictionary<string, HexCell>(state.Grid)
-                {
-                    [n] = new HexCell(HexTileType.Straight, rot, Fixed: false, IsZombieTile: true)
-                };
-                if (!cFixed && !cEdges.Contains(placeDir))
-                    newGrid[c] = cTile with { Rotation = RotationToOpen(cTile.TileType, placeDir) };
-                state = state with { Grid = newGrid };
-            }
-        }
-
-        // ── Population: each centre spawner (fixed seed) makes one new zombie on a connected,
-        //    unoccupied adjacent tile (nearest the exit). No connected tile yet → it waits. ──
-        var spawners = state.Grid
-            .Where(kv => kv.Value.Fixed && !exitZoneSet.Contains(kv.Key))
-            .Select(kv => kv.Key)
-            .OrderBy(k => ParseCoord(k).Q).ThenBy(k => ParseCoord(k).R)
-            .ToList();
-        foreach (var spawner in spawners)
-        {
-            if (state.Zombies.Count >= HexEscapeConstants.MaxZombies) break;
-            var (sq, sr) = ParseCoord(spawner);
-            var sEdges = OpenEdges(state.Grid[spawner].TileType, state.Grid[spawner].Rotation);
-            var occ = new HashSet<string>(state.Zombies.Select(z => z.Pos));
-            string? target = null; int bestD = int.MaxValue;
-            for (int d = 0; d < 6; d++)
-            {
-                if (!sEdges.Contains(d)) continue;
-                var (dq, dr) = Directions[d]; var n = CoordKey(sq + dq, sr + dr);
-                if (!cellSet.Contains(n) || exitZoneSet.Contains(n)) continue;
-                if (!state.Grid.TryGetValue(n, out var nT)) continue;
-                if (!OpenEdges(nT.TileType, nT.Rotation).Contains((d + 3) % 6)) continue;
-                if (occ.Contains(n)) continue;
-                var (nq, nr) = ParseCoord(n); int dd = HexDistance(nq, nr, eq, er);
-                if (dd < bestD) { bestD = dd; target = n; }
-            }
-            if (target is not null)
-            {
-                state = SpawnZombieAt(state, target, out var nz);
-                state = state with { Zombies = nz };
-                state = EliminateCharactersAt(state, target);
-            }
+            // (v10) No step 3 and no spawner population: zombies never lay their own road and never
+            // multiply on their own. An isolated zombie with nothing to move onto or rotate simply
+            // waits — it chases only once the player's road reaches it. New zombies enter ONLY from
+            // drawn zombie cards (PlaceZombieTile / AtomicZombieResolution), which are prefilled into
+            // the deck per player count, so the horde size is bounded by deck composition.
         }
 
         return state;

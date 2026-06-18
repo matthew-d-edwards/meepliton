@@ -1785,20 +1785,18 @@ public class HexEscapeModuleTests
         }
     }
 
-    // ── 3b. Centre-spawner horde growth (v9) ─────────────────────────────────
+    // ── 3b. Bounded horde — zombies chase but never multiply (v10) ────────────
 
     /// <summary>
-    /// Zombie PLACE step (genesis): an isolated zombie — nothing adjacent to step onto or rotate —
-    /// lays a new connecting tile toward a survivor/exit, as at the start of the game.
+    /// v10: an isolated zombie — nothing adjacent to step onto or rotate — simply WAITS. It does not
+    /// lay its own road and does not multiply; the horde grows only from drawn zombie cards.
     /// </summary>
     [Fact]
-    public void Zombie_Isolated_PlacesTile()
+    public void Zombie_Isolated_WaitsAndDoesNotMultiply()
     {
         var players = Players(1);
         var state = GetInitialState(players);
 
-        // A lone zombie on a non-fixed tile with all-empty neighbours and no spawners (grid cleared
-        // of the fixed seeds). No survivor placed → it builds toward the exit.
         const string zc = "-1,-1";
         state.Cells.Should().Contain(zc);
         var grid = new Dictionary<string, HexCell>
@@ -1821,11 +1819,9 @@ public class HexEscapeModuleTests
         rEnd.RejectionReason.Should().BeNull();
         var s = GetState(rEnd.NewState);
 
-        s.Grid.Count.Should().Be(2, "the isolated zombie lays exactly one new tile");
-        s.Grid.Single(kv => kv.Key != zc).Value.IsZombieTile.Should().BeTrue("the laid tile is zombie-owned");
-        var cellSet = new HashSet<string>(s.Cells);
-        Enumerable.Range(0, 6).Any(d => HexEscapeModule.AreConnected(s.Grid, cellSet, zc, d))
-            .Should().BeTrue("the laid tile connects back to the zombie's cell");
+        s.Grid.Count.Should().Be(1, "an isolated zombie lays no new tile");
+        s.Zombies.Should().ContainSingle("an isolated zombie does not multiply");
+        s.Zombies.Single().Pos.Should().Be(zc, "with nothing to move onto, the zombie stays put");
     }
 
     /// <summary>
@@ -1911,12 +1907,12 @@ public class HexEscapeModuleTests
     }
 
     /// <summary>
-    /// Spawner MAKE step: a centre spawner with a connected, unoccupied tiled neighbour makes a new
-    /// zombie there (rather than laying another tile). Over rounds this alternates lay/make, pumping
-    /// a horde out of the middle.
+    /// v10: the centre seeds no longer spawn population. A fixed seed with a connected, free tiled
+    /// neighbour and no zombies on the board produces NO new zombie at the round boundary — the horde
+    /// grows only from drawn zombie cards, so its size is bounded by deck composition.
     /// </summary>
     [Fact]
-    public void Spawner_ConnectedTileFree_MakesZombie()
+    public void Spawner_NoLongerMakesZombie()
     {
         var players = Players(1);
         var state = GetInitialState(players);
@@ -1946,9 +1942,8 @@ public class HexEscapeModuleTests
         rEnd.RejectionReason.Should().BeNull();
         var s = GetState(rEnd.NewState);
 
-        s.Grid.Count.Should().Be(2, "no new tile is laid — the spawner fills its existing connected neighbour");
-        s.Zombies.Should().ContainSingle("the spawner makes one zombie");
-        s.Zombies.Single().Pos.Should().Be(neighbour, "the zombie spawns on the spawner's connected neighbour");
+        s.Zombies.Should().BeEmpty("the seed no longer spawns population — new zombies come only from drawn cards");
+        s.Grid.Count.Should().Be(2, "and no road tile is laid either");
     }
 
     /// <summary>
@@ -1986,21 +1981,13 @@ public class HexEscapeModuleTests
     // ── 4. Containment break-out / MF-2 frozen snapshot ──────────────────────
 
     /// <summary>
-    /// MF-2 containment break-out:
-    ///   - Craft a zombie on a non-fixed tile with no valid moves (contained).
-    ///   - Run round boundary.
-    ///   - Assert: a new zombie was spawned (break-out (b)), and the new spawn
-    ///     is on a tiled, non-exit-zone cell adjacent to the contained zombie.
-    ///   - Assert: the pre-placed level tile's rotation is NOT changed
-    ///     (skip-rotation for fixed tiles — C2).
-    ///   - Assert: a zombie-placed non-fixed tile IS eligible for rotation
-    ///     (we verify via the rotation rule: if zombie is on a non-fixed tile,
-    ///     rotation sub-step runs).
-    ///
+    /// v10: a contained zombie (on a non-fixed tile with no valid move, nothing to rotate onto) does
+    /// NOT break out. There is no spread and no multiply — the board is unchanged across the round
+    /// boundary. The horde grows only from drawn zombie cards, so its size is bounded by the deck.
     /// We drive this via a full round-boundary by completing all seats' turns.
     /// </summary>
     [Fact]
-    public void Containment_BreakOut_SpawnsNewZombie_OnAdjacentTiledCell()
+    public void Containment_NoBreakOut_HordeBoundedByDeck()
     {
         // Use 1-player game for simplest round boundary.
         var players = Players(1);
@@ -2091,14 +2078,12 @@ public class HexEscapeModuleTests
         var newState = GetState(result.NewState);
         if (newState.Phase == HexEscapePhase.GameOver) return; // loss fired; skip
 
-        // v9: a blocked zombie with empty neighbours breaks out by SPREADING — laying a new zombie
-        // road tile on an adjacent empty cell and advancing onto it (no clone; count unchanged).
-        newState.Grid.Values.Count(t => t.IsZombieTile).Should().BeGreaterThan(zombieTilesBefore,
-            "break-out spreads the horde by laying a new zombie tile");
-
-        // Every zombie tile must be on a placed, non-exit-zone cell (C4, MF-3).
-        foreach (var kv in newState.Grid.Where(kv => kv.Value.IsZombieTile))
-            newState.ExitZoneCells.Should().NotContain(kv.Key, "zombie tiles must never be in the exit zone (MF-3)");
+        // v10: a contained zombie does NOT break out — it lays no tile and does not multiply, so the
+        // zombie-tile count and the zombie count are both unchanged and it stays put.
+        newState.Grid.Values.Count(t => t.IsZombieTile).Should().Be(zombieTilesBefore,
+            "a contained zombie lays no new tile (no break-out spread)");
+        newState.Zombies.Count.Should().Be(zombieCountBefore, "a contained zombie does not multiply");
+        newState.Zombies.Should().Contain(z => z.Pos == zombieCell, "the contained zombie stays put");
     }
 
     /// <summary>
@@ -3427,14 +3412,13 @@ public class HexEscapeModuleTests
     }
 
     /// <summary>
-    /// AC-v2-1b: New constants — StartingHandSize=1 (reduced from 2 per D2).
-    /// Assert that each player's starting hand contains exactly 1 tile.
+    /// v10: StartingHandSize raised to 3 so the player opens with enough tiles to pre-plan a route.
     /// </summary>
     [Fact]
-    public void Constants_StartingHandSize_IsOne()
+    public void Constants_StartingHandSize_IsThree()
     {
-        HexEscapeConstants.StartingHandSize.Should().Be(1,
-            "StartingHandSize reduced from 2 to 1 per v7 D2 balance change");
+        HexEscapeConstants.StartingHandSize.Should().Be(3,
+            "StartingHandSize raised to 3 (v10) so the player can pre-plan an opening");
     }
 
     /// <summary>
