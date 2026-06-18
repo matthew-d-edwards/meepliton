@@ -169,17 +169,9 @@ public static class HexEscapeLevels
         ],
         PrePlacedTiles:
         [
-            // Horde origin cells (q=-3, r={-1,0,1}): Cross r0 per v8 D1.
-            // Cross tiles (edges {E(0),NE(1),N(2),W(3)}) ensure zombies here cannot be
-            // trivially bypassed by adjacent-row detours (AD-OB-12b round-5 rationale).
-            // The D1 break-out mechanic will rarely fire on these Cross cells (Cross tiles
-            // are almost never contained), but "cannot be skipped" is the design priority.
-            new PrePlacedTile(C(-3, -1), HexTileType.Cross, 0),
-            new PrePlacedTile(C(-3,  0), HexTileType.Cross, 0),
-            new PrePlacedTile(C(-3,  1), HexTileType.Cross, 0),
-            // Route-blocking starting zombie cells: Cross r0 on main E-W route (v8 D1).
-            // Starting zombies are placed here (below), forcing players to navigate/clear them.
-            // Cross tiles: edges open in 4 directions, cannot be bypassed via adjacent rows.
+            // v9: only the two central SEED tiles. Each holds a starting zombie; the entire horde
+            // grows from these two seeds spreading/multiplying via break-out (no fixed horde spawn).
+            // Cross r0 (edges {E(0),NE(1),N(2),W(3)}) on the main E–W route between spawn and exit.
             new PrePlacedTile(C( 0,  0), HexTileType.Cross, 0),
             new PrePlacedTile(C( 2,  0), HexTileType.Cross, 0),
         ],
@@ -197,11 +189,10 @@ public static class HexEscapeLevels
         [
             C( 3, -1), C( 3,  0), C( 3,  1),
         ],
-        // Horde origin: q=-3, r={-1,0,1}. All have pre-placed Cross r0 tiles (F3, v8 D1).
-        // Not in spawn zone (spawn uses q=-4 and q=-3,r=-2 only). Not in exit zone.
+        // v9: NO fixed horde — the per-round horde-origin spawn is removed. All zombie growth comes
+        // from the two starting seeds spreading/multiplying via break-out. Empty = no horde spawn.
         HordeOriginCells:
         [
-            C(-3, -1), C(-3,  0), C(-3,  1),
         ],
         // Starting zombies: 2 on main E–W route, not adjacent to spawn zone (D1, v8).
         // (0,0) and (2,0) both have pre-placed Cross r0 tiles (C4, D1 requirement).

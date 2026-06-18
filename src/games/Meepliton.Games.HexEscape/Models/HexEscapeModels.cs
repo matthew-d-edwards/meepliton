@@ -80,15 +80,6 @@ public static class HexEscapeConstants
     /// </summary>
     public const int HordeStartRound = 3;
 
-    /// <summary>
-    /// D1 break-out (v9 "spread"): a contained zombie advances onto a freshly-laid zombie tile,
-    /// heading toward the nearest survivor. When this is true it ALSO leaves a new zombie in the
-    /// cell it vacated ("a new zombie takes its place") — the front both advances and grows.
-    /// When false the front advances/spreads without multiplying. The player's counter is to
-    /// rotate zombie tiles to deny the zombie a contained break-out (redirect/contain the spread).
-    /// Balance knob — TBD by playtest.
-    /// </summary>
-    public const bool BreakoutMultiplies = true;
 
     /// <summary>
     /// Exit tile placed randomly in the last X fraction of the deck (post-deal);

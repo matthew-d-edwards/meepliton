@@ -81,6 +81,13 @@ public class HexEscapeModule : IGameModule, IGameHandler
     /// (puts the tile's first base edge toward d).</summary>
     internal static int RotationToOpen(HexTileType type, int d) => ((d - BaseEdges[type][0]) % 6 + 6) % 6;
 
+    /// <summary>Axial hex distance between two cells (used to steer the zombie spread at survivors).</summary>
+    internal static int HexDistance(int q1, int r1, int q2, int r2)
+    {
+        int dq = q1 - q2, dr = r1 - r2;
+        return (Math.Abs(dq) + Math.Abs(dr) + Math.Abs(dq + dr)) / 2;
+    }
+
     /// <summary>
     /// Check the connection rule between two adjacent cells.
     /// A tile at C with open edge in direction d connects to neighbour N if N exists
@@ -1224,13 +1231,14 @@ public class HexEscapeModule : IGameModule, IGameHandler
         // AC-v2-32b: Phase 1 — transition to ZombieMovement
         state = state with { Phase = HexEscapePhase.ZombieMovement, LastZombieRolls = [] };
 
-        // AC-v2-32c: Phase 2 — containment evaluation (D1) with FROZEN SNAPSHOT (MF-2)
-        state = RunPhase2Containment(state);
+        // Phase 2 — the two centre spawners grow the horde from the middle (v9 spawner model).
+        state = RunPhase2HordeGrowth(state);
 
-        // AC-v2-32d: Phase 3 — per-zombie d6 roll and move (live post-Phase-2 grid)
-        state = RunPhase3ZombieRolls(state);
+        // (v9) Zombies no longer wander each round: the horde grows as a connected mass out of the
+        // centre and the players navigate/rotate through it, rather than zombies dispersing across
+        // the board. LastZombieRolls stays empty (cleared above), so no zombie-movement overlay.
 
-        // AC-v2-32e: Phase 4 — horde spawn (D2b)
+        // Phase 4 — legacy horde-origin spawn (tutorial-01 defines no origins → no-op here).
         state = RunPhase4HordeSpawn(state);
 
         // AC-v2-32f: Phase 5 — loss check and round advance
@@ -1255,186 +1263,160 @@ public class HexEscapeModule : IGameModule, IGameHandler
         };
     }
 
-    // ── Phase 2: Containment (AC-v2-32c, AD-OB-5, MF-2) ────────────────────
-
-    private HexEscapeState RunPhase2Containment(HexEscapeState state)
+    // ── Zombie phase (v9 chase model) ─────────────────────────────────────────
+    //
+    // Each existing zombie HUNTS the nearest survivor on the SHARED road network (the streets the
+    // players built), in priority order:
+    //   1. MOVE one step along a connected, unoccupied road that gets it closer to a survivor.
+    //   2. ROTATE an adjacent NON-FIXED pipe (a player's tile) to splice itself onto that network —
+    //      opening a path toward a survivor — when it cannot move; it chases along it next round.
+    //   3. PLACE a new connecting tile if it is isolated (nothing adjacent to step onto or rotate),
+    //      e.g. at the start of the game.
+    // Then the two centre tiles (the fixed seeds) each spawn one new zombie on a connected tile
+    // (the population). Players' counter: re-rotate their pipes to cut the chasers off while keeping
+    // a road open to the exit. (Movement is deterministic, so LastZombieRolls stays empty.)
+    private HexEscapeState RunPhase2HordeGrowth(HexEscapeState state)
     {
-        // FROZEN SNAPSHOT (MF-2): containment decisions and zombie positions are read from here.
-        // Mutations (tiles laid, zombies moved/spawned) apply to live state only; newly created
-        // zombies/tiles are not re-evaluated within this phase.
-        var frozenGrid    = new Dictionary<string, HexCell>(state.Grid);
-        var frozenZombies = state.Zombies.ToList();
-        var frozenZombiePositions = frozenZombies.ToDictionary(z => z.Id, z => z.Pos);
-        var cellSet       = new HashSet<string>(state.Cells);
-        var exitZoneSet   = new HashSet<string>(state.ExitZoneCells);
+        var cellSet     = new HashSet<string>(state.Cells);
+        var exitZoneSet = new HashSet<string>(state.ExitZoneCells);
+        var (eq, er)    = ParseCoord(state.ExitCell ?? "3,0");
+        var survivors = state.Characters
+            .Where(c => c.Pos is not null && !c.Eliminated)
+            .Select(c => ParseCoord(c.Pos!))
+            .ToList();
+        // Distance from (q,r) to the nearest survivor — or the exit, if none placed yet.
+        int Dist(int q, int r) => survivors.Count == 0
+            ? HexDistance(q, r, eq, er)
+            : survivors.Min(s => HexDistance(q, r, s.Q, s.R));
 
-        foreach (var zombie in frozenZombies.OrderBy(z => z.Id))
+        // ── Chase: snapshot the current zombies; each acts once (move / rotate / place) ──
+        foreach (var snap in state.Zombies.ToList().OrderBy(z => z.Id))
         {
-            string zombiePos = frozenZombiePositions[zombie.Id];
+            var live = state.Zombies.FirstOrDefault(z => z.Id == snap.Id);
+            if (live is null) continue;
+            var c = live.Pos;
+            var (cq, cr) = ParseCoord(c);
+            if (!state.Grid.TryGetValue(c, out var cTile)) continue;
+            var cEdges = OpenEdges(cTile.TileType, cTile.Rotation);
+            bool cFixed = cTile.Fixed;
+            var occ = new HashSet<string>(state.Zombies.Where(z => z.Id != live.Id).Select(z => z.Pos));
+            int curDist = Dist(cq, cr);
 
-            // Contained = no connection-rule-valid move in the frozen snapshot.
-            if (!IsZombieContained(frozenGrid, cellSet, zombiePos)) continue;
-
-            var (zq, zr) = ParseCoord(zombiePos);
-            state.Grid.TryGetValue(zombiePos, out var zTile);
-            bool zFixed = zTile?.Fixed ?? false;
-            var zEdges  = zTile is null ? new HashSet<int>() : OpenEdges(zTile.TileType, zTile.Rotation);
-
-            // ── Spread (v9 D1): the horde grows by laying a NEW connecting tile on an adjacent
-            //    EMPTY, in-grid, non-exit-zone cell and advancing onto it. Direction is RANDOM
-            //    (a d6 roll); if the rolled direction is not an available connecting spot we use one
-            //    of the spots that IS available (the "only available spot" when constrained). The
-            //    laid tile always connects back to the zombie. A zombie on a FIXED tile can only
-            //    grow through a direction that tile already opens (its rotation can't change — C2). ──
-            var advanceDirs = new List<int>();
+            // 1) MOVE along a connected, unoccupied road to the neighbour closest to a survivor.
+            int moveDir = -1, moveDist = curDist;
             for (int d = 0; d < 6; d++)
             {
-                if (zFixed && !zEdges.Contains(d)) continue;       // fixed tile: must already open this edge to connect
-                var (dq, dr) = Directions[d];
-                var target = CoordKey(zq + dq, zr + dr);
-                if (!cellSet.Contains(target)) continue;
-                if (exitZoneSet.Contains(target)) continue;
-                if (state.Grid.ContainsKey(target)) continue;      // must be empty — we lay a new tile here
-                advanceDirs.Add(d);
+                if (!cEdges.Contains(d)) continue;
+                var (dq, dr) = Directions[d]; var n = CoordKey(cq + dq, cr + dr);
+                if (!cellSet.Contains(n) || exitZoneSet.Contains(n)) continue;
+                if (!state.Grid.TryGetValue(n, out var nT)) continue;
+                if (!OpenEdges(nT.TileType, nT.Rotation).Contains((d + 3) % 6)) continue;
+                if (occ.Contains(n)) continue;
+                var (nq, nr) = ParseCoord(n); int nd = Dist(nq, nr);
+                if (nd < moveDist) { moveDist = nd; moveDir = d; }
             }
-
-            if (advanceDirs.Count > 0)
+            if (moveDir >= 0)
             {
-                // Random growth direction (d6, mirroring the Phase-3 movement roll). If the roll
-                // lands on a blocked/illegal direction, fall back to one that IS available.
-                int rolled = Random.Shared.Next(1, 7) % 6;
-                int chosen = advanceDirs.Contains(rolled)
-                    ? rolled
-                    : advanceDirs[Random.Shared.Next(advanceDirs.Count)];
-
-                var (cdq, cdr) = Directions[chosen];
-                var targetCell = CoordKey(zq + cdq, zr + cdr);
-
-                // Lay a zombie-owned Straight aligned to the growth axis (opens `chosen` and its
-                // opposite) so it connects back to the zombie and keeps a path forward. Players may
-                // rotate this tile to redirect the spread.
-                int straightRot = chosen < 3 ? chosen : chosen - 3;
-                var newGrid = new Dictionary<string, HexCell>(state.Grid)
-                {
-                    [targetCell] = new HexCell(HexTileType.Straight, straightRot, Fixed: false, IsZombieTile: true)
-                };
-                // Open the zombie's own (non-fixed) tile toward the target so the step is legal.
-                if (zTile is not null && !zFixed && !zEdges.Contains(chosen))
-                    newGrid[zombiePos] = zTile with { Rotation = RotationToOpen(zTile.TileType, chosen) };
-                state = state with { Grid = newGrid };
-
-                // Advance the zombie onto the new tile. The target was empty (no tile), so no
-                // survivor can be standing there — growth never eliminates a character.
-                var moved = state.Zombies.ToList();
-                int zi = moved.FindIndex(z => z.Id == zombie.Id);
-                if (zi >= 0) moved[zi] = moved[zi] with { Pos = targetCell };
+                var (dq, dr) = Directions[moveDir]; var n = CoordKey(cq + dq, cr + dr);
+                var moved = state.Zombies.ToList(); int zi = moved.FindIndex(z => z.Id == live.Id);
+                moved[zi] = moved[zi] with { Pos = n };
                 state = state with { Zombies = moved };
-
-                // A new zombie takes its place at the vacated cell (spread + multiply).
-                if (HexEscapeConstants.BreakoutMultiplies && state.Zombies.Count < HexEscapeConstants.MaxZombies)
-                {
-                    state = SpawnZombieAt(state, zombiePos, out var nz);
-                    state = state with { Zombies = nz };
-                }
-
+                state = EliminateCharactersAt(state, n);
                 continue;
             }
 
-            // ── Fallback: no empty connecting cell to grow into (truly boxed — rare, e.g. a packed
-            //    late-game board). The horde grows IN PLACE: a new zombie stacks on the contained
-            //    zombie's own cell; no new tile is laid. ──
-            if (HexEscapeConstants.BreakoutMultiplies && state.Zombies.Count < HexEscapeConstants.MaxZombies)
+            // 2) ROTATE a player's pipe: an adjacent NON-FIXED, unoccupied tile we can turn so the
+            //    zombie gains a connected move toward a survivor (turning our own tile too if it is
+            //    non-fixed and shut that way). Pick the neighbour that gets closest.
+            int rotDir = -1, rotDist = curDist; HexCell? rotC = null;
+            for (int d = 0; d < 6; d++)
             {
-                state = SpawnZombieAt(state, zombiePos, out var nz);
-                state = state with { Zombies = nz };
+                var (dq, dr) = Directions[d]; var n = CoordKey(cq + dq, cr + dr);
+                if (!cellSet.Contains(n) || exitZoneSet.Contains(n)) continue;
+                if (!state.Grid.TryGetValue(n, out var nT) || nT.Fixed) continue; // only non-fixed pipes
+                if (occ.Contains(n)) continue;
+                HexCell? newC = null;
+                if (!cEdges.Contains(d))
+                {
+                    if (cFixed) continue;                 // our own tile is fixed and shut this way
+                    newC = cTile with { Rotation = RotationToOpen(cTile.TileType, d) };
+                }
+                var (nq, nr) = ParseCoord(n); int nd = Dist(nq, nr);
+                if (nd < rotDist) { rotDist = nd; rotDir = d; rotC = newC; }
             }
-            else if (state.Zombies.Count >= HexEscapeConstants.MaxZombies)
+            if (rotDir >= 0)
             {
-                _logger?.LogWarning("HexEscape: MaxZombies cap reached, skipping in-place break-out at {Coord}", zombiePos);
+                var (dq, dr) = Directions[rotDir]; var n = CoordKey(cq + dq, cr + dr);
+                var nT = state.Grid[n];
+                var newGrid = new Dictionary<string, HexCell>(state.Grid)
+                {
+                    [n] = nT with { Rotation = RotationToOpen(nT.TileType, (rotDir + 3) % 6) }
+                };
+                if (rotC is not null) newGrid[c] = rotC;
+                state = state with { Grid = newGrid };
+                continue;  // chases along the new connection next round
+            }
+
+            // 3) PLACE a tile: isolated (nothing adjacent to step onto or rotate). Lay a connecting
+            //    Straight on an empty neighbour toward a survivor — as at the start of the game.
+            int placeDir = -1, placeDist = int.MaxValue;
+            for (int d = 0; d < 6; d++)
+            {
+                if (cFixed && !cEdges.Contains(d)) continue;   // fixed tile: only its open directions connect
+                var (dq, dr) = Directions[d]; var n = CoordKey(cq + dq, cr + dr);
+                if (!cellSet.Contains(n) || exitZoneSet.Contains(n)) continue;
+                if (state.Grid.ContainsKey(n)) continue;       // empty
+                var (nq, nr) = ParseCoord(n); int nd = Dist(nq, nr);
+                if (nd < placeDist) { placeDist = nd; placeDir = d; }
+            }
+            if (placeDir >= 0)
+            {
+                var (dq, dr) = Directions[placeDir]; var n = CoordKey(cq + dq, cr + dr);
+                int rot = placeDir < 3 ? placeDir : placeDir - 3;
+                var newGrid = new Dictionary<string, HexCell>(state.Grid)
+                {
+                    [n] = new HexCell(HexTileType.Straight, rot, Fixed: false, IsZombieTile: true)
+                };
+                if (!cFixed && !cEdges.Contains(placeDir))
+                    newGrid[c] = cTile with { Rotation = RotationToOpen(cTile.TileType, placeDir) };
+                state = state with { Grid = newGrid };
+            }
+        }
+
+        // ── Population: each centre spawner (fixed seed) makes one new zombie on a connected,
+        //    unoccupied adjacent tile (nearest the exit). No connected tile yet → it waits. ──
+        var spawners = state.Grid
+            .Where(kv => kv.Value.Fixed && !exitZoneSet.Contains(kv.Key))
+            .Select(kv => kv.Key)
+            .OrderBy(k => ParseCoord(k).Q).ThenBy(k => ParseCoord(k).R)
+            .ToList();
+        foreach (var spawner in spawners)
+        {
+            if (state.Zombies.Count >= HexEscapeConstants.MaxZombies) break;
+            var (sq, sr) = ParseCoord(spawner);
+            var sEdges = OpenEdges(state.Grid[spawner].TileType, state.Grid[spawner].Rotation);
+            var occ = new HashSet<string>(state.Zombies.Select(z => z.Pos));
+            string? target = null; int bestD = int.MaxValue;
+            for (int d = 0; d < 6; d++)
+            {
+                if (!sEdges.Contains(d)) continue;
+                var (dq, dr) = Directions[d]; var n = CoordKey(sq + dq, sr + dr);
+                if (!cellSet.Contains(n) || exitZoneSet.Contains(n)) continue;
+                if (!state.Grid.TryGetValue(n, out var nT)) continue;
+                if (!OpenEdges(nT.TileType, nT.Rotation).Contains((d + 3) % 6)) continue;
+                if (occ.Contains(n)) continue;
+                var (nq, nr) = ParseCoord(n); int dd = HexDistance(nq, nr, eq, er);
+                if (dd < bestD) { bestD = dd; target = n; }
+            }
+            if (target is not null)
+            {
+                state = SpawnZombieAt(state, target, out var nz);
+                state = state with { Zombies = nz };
+                state = EliminateCharactersAt(state, target);
             }
         }
 
         return state;
-    }
-
-    private static bool IsZombieContained(Dictionary<string, HexCell> grid, HashSet<string> cellSet, string pos)
-    {
-        if (!grid.TryGetValue(pos, out var tile)) return false;
-        var edges = OpenEdges(tile.TileType, tile.Rotation);
-        var (zq, zr) = ParseCoord(pos);
-
-        for (int d = 0; d < 6; d++)
-        {
-            if (!edges.Contains(d)) continue;
-            var (dq, dr) = Directions[d];
-            var neighbour = CoordKey(zq + dq, zr + dr);
-            if (!cellSet.Contains(neighbour)) continue;
-            if (!grid.TryGetValue(neighbour, out var nTile)) continue;
-            int opposite = (d + 3) % 6;
-            if (OpenEdges(nTile.TileType, nTile.Rotation).Contains(opposite))
-                return false;  // has at least one valid move
-        }
-        return true;  // no valid move in any direction = contained
-    }
-
-    // ── Phase 3: Zombie d6 rolls (AC-v2-32d, F4) ────────────────────────────
-
-    private HexEscapeState RunPhase3ZombieRolls(HexEscapeState state)
-    {
-        // Iterate ALL zombies alive at START of Phase 3 (includes Phase-2 spawns)
-        var zombiesToMove = state.Zombies.ToList();  // snapshot at phase 3 start
-        var cellSet = new HashSet<string>(state.Cells);
-        var exitZoneSet = new HashSet<string>(state.ExitZoneCells);
-        var rolls = new List<ZombieRoll>();
-
-        foreach (var zombie in zombiesToMove.OrderBy(z => z.Id))
-        {
-            // Find current zombie in LIVE state (it may have moved by prior iteration)
-            var liveZombie = state.Zombies.FirstOrDefault(z => z.Id == zombie.Id);
-            if (liveZombie is null) continue;  // zombie was not found (shouldn't happen)
-
-            int dieFace = Random.Shared.Next(1, 7);  // 1–6
-            int direction = dieFace % 6;  // die face mod 6
-
-            bool moved = false;
-            if (state.Grid.TryGetValue(liveZombie.Pos, out var zombieTile))
-            {
-                var edges = OpenEdges(zombieTile.TileType, zombieTile.Rotation);
-                if (edges.Contains(direction))
-                {
-                    var (zq, zr) = ParseCoord(liveZombie.Pos);
-                    var (dq, dr) = Directions[direction];
-                    var newPos = CoordKey(zq + dq, zr + dr);
-
-                    // Zombies may never enter an exit-zone cell, by any mechanism
-                    // (mirrors the spawn-path guards; preserves the exit-zone invariant
-                    // so a zombie can't squat on the exit cell and block the win).
-                    if (cellSet.Contains(newPos) && state.Grid.ContainsKey(newPos) && !exitZoneSet.Contains(newPos))
-                    {
-                        var neighbourTile = state.Grid[newPos];
-                        int opposite = (direction + 3) % 6;
-                        if (OpenEdges(neighbourTile.TileType, neighbourTile.Rotation).Contains(opposite))
-                        {
-                            // Move zombie
-                            var newZombies = state.Zombies.ToList();
-                            int zi = newZombies.FindIndex(z => z.Id == liveZombie.Id);
-                            if (zi >= 0)
-                            {
-                                newZombies[zi] = newZombies[zi] with { Pos = newPos };
-                                state = state with { Zombies = newZombies };
-                                // AC-v2-31b: co-location elimination after zombie move
-                                state = EliminateCharactersAt(state, newPos);
-                                moved = true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            rolls.Add(new ZombieRoll(liveZombie.Id, dieFace, direction, moved));
-        }
-
-        return state with { LastZombieRolls = rolls };
     }
 
     // ── Phase 4: Horde spawn (AC-v2-32e, D2b) ────────────────────────────────
