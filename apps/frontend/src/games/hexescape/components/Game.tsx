@@ -33,7 +33,6 @@ const TILE_TYPES: HexTileType[] = ['Straight', 'Elbow', 'Tee', 'Cross', 'Deadend
 
 type PickerMode =
   | { kind: 'place'; coord: string; tileType: HexTileType | null; rotation: number }
-  | { kind: 'placeZombie'; coord: string }
   | { kind: 'rotate'; coord: string; rotation: number }
   | { kind: 'move'; toCoord: string }
 
@@ -100,15 +99,6 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   const myReservedSpawn = state.reservedSpawnCells[myPlayerId] ?? null
 
   const myHand: HeldTile[] = state.hands[myPlayerId] ?? []
-  // NOTE (ally): Since the zombie-growth rework (v2), zombie tiles are never dealt to
-  // players — the horde grows automatically from centre seeds when a zombie card is
-  // drawn. myZombieTile will therefore always be null and hasZombieObligation always
-  // false. The placeZombie picker, zombie obligation banner, and related disabled-reason
-  // branches below are dead UX paths that can never render. They are safe to remove
-  // once the analyst confirms the hand-zombie mechanic is permanently retired.
-  // Tracked: docs/owner/TODO.md — ally flag 2026-06-19.
-  const myZombieTile: HeldTile | null = myHand.find(t => t.isZombieTile) ?? null
-  const hasZombieObligation = myZombieTile !== null && isMyActiveTurn
 
   // Detect state changes that need live screen-reader announcements
   const myCharEliminated = (state.characters.find(c => c.playerId === myPlayerId)?.eliminated ?? false)
@@ -168,7 +158,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   // slides the full clear length of the pipe — including onto the fixed exit Cross to
   // win — and zombies block the tunnel, so they're passed in to route around them.
   const canMoveNow =
-    isMyTurn && ap > 0 && !hasZombieObligation &&
+    isMyTurn && ap > 0 &&
     myCharPlaced && myChar?.pos != null && !myCharEliminated
   const moveTargets = canMoveNow
     ? connectedMoveTargets(state.grid, new Set(state.cells), myChar!.pos!, new Set(zombieCoords))
@@ -183,10 +173,6 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
     for (const coord of state.cells) {
       const cell = state.grid[coord]
       const inExitZone = state.exitZoneCells.includes(coord)
-      if (hasZombieObligation) {
-        if (coord in state.grid && !inExitZone) actionableCoords.add(coord)
-        continue
-      }
       if (cell) {
         if (!cell.fixed) actionableCoords.add(coord)
         continue
@@ -223,16 +209,6 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
 
   function handleCellClick(coord: string) {
     if (!isMyTurn || ap === 0) return
-
-    // If holding zombie tile: show zombie placement picker
-    if (hasZombieObligation) {
-      const cellHasTile = coord in state.grid
-      const isExitZone = state.exitZoneCells.includes(coord)
-      if (cellHasTile && !isExitZone) {
-        setPicker({ kind: 'placeZombie', coord })
-      }
-      return
-    }
 
     // Move takes priority: clicking any cell the character can reach along the
     // connected pipe slides it the whole way there (not just one hex). This is the
@@ -276,8 +252,6 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
     if (picker.kind === 'place') {
       if (!picker.tileType) return
       send({ type: 'PlaceTile', coord: picker.coord, tileType: picker.tileType, rotation: picker.rotation })
-    } else if (picker.kind === 'placeZombie') {
-      send({ type: 'PlaceZombieTile', coord: picker.coord })
     } else if (picker.kind === 'rotate') {
       send({ type: 'RotateTile', coord: picker.coord, rotation: picker.rotation })
     } else if (picker.kind === 'move') {
@@ -346,16 +320,14 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   // EndTurn disabled logic
   const endTurnDisabledReason: string | null = (() => {
     if (!isMyActiveTurn) return 'Not your turn'
-    if (hasZombieObligation) return 'Place your zombie tile first'
     if (qualActions < MIN_ACTIONS_PER_TURN) return `Take at least ${MIN_ACTIONS_PER_TURN} actions first`
     return null
   })()
 
   // Draw disabled
-  const drawDisabled = !isMyTurn || ap === 0 || hasZombieObligation || myHand.filter(h => !h.isZombieTile).length >= HAND_SIZE
+  const drawDisabled = !isMyTurn || ap === 0 || myHand.filter(h => !h.isZombieTile).length >= HAND_SIZE
   const drawDisabledReason: string | null = (() => {
     if (!isMyTurn) return 'Not your turn'
-    if (hasZombieObligation) return 'Place your zombie tile first'
     if (myHand.filter(h => !h.isZombieTile).length >= HAND_SIZE) return 'Hand is full'
     if (ap === 0) return 'No action points remaining'
     return null
@@ -481,13 +453,6 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
               </button>
             </div>
           </div>
-
-          {/* Zombie obligation banner */}
-          {hasZombieObligation && (
-            <div className={styles.zombieBanner} role="status" aria-live="polite">
-              You drew a zombie tile — click a tiled, non-exit cell without a zombie to spawn one there.
-            </div>
-          )}
 
           {/* Board */}
           <HexBoard
@@ -823,7 +788,6 @@ function ActionPicker({ picker, myHand, previewTileType, onSelectType, onSetRota
 
   function getTitle(): string {
     if (picker.kind === 'place') return `Place tile on ${picker.coord}`
-    if (picker.kind === 'placeZombie') return `Spawn zombie on ${picker.coord}`
     if (picker.kind === 'rotate') return `Rotate tile on ${picker.coord}`
     return `Move to ${picker.toCoord}`
   }
@@ -891,13 +855,6 @@ function ActionPicker({ picker, myHand, previewTileType, onSelectType, onSetRota
           </div>
         )}
 
-        {/* Zombie placement confirmation */}
-        {picker.kind === 'placeZombie' && (
-          <div className={styles.zombiePickerNote}>
-            Spawn a zombie at {picker.coord}. A zombie will appear here and may eliminate characters.
-          </div>
-        )}
-
         {/* Move confirmation */}
         {picker.kind === 'move' && (
           <div className={styles.movePickerNote}>
@@ -950,7 +907,6 @@ function ActionPicker({ picker, myHand, previewTileType, onSelectType, onSetRota
             disabled={!canConfirm}
           >
             {picker.kind === 'place' ? 'Place'
-              : picker.kind === 'placeZombie' ? 'Spawn'
               : picker.kind === 'rotate' ? 'Rotate'
               : 'Move'}
           </button>

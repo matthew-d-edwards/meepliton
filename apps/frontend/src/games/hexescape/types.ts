@@ -106,7 +106,6 @@ export interface HexEscapeState {
   // Level zone hints (for rendering)
   spawnZoneCells: string[]
   exitZoneCells: string[]
-  hordeOriginCells: string[]
 }
 
 // ── Actions dispatched to the server ─────────────────────────────────────────

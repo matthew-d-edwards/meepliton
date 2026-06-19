@@ -519,7 +519,6 @@ public class HexEscapeModule : IGameModule, IGameHandler
             Players:                 playerSlots,
             SpawnZoneCells:          [..level.SpawnZoneCells],
             ExitZoneCells:           [..level.ExitZoneCells],
-            HordeOriginCells:        [..level.HordeOriginCells],
             ReservedSpawnCells:      reservedSpawnCells,
             NextZombieId:            zombieIdCounter,
             HandSizes:               null,
@@ -634,7 +633,11 @@ public class HexEscapeModule : IGameModule, IGameHandler
         {
             HexActionType.DrawTile       => HandleDrawTile(ctx, state, actingPlayer),
             HexActionType.PlaceTile      => HandlePlaceTile(ctx, state, action, actingPlayer),
-            HexActionType.PlaceZombieTile => HandlePlaceZombieTile(ctx, state, action, actingPlayer),
+            // Retired (v2 zombie-growth rework): players never place zombie tiles. Kept as an
+            // explicit case so a stale client that still sends it gets this clean rejection
+            // rather than falling through to "Unknown action type." (the enum value is retained
+            // for wire compatibility — see HexActionType.PlaceZombieTile).
+            HexActionType.PlaceZombieTile => Reject(ctx, "Zombie tiles are no longer placed by players."),
             HexActionType.RotateTile     => HandleRotateTile(ctx, state, action, actingPlayer),
             HexActionType.MoveCharacter  => HandleMoveCharacter(ctx, state, action, actingPlayer),
             HexActionType.EndTurn        => HandleEndTurn(ctx, state, actingPlayer, justClaimed),
@@ -843,119 +846,6 @@ public class HexEscapeModule : IGameModule, IGameHandler
             return EndTurnAndAdvance(ctx, state, actor);
 
         return new GameResult(Serialize(state));
-    }
-
-    // ── PlaceZombieTile (AC-v2-23, AC-v2-24, AC-v2-25) ──────────────────────
-
-    private GameResult HandlePlaceZombieTile(GameContext ctx, HexEscapeState state, HexEscapeAction action, PlayerSlot actor)
-    {
-        // AC-v2-36: AP check
-        if (state.ActionPointsRemaining == 0)
-            return Reject(ctx, "No action points remaining.");
-
-        // Must hold a zombie tile
-        var hand = state.Hands[actor.Id];
-        if (!hand.Any(t => t.IsZombieTile))
-            return Reject(ctx, "You do not hold a zombie tile.");
-
-        var coord = action.Coord;
-
-        // AC-v2-25: if no legal in-grid tiled non-exit-zone non-zombie-occupied cell exists,
-        // discard the zombie tile regardless of coord sent. Frontend may send null coord in this case.
-        var candidates = GetZombieSpawnCandidates(state);
-        if (candidates.Count == 0)
-        {
-            // Forced discard path — no valid spawn target anywhere
-            state = DoForcedZombieDiscard(state, actor);
-
-            // Win check (if somehow triggered — unlikely but correct)
-            if (state.ExitRevealed && CheckWin(state))
-            {
-                var wState = state with { Phase = HexEscapePhase.GameOver, Outcome = HexEscapeOutcome.Escaped };
-                return EndWithGameOver(wState, true);
-            }
-
-            if (state.ActionPointsRemaining == 0)
-                return EndTurnAndAdvance(ctx, state, actor);
-
-            return new GameResult(Serialize(state));
-        }
-
-        // Normal path: coord is required
-        if (coord is null)
-            return Reject(ctx, "Invalid action.");
-
-        // AC-v2-17: cannot place in exit zone
-        if (state.ExitZoneCells.Contains(coord))
-            return Reject(ctx, "Cannot place tiles in the exit zone.");
-
-        // AC-v2-49: must target a cell with a placed tile
-        if (!state.Grid.ContainsKey(coord))
-            return Reject(ctx, "Cannot place zombie on a cell without a tile.");
-
-        // AC-v2-24: cannot place on zombie-occupied cell
-        if (state.Zombies.Any(z => z.Pos == coord))
-            return Reject(ctx, "Cell is already occupied.");
-
-        // Remove zombie tile from hand
-        var newHand = new List<HeldTile>(hand);
-        int idx = newHand.FindIndex(t => t.IsZombieTile);
-        newHand.RemoveAt(idx);
-        var newHands = new Dictionary<string, List<HeldTile>>(state.Hands) { [actor.Id] = newHand };
-
-        // Spawn zombie at coord
-        state = state with { Hands = newHands };
-        state = SpawnZombieAt(state, coord, out var newZombies);
-        state = state with { Zombies = newZombies };
-
-        // Co-location elimination (AC-v2-31c)
-        state = EliminateCharactersAt(state, coord);
-
-        state = state with
-        {
-            ActionPointsRemaining   = state.ActionPointsRemaining - 1,
-            QualifyingActionsThisTurn = state.QualifyingActionsThisTurn + 1,
-        };
-
-        // Recompute exitConnectedCount
-        state = state with { ExitConnectedCount = ComputeExitConnectedCount(state) };
-
-        // Win check (AC-v2-23)
-        if (state.ExitRevealed && CheckWin(state))
-        {
-            var winState = state with { Phase = HexEscapePhase.GameOver, Outcome = HexEscapeOutcome.Escaped };
-            return EndWithGameOver(winState, true);
-        }
-
-        // AP exhausted: auto-end turn
-        if (state.ActionPointsRemaining == 0)
-            return EndTurnAndAdvance(ctx, state, actor);
-
-        return new GameResult(Serialize(state));
-    }
-
-    // ── Forced zombie discard helper (AC-v2-25) ───────────────────────────────
-
-    private static HexEscapeState DoForcedZombieDiscard(HexEscapeState state, PlayerSlot actor)
-    {
-        var hand = state.Hands[actor.Id];
-        var newHand = new List<HeldTile>(hand);
-        int idx = newHand.FindIndex(t => t.IsZombieTile);
-        newHand.RemoveAt(idx);
-        var newHands = new Dictionary<string, List<HeldTile>>(state.Hands) { [actor.Id] = newHand };
-
-        var newDiscard = new List<DeckEntry>(state.DiscardPile)
-        {
-            new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false)
-        };
-
-        return state with
-        {
-            Hands                   = newHands,
-            DiscardPile             = newDiscard,
-            ActionPointsRemaining   = state.ActionPointsRemaining - 1,
-            QualifyingActionsThisTurn = state.QualifyingActionsThisTurn + 1,
-        };
     }
 
     // ── RotateTile (AC-v2-26) ────────────────────────────────────────────────
@@ -1216,9 +1106,6 @@ public class HexEscapeModule : IGameModule, IGameHandler
         // action into LastZombieRolls so the client shows the horde-phase beat after the player's turn.
         state = RunPhase2HordeGrowth(state);
 
-        // Phase 4 — legacy horde-origin spawn (tutorial-01 defines no origins → no-op here).
-        state = RunPhase4HordeSpawn(state);
-
         // AC-v2-32f: Phase 5 — loss check and round advance
         if (CheckLoss(state))
         {
@@ -1363,60 +1250,6 @@ public class HexEscapeModule : IGameModule, IGameHandler
         return state with { LastZombieRolls = rolls };
     }
 
-    // ── Phase 4: Horde spawn (AC-v2-32e, D2b) ────────────────────────────────
-
-    private HexEscapeState RunPhase4HordeSpawn(HexEscapeState state)
-    {
-        // Early-round grace (AC: safe opening window). Boundaries before HordeStartRound
-        // spawn no horde, so players get a couple of turns to build an opening path before
-        // pressure begins. RoundNumber here is the round being closed out (pre-increment).
-        if (state.RoundNumber < HexEscapeConstants.HordeStartRound)
-            return state;
-
-        int hordeCount = HexEscapeConstants.HordeRatePerRound[state.Players.Count];
-        var exitZoneSet = new HashSet<string>(state.ExitZoneCells);
-
-        // D4 (extended to horde spawns): prefer a spawn cell with no character on it, so the
-        // horde never *deterministically* eliminates a survivor that had an empty alternative.
-        var characterCells = state.Characters
-            .Where(c => c.Pos is not null && !c.Eliminated)
-            .Select(c => c.Pos!)
-            .ToHashSet();
-
-        for (int h = 0; h < hordeCount; h++)
-        {
-            if (state.Zombies.Count >= HexEscapeConstants.MaxZombies)
-            {
-                _logger?.LogWarning("HexEscape: MaxZombies cap reached, skipping horde spawn");
-                break;
-            }
-
-            // Pick the first eligible hordeOriginCell (not zombie-occupied, not exit zone, tiled),
-            // preferring one with no character; fall back to a character-occupied origin only when
-            // every eligible origin is character-occupied (D4 — avoidable, not unavoidable, deaths).
-            string? spawnCoord = null;
-            string? occupiedFallback = null;
-            foreach (var cell in state.HordeOriginCells)
-            {
-                if (exitZoneSet.Contains(cell)) continue;          // MF-3
-                if (!state.Grid.ContainsKey(cell)) continue;       // C4: must have tile
-                if (state.Zombies.Any(z => z.Pos == cell)) continue; // not zombie-occupied
-                if (characterCells.Contains(cell)) { occupiedFallback ??= cell; continue; }
-                spawnCoord = cell;
-                break;
-            }
-            spawnCoord ??= occupiedFallback;
-
-            if (spawnCoord is null) continue;  // no valid cell this round
-
-            state = SpawnZombieAt(state, spawnCoord, out var newZombies);
-            state = state with { Zombies = newZombies };
-            state = EliminateCharactersAt(state, spawnCoord);
-        }
-
-        return state;
-    }
-
     // ── Win / loss checks ─────────────────────────────────────────────────────
 
     /// <summary>
@@ -1494,24 +1327,6 @@ public class HexEscapeModule : IGameModule, IGameHandler
     }
 
     // ── Zombie spawn helpers ──────────────────────────────────────────────────
-
-    /// <summary>
-    /// Get candidate cells for zombie spawn: in-grid, tiled, non-exit-zone, non-zombie-occupied.
-    /// Ordered by numeric (q, then r) — H6.
-    /// </summary>
-    private static List<string> GetZombieSpawnCandidates(HexEscapeState state)
-    {
-        var exitZoneSet = new HashSet<string>(state.ExitZoneCells);
-        var zombiePositions = state.Zombies.Select(z => z.Pos).ToHashSet();
-
-        return state.Cells
-            .Where(c => state.Grid.ContainsKey(c) && !exitZoneSet.Contains(c) && !zombiePositions.Contains(c))
-            .Select(c => { var (q, r) = ParseCoord(c); return (Coord: c, Q: q, R: r); })
-            .OrderBy(x => x.Q)
-            .ThenBy(x => x.R)
-            .Select(x => x.Coord)
-            .ToList();
-    }
 
     /// <summary>
     /// Spawn a zombie at the given coord (must be a valid tiled cell).

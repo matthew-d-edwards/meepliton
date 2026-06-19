@@ -478,19 +478,6 @@ public class HexEscapeModuleTests
     }
 
     [Fact]
-    public void Catalogue_AllLevels_HordeOriginsOnBoard()
-    {
-        // v9: horde origins are OPTIONAL (tutorial-01 has none — its horde grows via break-out
-        // spread). Any origins a level does define must be real board cells.
-        foreach (var level in HexEscapeLevels.All.Values)
-        {
-            var cells = new HashSet<string>(level.Cells);
-            foreach (var origin in level.HordeOriginCells)
-                cells.Should().Contain(origin, $"level '{level.Id}' horde origin {origin} must be a board cell");
-        }
-    }
-
-    [Fact]
     public void Catalogue_AllLevels_NoPrePlacedTilesInSpawnZone()
     {
         foreach (var level in HexEscapeLevels.All.Values)
@@ -520,31 +507,6 @@ public class HexEscapeModuleTests
             var prePlacedSet = new HashSet<string>(level.PrePlacedTiles.Select(t => t.Coord));
             foreach (var sz in level.StartingZombies)
                 prePlacedSet.Should().Contain(sz.Coord, $"level '{level.Id}': starting zombie at {sz.Coord} needs pre-placed tile (C4)");
-        }
-    }
-
-    [Fact]
-    public void Catalogue_AllLevels_HordeOriginCellsHavePrePlacedTiles()
-    {
-        foreach (var level in HexEscapeLevels.All.Values)
-        {
-            var prePlacedSet = new HashSet<string>(level.PrePlacedTiles.Select(t => t.Coord));
-            foreach (var cell in level.HordeOriginCells)
-                prePlacedSet.Should().Contain(cell, $"level '{level.Id}': horde origin {cell} needs pre-placed tile (F3)");
-        }
-    }
-
-    [Fact]
-    public void Catalogue_AllLevels_HordeOriginDisjointFromSpawnAndExitZones()
-    {
-        foreach (var level in HexEscapeLevels.All.Values)
-        {
-            var spawnSet  = new HashSet<string>(level.SpawnZoneCells);
-            var exitSet   = new HashSet<string>(level.ExitZoneCells);
-            var hordeSet  = new HashSet<string>(level.HordeOriginCells);
-
-            hordeSet.Intersect(spawnSet).Should().BeEmpty($"level '{level.Id}': hordeOriginCells ∩ spawnZoneCells = ∅ (H7)");
-            hordeSet.Intersect(exitSet).Should().BeEmpty($"level '{level.Id}': hordeOriginCells ∩ exitZoneCells = ∅");
         }
     }
 
@@ -1267,74 +1229,6 @@ public class HexEscapeModuleTests
         (wasSpawned || wasDiscarded).Should().BeTrue("zombie tile must be placed or discarded atomically");
     }
 
-    // ── AC-v2-23: PlaceZombieTile on tile-less cell rejected ─────────────────
-
-    [Fact]
-    public void PlaceZombieTile_OnTilelessCell_Rejected()
-    {
-        var players = Players(1);
-        var state = GetInitialState(players);
-
-        // Lay one tiled, unoccupied cell so a spawn candidate exists — otherwise PlaceZombieTile
-        // takes the forced-discard path instead of the tileless-cell rejection (v9: the level's
-        // seed tiles are both zombie-occupied, so without this there would be no candidate).
-        string anchor = state.Cells.First(c => !state.Grid.ContainsKey(c) && !state.ExitZoneCells.Contains(c));
-        var grid = new Dictionary<string, HexCell>(state.Grid) { [anchor] = new HexCell(HexTileType.Straight, 0, Fixed: false) };
-        // A different cell with no tile — the illegal target.
-        string emptyCell = state.Cells.First(c => !grid.ContainsKey(c) && !state.ExitZoneCells.Contains(c));
-
-        var zombieHand = new List<HeldTile> { new HeldTile(HexTileType.Straight, IsZombieTile: true, IsExitTile: false) };
-        state = state with
-        {
-            Grid = grid,
-            Hands = new Dictionary<string, List<HeldTile>> { [players[0].Id] = zombieHand },
-            ActiveSeat = 0,
-            ActionPointsRemaining = 3,
-        };
-
-        var ctx = MakeContext(ToDoc(state),
-            new HexEscapeAction(HexActionType.PlaceZombieTile, Coord: emptyCell),
-            players[0].Id);
-        var result = _module.Handle(ctx);
-        result.RejectionReason.Should().Be("Cannot place zombie on a cell without a tile.");
-    }
-
-    // ── AC-v2-31: Co-location elimination ────────────────────────────────────
-
-    [Fact]
-    public void PlaceZombieTile_OnCellWithCharacter_EliminatesCharacter()
-    {
-        var players = Players(1);
-        var state = GetInitialState(players);
-
-        // Lay a tiled cell and put the character on it (v9: the level's seed tiles are zombie-occupied).
-        string charCell = state.Cells.First(c => !state.Grid.ContainsKey(c) && !state.ExitZoneCells.Contains(c));
-        var grid = new Dictionary<string, HexCell>(state.Grid) { [charCell] = new HexCell(HexTileType.Straight, 0, Fixed: false) };
-        var newChars = state.Characters.Select(c =>
-            c.PlayerId == players[0].Id ? c with { Pos = charCell } : c).ToList();
-
-        var zombieHand = new List<HeldTile> { new HeldTile(HexTileType.Straight, IsZombieTile: true, IsExitTile: false) };
-        state = state with
-        {
-            Grid = grid,
-            Hands = new Dictionary<string, List<HeldTile>> { [players[0].Id] = zombieHand },
-            Characters = newChars,
-            ActiveSeat = 0,
-            ActionPointsRemaining = 3,
-            QualifyingActionsThisTurn = 2,
-        };
-
-        var ctx = MakeContext(ToDoc(state),
-            new HexEscapeAction(HexActionType.PlaceZombieTile, Coord: charCell),
-            players[0].Id);
-        var result = _module.Handle(ctx);
-
-        result.RejectionReason.Should().BeNull();
-        var newState = GetState(result.NewState);
-        newState.Characters.First(c => c.PlayerId == players[0].Id).Eliminated.Should().BeTrue(
-            "character at zombie spawn location must be eliminated (AC-v2-31c)");
-    }
-
     // ── Projection ───────────────────────────────────────────────────────────
 
     [Fact]
@@ -1402,19 +1296,6 @@ public class HexEscapeModuleTests
         // v7 D2: 4–6p raised from 3 to 4 so every count has ≥2 discretionary AP above MinActionsPerTurn=2.
         int[] expected = [0, 5, 4, 4, 4, 4, 4];
         HexEscapeConstants.ApPoolSize[n].Should().Be(expected[n]);
-    }
-
-    [Theory]
-    [InlineData(1)]
-    [InlineData(2)]
-    [InlineData(3)]
-    [InlineData(4)]
-    [InlineData(5)]
-    [InlineData(6)]
-    public void HordeRatePerRound_AllPlayerCounts_CorrectValues(int n)
-    {
-        int[] expected = [0, 1, 1, 1, 2, 2, 2];
-        HexEscapeConstants.HordeRatePerRound[n].Should().Be(expected[n]);
     }
 
     // ── KL-1: Disconnected seat stalls round (deferred) ───────────────────────
@@ -3868,8 +3749,8 @@ public class HexEscapeModuleTests
     }
 
     /// <summary>
-    /// v8 D1: Tutorial-01 horde-origin cells AND all starting-zombie cells must have
-    /// Cross r0 pre-placed tiles (edges {E(0),NE(1),N(2),W(3)}).
+    /// v8 D1: Tutorial-01 starting-zombie cells must have Cross r0 pre-placed tiles
+    /// (edges {E(0),NE(1),N(2),W(3)}).
     ///
     /// Changed from Straight (v7) to Cross (v8 D1) — rationale: Straight (E/W-only)
     /// tiles allowed zombies to be bypassed by adjacent-row detours. Cross tiles open
@@ -3880,23 +3761,10 @@ public class HexEscapeModuleTests
     /// The owner prioritises "zombies cannot be skipped" over reliable break-out.
     /// </summary>
     [Fact]
-    public void Catalogue_Tutorial01_ZombieAndHordeOriginTiles_AreCrossR0()
+    public void Catalogue_Tutorial01_StartingZombieTiles_AreCrossR0()
     {
         var level = HexEscapeLevels.Tutorial01;
         var prePlacedDict = level.PrePlacedTiles.ToDictionary(t => t.Coord);
-
-        // Horde-origin cells must have Cross r0 tiles
-        foreach (var hordeCell in level.HordeOriginCells)
-        {
-            prePlacedDict.Should().ContainKey(hordeCell,
-                $"horde origin {hordeCell} must have a pre-placed tile (F3)");
-            var tile = prePlacedDict[hordeCell];
-            tile.TileType.Should().Be(HexTileType.Cross,
-                $"horde origin {hordeCell} must have a Cross tile per v8 D1 " +
-                "(zombies here cannot be bypassed by adjacent-row detours — AD-OB-12b)");
-            tile.Rotation.Should().Be(0,
-                $"horde origin {hordeCell} Cross tile must be at rotation 0 (v8 D1)");
-        }
 
         // Starting-zombie cells must have Cross r0 tiles
         foreach (var sz in level.StartingZombies)
@@ -4045,10 +3913,6 @@ public class HexEscapeModuleTests
         level.StartingZombies.Select(sz => sz.Coord).Should()
             .BeEquivalentTo(level.PrePlacedTiles.Select(t => t.Coord),
             $"GenerateStandard({playerCount}): starting zombies must match seed positions");
-
-        // HordeOriginCells is empty (horde grows from drawn cards only).
-        level.HordeOriginCells.Should().BeEmpty(
-            $"GenerateStandard({playerCount}): HordeOriginCells must be empty");
 
         // No pre-placed tiles in spawn or exit zone (H9).
         foreach (var tile in level.PrePlacedTiles)

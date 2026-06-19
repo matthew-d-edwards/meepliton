@@ -21,7 +21,13 @@ public enum HexActionType
 {
     DrawTile,
     PlaceTile,
+
+    // Retired in the v2 zombie-growth rework: players never hold or place zombie tiles — the
+    // horde grows from drawn zombie cards via SpawnHordeAtCentre. The enum value is kept for
+    // wire compatibility so a stale client that still sends PlaceZombieTile gets a clean
+    // rejection from Handle rather than a JSON deserialization error; there is no handler.
     PlaceZombieTile,
+
     RotateTile,
     MoveCharacter,
     EndTurn
@@ -73,26 +79,6 @@ public static class HexEscapeConstants
     /// Balance TBD by playtest.
     /// </summary>
     public static readonly int[] ApPoolSize = [0, 5, 4, 4, 4, 4, 4];
-
-    /// <summary>
-    /// Zombies spawned per round boundary; index = player count (1–6).
-    /// Balance TBD by playtest.
-    /// </summary>
-    public static readonly int[] HordeRatePerRound = [0, 1, 1, 1, 2, 2, 2];
-
-    /// <summary>
-    /// First round whose boundary spawns the horde. Round boundaries before this
-    /// spawn no horde zombies, giving players a safe window to lay an opening path
-    /// before pressure ramps. This complements the deck's <see cref="SafeOpeningFraction"/>:
-    /// the safe opening only guarantees the tiles you DRAW are zombie-free — it does
-    /// nothing about horde spawns, which previously began at the very first boundary
-    /// right beside the spawn zone (no real safe window). RoundNumber starts at 1 and is
-    /// the round being closed out (pre-increment), so a value of 3 keeps the round-1 and
-    /// round-2 boundaries horde-free and the first horde appears entering round 4.
-    /// This is the primary early-difficulty dial — balance TBD by playtest.
-    /// </summary>
-    public const int HordeStartRound = 3;
-
 
     /// <summary>
     /// Exit tile placed randomly in the last X fraction of the deck (post-deal);
@@ -256,7 +242,6 @@ public record HexEscapeState(
     // Level broadcast info (safe to expose)
     List<string> SpawnZoneCells,
     List<string> ExitZoneCells,
-    List<string> HordeOriginCells,
     // Reserved spawn cell per player (playerId → "q,r")
     Dictionary<string, string> ReservedSpawnCells,
     // Zombie ID counter for stable unique ids
@@ -303,7 +288,6 @@ public record HexEscapeLevel(
     List<PrePlacedTile> PrePlacedTiles,  // tiles placed at level start (fixed, non-rotatable by players)
     List<string> SpawnZoneCells,         // ordered; seat index N → SpawnZoneCells[N]; count >= MaxPlayers
     List<string> ExitZoneCells,          // reserved for server exit tile placement
-    List<string> HordeOriginCells,       // horde spawns from here each round
     List<StartingZombie> StartingZombies,
     List<TilePoolEntry> NormalTilePool   // relative weights for normal tile distribution in deck
 );

@@ -18,7 +18,6 @@ namespace Meepliton.Games.HexEscape;
 /// All authored levels satisfy AC-v2-5 catalogue invariants:
 ///   - spawnZoneCells.Count >= 6 (MaxPlayers)
 ///   - exitZoneCells non-empty
-///   - hordeOriginCells is empty (horde grows from zombie cards at centre seeds only — no per-round fixed spawn)
 ///   - no pre-placed tiles in spawnZoneCells or exitZoneCells (H9)
 ///   - every starting zombie position has a pre-placed tile (C4)
 ///   - spawnZoneCells ∩ exitZoneCells = ∅
@@ -47,21 +46,19 @@ public static class HexEscapeLevels
     //     No pre-placed tiles in exit zone (H9). Server places exit tile here.
     //     The q=4 column is now NORMAL in-grid cells (players can tile and move there).
     //
-    //   Horde origin: [] — empty. Zombie growth comes exclusively from zombie cards
-    //     drawn during play, which spawn from the centre seeds at (0,0) and (2,0).
-    //     There is no per-round fixed horde spawn.
+    //   Zombie growth comes exclusively from zombie cards drawn during play, which spawn
+    //     from the centre seeds at (0,0) and (2,0). There is no per-round fixed horde spawn
+    //     (the fixed-origin subsystem was removed as inert).
     //
     // ── Zone disjointness (AC-v2-5) ──────────────────────────────────────────────
     //
     //   spawnZoneCells   = {(-4,-2),(-4,-1),(-4,0),(-4,1),(-4,2),(-3,-2)}
     //   exitZoneCells    = {(3,-1),(3,0),(3,1)}
-    //   hordeOriginCells = [] (empty — no fixed horde spawn)
     //   spawn ∩ exit     = ∅ ✓
     //
     // ── Pre-placed tiles ──────────────────────────────────────────────────────────
     //
-    //   Only the two centre seeds have pre-placed tiles. There are no horde-origin
-    //   pre-placed tiles — hordeOriginCells is empty.
+    //   Only the two centre seeds have pre-placed tiles.
     //
     //   Centre seed tiles (Cross r0 — each hosts a starting zombie):
     //     ( 0, 0): Cross r0 — edges {E(0),NE(1),N(2),W(3)}. Starting zombie #1 here.
@@ -177,11 +174,6 @@ public static class HexEscapeLevels
         [
             C( 3, -1), C( 3,  0), C( 3,  1),
         ],
-        // No fixed horde — zombie growth comes from zombie cards drawn during play,
-        // spawning from the centre seed cells at (0,0) and (2,0). Empty = no per-round spawn.
-        HordeOriginCells:
-        [
-        ],
         // Starting zombies: 2 on main E–W route, not adjacent to spawn zone (D1, v8).
         // (0,0) and (2,0) both have pre-placed Cross r0 tiles (C4, D1 requirement).
         StartingZombies:
@@ -221,7 +213,6 @@ public static class HexEscapeLevels
     //   count=1 → (0,0) and (2,0) — matches tutorial-01. ✓
     //   count>1 → place (1+count) seeds spaced along central row r=0.
     //
-    // HordeOriginCells: [] (empty — horde grows from drawn zombie cards only).
     // NormalTilePool: same weights as Tutorial01.
 
     /// <summary>
@@ -317,7 +308,6 @@ public static class HexEscapeLevels
             PrePlacedTiles:  prePlacedTiles,
             SpawnZoneCells:  spawnZone,
             ExitZoneCells:   exitZone,
-            HordeOriginCells: [],
             StartingZombies: startingZombies,
             NormalTilePool:
             [
