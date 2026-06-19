@@ -1603,9 +1603,6 @@ public class HexEscapeModuleTests
         var players = Players(1);
         var state = GetInitialState(players);
 
-        // Record zombie count at init (starting zombies)
-        int zombieCountAtPhaseStart = state.Zombies.Count;
-
         // Claim seat and take MinActionsPerTurn qualifying actions (DrawTile twice).
         // Empty the starting hand first so two draws both fit under the HandSize cap
         // (the safe opening guarantees the top of the deck is zombie/exit-free).
@@ -1627,47 +1624,9 @@ public class HexEscapeModuleTests
         var r2 = _module.Handle(ctx2);
         r2.RejectionReason.Should().BeNull("second DrawTile should be accepted");
 
-        // End turn — triggers round boundary since only 1 player
-        var stateAfter2Draws = GetState(r2.NewState);
-        // We must not be holding a zombie tile (if we drew one, we may need to handle it)
-        // If zombie tile drawn, place it to satisfy obligation before EndTurn.
-        // Check obligation status:
-        bool holdingZombie = stateAfter2Draws.Hands[players[0].Id].Any(t => t.IsZombieTile);
-        if (holdingZombie)
-        {
-            // Find a tiled non-exit-zone non-zombie-occupied cell
-            var exitSet = new HashSet<string>(stateAfter2Draws.ExitZoneCells);
-            var zombiePositions = stateAfter2Draws.Zombies.Select(z => z.Pos).ToHashSet();
-            string? spawnTarget = stateAfter2Draws.Grid.Keys
-                .FirstOrDefault(k => !exitSet.Contains(k) && !zombiePositions.Contains(k));
-
-            if (spawnTarget is not null)
-            {
-                var ctxPlace = MakeContext(r2.NewState,
-                    new HexEscapeAction(HexActionType.PlaceZombieTile, Coord: spawnTarget),
-                    players[0].Id);
-                var rPlace = _module.Handle(ctxPlace);
-                if (rPlace.RejectionReason is null)
-                {
-                    var ctxEnd2 = MakeContext(rPlace.NewState, new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
-                    var rEnd2 = _module.Handle(ctxEnd2);
-                    // May have triggered loss if zombie landed on character
-                    if (rEnd2.RejectionReason is null)
-                    {
-                        var finalState = GetState(rEnd2.NewState);
-                        if (finalState.Phase == HexEscapePhase.GameOver) return; // loss; can't assert rolls
-                        finalState.LastZombieRolls.Count.Should().BeGreaterThanOrEqualTo(0);
-                        foreach (var roll in finalState.LastZombieRolls)
-                        {
-                            if (roll.Moved) roll.Direction.Should().BeInRange(0, 5, $"moved zombie has a direction ({roll.ZombieId})");
-                            else roll.Direction.Should().BeInRange(-1, 5, $"rotate/held zombie ({roll.ZombieId})");
-                        }
-                    }
-                    return;
-                }
-            }
-        }
-
+        // End turn — triggers the round boundary (only 1 player). Zombie cards never enter the
+        // hand (they spawn the horde server-side), so there is no placement obligation to resolve
+        // before EndTurn.
         var ctxEnd = MakeContext(r2.NewState, new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
         var rEnd = _module.Handle(ctxEnd);
 
