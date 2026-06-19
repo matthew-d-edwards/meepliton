@@ -142,8 +142,13 @@ public static class HexEscapeConstants
     /// </summary>
     public static readonly int[] PostDealSize = [0, 30, 40, 50, 60, 70, 80];
 
-    /// <summary>Zombie tile count in the deck (post-deal). Index = player count 1–6.</summary>
-    public static readonly int[] ZombieTileCount = [0, 3, 5, 7, 10, 12, 15];
+    /// <summary>
+    /// Zombie tile count in the deck (post-deal). Index = player count 1–6. This is the primary
+    /// difficulty dial — every zombie card grows the horde from the centre seeds. Solo raised 3→5
+    /// (v11) because a 3-card horde could not contest enough of the board to threaten a player using
+    /// the full-pipe slide; 5 keeps solo winnable but makes the rotate/sever lever actually matter.
+    /// </summary>
+    public static readonly int[] ZombieTileCount = [0, 5, 5, 7, 10, 12, 15];
 }
 
 // ── Hex cell ─────────────────────────────────────────────────────────────────

@@ -43,6 +43,9 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   const [picker, setPicker] = useState<PickerMode | null>(null)
   const [zombieAnimPhase, setZombieAnimPhase] = useState<'idle' | 'showing'>('idle')
   const [exitBannerVisible, setExitBannerVisible] = useState(false)
+  // "Zombie horde is growing!" toast — shown whenever the horde count rises, which (under the
+  // centre-spawn model) happens exactly when someone draws a zombie card.
+  const [hordeBanner, setHordeBanner] = useState<{ visible: boolean; amount: number }>({ visible: false, amount: 0 })
 
   // Trigger zombie animation when lastZombieRolls changes (round boundary).
   // The auto-dismiss timer only fires when the overlay is not focused — keyboard
@@ -90,6 +93,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   const prevMyCharEliminatedRef = useRef(
     state.characters.find(c => c.playerId === myPlayerId)?.eliminated ?? false
   )
+  const prevZombieCountRef = useRef(state.zombies.length)
 
   const myChar: CharacterState | undefined = state.characters.find(c => c.playerId === myPlayerId)
   const myCharPlaced = myChar !== null && myChar !== undefined && myChar.pos !== null
@@ -122,6 +126,19 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   // is updated below, so state.exitRevealed changing is the correct trigger.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.exitRevealed])
+
+  // Horde-growth toast: the zombie count only ever rises when a zombie card is drawn (the horde
+  // grows from the centre seeds), so a rising count is exactly the "you drew a zombie card" signal.
+  useEffect(() => {
+    const count = state.zombies.length
+    if (count > prevZombieCountRef.current) {
+      setHordeBanner({ visible: true, amount: count - prevZombieCountRef.current })
+      prevZombieCountRef.current = count
+      const timer = setTimeout(() => setHordeBanner(b => ({ ...b, visible: false })), 4000)
+      return () => clearTimeout(timer)
+    }
+    prevZombieCountRef.current = count
+  }, [state.zombies.length])
 
   // Update refs after deriving the "just changed" flags
   prevExitRevealedRef.current = state.exitRevealed
@@ -369,6 +386,14 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
         <ExitRevealBanner onDismiss={() => setExitBannerVisible(false)} />
       )}
 
+      {/* Zombie horde growth toast — fires when a zombie card is drawn */}
+      {hordeBanner.visible && (
+        <HordeGrowthBanner
+          amount={hordeBanner.amount}
+          onDismiss={() => setHordeBanner(b => ({ ...b, visible: false }))}
+        />
+      )}
+
       {/* Zombie animation overlay */}
       {zombieAnimPhase === 'showing' && state.lastZombieRolls.length > 0 && (
         <ZombieRollOverlay
@@ -573,6 +598,35 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
 
 interface ExitRevealBannerProps {
   onDismiss: () => void
+}
+
+interface HordeGrowthBannerProps {
+  amount: number
+  onDismiss: () => void
+}
+
+function HordeGrowthBanner({ amount, onDismiss }: HordeGrowthBannerProps) {
+  return (
+    <div
+      className={styles.hordeBanner}
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+    >
+      <span className={styles.hordeBannerIcon} aria-hidden="true">Z</span>
+      <span className={styles.hordeBannerText}>
+        Zombie horde is growing!{amount > 1 ? ` +${amount}` : ''}
+      </span>
+      <button
+        className={styles.hordeBannerDismiss}
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss horde growth notification"
+      >
+        ✕
+      </button>
+    </div>
+  )
 }
 
 function ExitRevealBanner({ onDismiss }: ExitRevealBannerProps) {
