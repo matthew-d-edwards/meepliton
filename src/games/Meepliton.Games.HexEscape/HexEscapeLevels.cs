@@ -214,6 +214,134 @@ public static class HexEscapeLevels
         ]
     );
 
+    // ── GenerateStandard: procedural level generation by player count ─────────────
+    //
+    // Geometry: parallelogram q ∈ [-W, +W], r ∈ [-H, +H] (inclusive both ends).
+    //   W = 4 + (count - 1),   H = 2 + (count - 1) / 2.
+    //   count=1 → W=4, H=2 → same 45-cell board as Tutorial01.
+    //
+    // Spawn zone: left column q = -W, ordered top-to-bottom (r from -H to +H).
+    //   Provides at least 2H+1 cells; must be >= MaxPlayers=6.
+    //   count=1 → q=-4, r∈{-2,-1,0,1,2} = 5 cells.
+    //   Tutorial01 uses 6 cells (adds (-3,-2)), so for count=1 we also append (-3,-2)
+    //   to match tutorial-01 exactly (required by Feature 2.2 spec).
+    //
+    // Exit zone: q = W-1, r ∈ {-1,0,1} = 3 cells.
+    //   count=1 → q=3, r∈{-1,0,1} — matches tutorial-01. ✓
+    //
+    // Centre seeds (fixed Cross r=0, each with a StartingZombie):
+    //   count=1 → (0,0) and (2,0) — matches tutorial-01. ✓
+    //   count>1 → place (1+count) seeds spaced along central row r=0.
+    //
+    // HordeOriginCells: [] (empty — horde grows from drawn zombie cards only).
+    // NormalTilePool: same weights as Tutorial01.
+
+    /// <summary>
+    /// Procedurally generate a standard level for the given player count.
+    /// count=1 reproduces the tutorial-01 geometry exactly (same cells, exit zone, seeds).
+    /// Higher counts scale the board outward and add more seeds.
+    /// </summary>
+    public static HexEscapeLevel GenerateStandard(int playerCount)
+    {
+        if (playerCount < 1 || playerCount > 6)
+            throw new ArgumentOutOfRangeException(nameof(playerCount), "Player count must be 1–6.");
+
+        int W = 4 + (playerCount - 1);
+        int H = 2 + (playerCount - 1) / 2;
+
+        // All cells: q ∈ [-W..W], r ∈ [-H..H]
+        var cells = new List<string>();
+        for (int q = -W; q <= W; q++)
+            for (int r = -H; r <= H; r++)
+                cells.Add(C(q, r));
+
+        // Exit zone: q = W-1, r ∈ {-1, 0, 1}
+        var exitZone = new List<string> { C(W - 1, -1), C(W - 1, 0), C(W - 1, 1) };
+        var exitZoneSet = new HashSet<string>(exitZone);
+
+        // Spawn zone: left column q = -W, r = -H..-H (top-to-bottom = r ascending)
+        // plus extra cell(s) to reach >= MaxPlayers(6) if the column alone isn't enough.
+        var spawnZone = new List<string>();
+        for (int r = -H; r <= H; r++)
+            spawnZone.Add(C(-W, r));
+        // If still fewer than 6, extend into the next column (q = -W+1) from the top
+        // (mirrors tutorial-01 which uses (-3,-2) as the 6th spawn cell).
+        int nextQ = -W + 1;
+        int nextR = -H;
+        while (spawnZone.Count < 6)
+        {
+            string candidate = C(nextQ, nextR);
+            if (!spawnZone.Contains(candidate) && !exitZoneSet.Contains(candidate))
+                spawnZone.Add(candidate);
+            nextR++;
+            if (nextR > H) { nextQ++; nextR = -H; }
+        }
+        var spawnZoneSet = new HashSet<string>(spawnZone);
+
+        // Centre seeds (fixed Cross r=0, each with a StartingZombie).
+        // count=1: (0,0) and (2,0) — matches tutorial-01 exactly.
+        // count>1: (1+count) seeds spaced along r=0 centred on q=0, avoiding spawn/exit zones.
+        var seedCoords = new List<string>();
+        if (playerCount == 1)
+        {
+            seedCoords.Add(C(0, 0));
+            seedCoords.Add(C(2, 0));
+        }
+        else
+        {
+            int seedCount = 1 + playerCount;
+            // Space seeds evenly across the interior (excluding spawn zone and exit zone columns).
+            // Interior q range: [-W+1 .. W-2] (leave spawn column and the two rightmost columns out).
+            int qMin = -W + 1;
+            int qMax = W - 2;
+            int qRange = qMax - qMin;
+            for (int i = 0; i < seedCount; i++)
+            {
+                int q = seedCount == 1
+                    ? 0
+                    : qMin + (int)Math.Round((double)i * qRange / (seedCount - 1));
+                // Clamp and avoid spawn/exit zones.
+                q = Math.Max(qMin, Math.Min(qMax, q));
+                string coord = C(q, 0);
+                if (!spawnZoneSet.Contains(coord) && !exitZoneSet.Contains(coord) && !seedCoords.Contains(coord))
+                    seedCoords.Add(coord);
+            }
+            // If deduplication left us short, add nearby cells.
+            for (int q = qMin; q <= qMax && seedCoords.Count < seedCount; q++)
+            {
+                string coord = C(q, 0);
+                if (!spawnZoneSet.Contains(coord) && !exitZoneSet.Contains(coord) && !seedCoords.Contains(coord))
+                    seedCoords.Add(coord);
+            }
+        }
+
+        var prePlacedTiles = seedCoords
+            .Select(coord => new PrePlacedTile(coord, HexTileType.Cross, 0))
+            .ToList();
+        var startingZombies = seedCoords
+            .Select(coord => new StartingZombie(coord))
+            .ToList();
+
+        return new HexEscapeLevel(
+            Id:              $"generated-{playerCount}p",
+            Name:            playerCount == 1 ? "The Outbreak" : $"The Outbreak ({playerCount}p)",
+            Cells:           cells,
+            PrePlacedTiles:  prePlacedTiles,
+            SpawnZoneCells:  spawnZone,
+            ExitZoneCells:   exitZone,
+            HordeOriginCells: [],
+            StartingZombies: startingZombies,
+            NormalTilePool:
+            [
+                new TilePoolEntry(HexTileType.Straight, 30),
+                new TilePoolEntry(HexTileType.Elbow,    30),
+                new TilePoolEntry(HexTileType.Tee,      25),
+                new TilePoolEntry(HexTileType.Cross,    10),
+                new TilePoolEntry(HexTileType.Deadend,   5),
+            ]
+        );
+    }
+
     // ── Public catalogue ──────────────────────────────────────────────────────────
 
     /// <summary>

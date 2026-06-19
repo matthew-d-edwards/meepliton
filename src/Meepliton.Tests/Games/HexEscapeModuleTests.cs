@@ -286,6 +286,21 @@ public class HexEscapeModuleTests
             state.Grid.Should().ContainKey(z.Pos);
     }
 
+    // ── Deck size formula helper ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Compute the geometry-derived postDealSize for a level (FEATURE 2.1 formula).
+    /// </summary>
+    private static int ComputePostDealSize(HexEscapeLevel level, int playerCount)
+    {
+        int zombieTileCount = HexEscapeConstants.ZombieTileCount[playerCount];
+        int buildable = level.Cells.Count - level.ExitZoneCells.Count - level.PrePlacedTiles.Count;
+        return (int)Math.Ceiling(buildable * HexEscapeConstants.PathFillFactor)
+             + 1
+             + zombieTileCount * (HexEscapeConstants.AvgAutoDrawPerZombie - 1)
+             + HexEscapeConstants.SlackBuffer[playerCount];
+    }
+
     // ── AC-v2-1b: Deck construction invariants ────────────────────────────────
 
     [Theory]
@@ -300,8 +315,12 @@ public class HexEscapeModuleTests
         var doc = ((IGameModule)_module).CreateInitialState(Players(playerCount), null);
         var state = GetState(doc);
 
-        int expectedPostDeal = HexEscapeConstants.PostDealSize[playerCount];
-        state.Deck.Should().HaveCount(expectedPostDeal);
+        // FEATURE 2.1: postDealSize is now derived from board geometry, not a hardcoded table.
+        // The default level for null options is GenerateStandard(playerCount).
+        var level = HexEscapeLevels.GenerateStandard(playerCount);
+        int expectedPostDeal = ComputePostDealSize(level, playerCount);
+        state.Deck.Should().HaveCount(expectedPostDeal,
+            $"postDealSize for {playerCount}p is geometry-derived (FEATURE 2.1)");
     }
 
     [Theory]
@@ -350,7 +369,8 @@ public class HexEscapeModuleTests
         var doc = ((IGameModule)_module).CreateInitialState(Players(playerCount), null);
         var state = GetState(doc);
 
-        int postDealSize = HexEscapeConstants.PostDealSize[playerCount];
+        var level = HexEscapeLevels.GenerateStandard(playerCount);
+        int postDealSize = ComputePostDealSize(level, playerCount);
         int rawPoolSize = postDealSize + (HexEscapeConstants.StartingHandSize * playerCount);
         int safeCount = (int)(rawPoolSize * HexEscapeConstants.SafeOpeningFraction);
         int safeRemaining = safeCount - (HexEscapeConstants.StartingHandSize * playerCount);
@@ -375,7 +395,8 @@ public class HexEscapeModuleTests
         var doc = ((IGameModule)_module).CreateInitialState(Players(playerCount), null);
         var state = GetState(doc);
 
-        int postDealSize = HexEscapeConstants.PostDealSize[playerCount];
+        var level = HexEscapeLevels.GenerateStandard(playerCount);
+        int postDealSize = ComputePostDealSize(level, playerCount);
         int exitBandStart = postDealSize - (int)(postDealSize * HexEscapeConstants.ExitBandFraction[playerCount]);
         int exitPos = state.Deck.FindIndex(e => e.IsExitTile);
 
@@ -404,9 +425,22 @@ public class HexEscapeModuleTests
     // ── AC-v2-2: Null options fallback ────────────────────────────────────────
 
     [Fact]
-    public void CreateInitialState_NullOptions_FallsBackToTutorial()
+    public void CreateInitialState_NullOptions_FallsBackToGeneratedLevel()
     {
+        // FEATURE 2.2: null options now uses GenerateStandard(playerCount) as default.
         var doc = ((IGameModule)_module).CreateInitialState(Players(2), null);
+        var state = GetState(doc);
+
+        state.LevelId.Should().Be("generated-2p",
+            "null options defaults to the generated standard level for the player count");
+    }
+
+    [Fact]
+    public void CreateInitialState_TutorialId_UsesTutorialLevel()
+    {
+        // Explicit "tutorial-01" id still resolves to the authored Tutorial01 level.
+        var options = ToDoc(new { levelId = "tutorial-01" });
+        var doc = ((IGameModule)_module).CreateInitialState(Players(2), options);
         var state = GetState(doc);
 
         state.LevelId.Should().Be("tutorial-01");
@@ -1552,7 +1586,8 @@ public class HexEscapeModuleTests
         var doc = ((IGameModule)_module).CreateInitialState(Players(playerCount), null);
         var state = GetState(doc);
 
-        int postDealSize   = HexEscapeConstants.PostDealSize[playerCount];
+        var level          = HexEscapeLevels.GenerateStandard(playerCount);
+        int postDealSize   = ComputePostDealSize(level, playerCount);
         int zombieCount    = HexEscapeConstants.ZombieTileCount[playerCount];
         int rawPoolSize    = postDealSize + (HexEscapeConstants.StartingHandSize * playerCount);
         int safeCount      = (int)(rawPoolSize * HexEscapeConstants.SafeOpeningFraction);
@@ -3460,7 +3495,8 @@ public class HexEscapeModuleTests
         var doc = ((IGameModule)_module).CreateInitialState(Players(playerCount), null);
         var state = GetState(doc);
 
-        int postDealSize  = HexEscapeConstants.PostDealSize[playerCount];
+        var level         = HexEscapeLevels.GenerateStandard(playerCount);
+        int postDealSize  = ComputePostDealSize(level, playerCount);
         int rawPoolSize   = postDealSize + (HexEscapeConstants.StartingHandSize * playerCount);
         int safeCount     = (int)(rawPoolSize * HexEscapeConstants.SafeOpeningFraction);
         int safeRemaining = safeCount - (HexEscapeConstants.StartingHandSize * playerCount);
@@ -3578,157 +3614,6 @@ public class HexEscapeModuleTests
         HexEscapeConstants.ZombieTileMinSpacing.Should().Be(1,
             "ZombieTileMinSpacing changed from 2 to 1 in v8 D3: satisfiable for all 6 player counts " +
             "under the corrected gate formula (AC-v2-1b, D3)");
-    }
-
-    // ── v7: MF-1 character-free preference (AC-v2-8b, D4) ───────────────────
-
-    /// <summary>
-    /// AC-v2-8b D4: When the last AP draws a zombie tile and forced atomic resolution runs,
-    /// the server PREFERS character-free cells over character-occupied cells.
-    /// Assert: when at least one character-free tiled candidate exists, the spawned zombie
-    /// lands on a character-free cell.
-    /// </summary>
-    [Fact]
-    public void AtomicZombieResolution_PrefersCharacterFreeCell_WhenFreeAndOccupiedBothExist()
-    {
-        // 2 players so the round boundary does NOT fire on this last-AP draw (seat 1 hasn't acted) —
-        // isolating the atomic forced-placement from the round-boundary zombie chase.
-        var players = Players(2);
-        var state = GetInitialState(players);
-
-        // Put zombie tile on top of deck
-        var zombieTile = new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false);
-        var newDeck = new List<DeckEntry> { zombieTile };
-        newDeck.AddRange(state.Deck.Skip(1));
-
-        // v9: the level only pre-places the two (zombie-occupied) seed tiles, so lay two candidate
-        // tiles here. occupiedCell sorts BEFORE freeCell by (q,r): without the D4 preference the
-        // server would pick occupiedCell (lowest); with it, the character-free cell wins.
-        string occupiedCell = "-2,-2";   // character here; lower (q,r)
-        string freeCell     = "-1,-2";   // character-free; higher (q,r)
-
-        foreach (var c in new[] { occupiedCell, freeCell })
-        {
-            state.Cells.Should().Contain(c);
-            state.ExitZoneCells.Should().NotContain(c);
-        }
-        var grid = new Dictionary<string, HexCell>(state.Grid)
-        {
-            [occupiedCell] = new HexCell(HexTileType.Cross, 0, Fixed: false, IsZombieTile: false),
-            [freeCell]     = new HexCell(HexTileType.Cross, 0, Fixed: false, IsZombieTile: false),
-        };
-
-        // Place the character at occupiedCell
-        var newChars = state.Characters.Select(c =>
-            c.PlayerId == players[0].Id ? c with { Pos = occupiedCell } : c).ToList();
-
-        // Ensure no zombie is at either candidate (remove starting zombies from those cells)
-        var cleanedZombies = state.Zombies.Where(z => z.Pos != occupiedCell && z.Pos != freeCell).ToList();
-
-        state = state with
-        {
-            Grid                     = grid,
-            Deck                     = newDeck,
-            Hands                    = new Dictionary<string, List<HeldTile>> { [players[0].Id] = [] },
-            Characters               = newChars,
-            Zombies                  = cleanedZombies,
-            ActiveSeat               = 0,
-            ActionPointsRemaining    = 1,   // LAST AP
-            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
-        };
-
-        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
-        var result = _module.Handle(ctx);
-
-        result.RejectionReason.Should().BeNull("DrawTile on last AP should succeed");
-        var newState = GetState(result.NewState);
-
-        // A zombie should have been spawned (both candidates are valid: tiled, non-exit, non-zombie)
-        if (newState.Zombies.Count > cleanedZombies.Count)
-        {
-            // Find the newly spawned zombie
-            var prevIds = cleanedZombies.Select(z => z.Id).ToHashSet();
-            var newZombie = newState.Zombies.First(z => !prevIds.Contains(z.Id));
-
-            // D4 preference: the spawn must be on a character-FREE cell, not occupiedCell,
-            // because freeCell is a valid candidate (tiled, non-exit, non-zombie-occupied).
-            newZombie.Pos.Should().NotBe(occupiedCell,
-                "D4: forced placement must prefer the character-free cell over the " +
-                "character-occupied cell even though the latter has lower (q,r) (AC-v2-8b)");
-        }
-        // If discarded (shouldn't happen since valid cells exist), still no zombie in hand
-        newState.Hands.Values.SelectMany(h => h).Should().NotContain(t => t.IsZombieTile,
-            "no zombie tile must remain in hand after atomic resolution (MF-1)");
-    }
-
-    /// <summary>
-    /// AC-v2-8b D4: When ALL legal candidates are character-occupied, the server falls back
-    /// to selecting the lowest (q,r) among all candidates (no discard when valid cells exist).
-    /// </summary>
-    [Fact]
-    public void AtomicZombieResolution_FallsBack_WhenAllCandidatesCharacterOccupied()
-    {
-        var players = Players(2);
-        var state = GetInitialState(players);
-
-        // Build a state where all tiled non-exit non-zombie-occupied cells have characters.
-        // Use a minimal grid: only 2 tiled cells, both with characters.
-        // Cell A = (-3,-1) Straight r0 with character from player 0.
-        // Cell B = (-3, 0) Straight r0 with character from player 1.
-        // All other cells: empty (remove from grid except the two we want).
-
-        string cellA = "-3,-1";
-        string cellB = "-3,0";
-
-        var minimalGrid = new Dictionary<string, HexCell>
-        {
-            [cellA] = new HexCell(HexTileType.Straight, 0, Fixed: true),
-            [cellB] = new HexCell(HexTileType.Straight, 0, Fixed: true),
-        };
-
-        // Both players placed at the two tiled cells
-        var newChars = new List<CharacterState>
-        {
-            state.Characters.First(c => c.PlayerId == players[0].Id) with { Pos = cellA },
-            state.Characters.First(c => c.PlayerId == players[1].Id) with { Pos = cellB },
-        };
-
-        // No zombies at either cell
-        var zombieTile = new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false);
-        var newDeck = new List<DeckEntry> { zombieTile };
-        newDeck.AddRange(state.Deck.Skip(1));
-
-        state = state with
-        {
-            Grid                     = minimalGrid,
-            Deck                     = newDeck,
-            Hands                    = new Dictionary<string, List<HeldTile>> { [players[0].Id] = [], [players[1].Id] = [] },
-            Characters               = newChars,
-            Zombies                  = [],   // no existing zombies
-            ActiveSeat               = 0,
-            ActionPointsRemaining    = 1,   // LAST AP
-            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
-        };
-
-        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
-        var result = _module.Handle(ctx);
-
-        result.RejectionReason.Should().BeNull("DrawTile on last AP should succeed");
-        var newState = GetState(result.NewState);
-
-        // All candidates are character-occupied → falls back to spawning on a candidate
-        // rather than discarding (fallback uses lowest q,r among all candidates = cellA)
-        bool wasSpawned   = newState.Zombies.Count > 0;
-        bool wasDiscarded = newState.DiscardPile.Count > state.DiscardPile.Count;
-
-        wasSpawned.Should().BeTrue(
-            "D4 fallback: when all candidates are character-occupied, server spawns on one rather than discarding (AC-v2-8b)");
-        wasDiscarded.Should().BeFalse(
-            "D4 fallback must not discard when valid (albeit occupied) candidate cells exist");
-
-        // The spawned zombie should be at cellA (lowest q,r among all candidates)
-        newState.Zombies.Should().Contain(z => z.Pos == cellA,
-            "D4 fallback tiebreak: lowest (q,r) among all candidates = cellA=(-3,-1) (H6)");
     }
 
     // ── v7: Phase-3 movement exit-zone exclusion (AC-v2-32d, D5) ────────────
@@ -4008,6 +3893,168 @@ public class HexEscapeModuleTests
                     $"starting zombie at {sz.Coord} must not be adjacent to spawn-zone cell {neighbour} per v7 D1");
             }
         }
+    }
+
+    // ── BUG M1: SpawnHordeAtCentre double-occupancy guard ────────────────────
+
+    /// <summary>
+    /// M1 regression: with BOTH centre seeds initially zombie-occupied (and a deck large enough
+    /// for the cascade to extend), SpawnHordeAtCentre must never produce two zombie tokens at
+    /// the same position (no double-occupancy).
+    /// </summary>
+    [Fact]
+    public void SpawnHordeAtCentre_NeverProducesDoubleOccupancy()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        // The tutorial-01 initial state already has 2 seed zombies at the two fixed seeds.
+        // Both seeds are occupied → the cascade must shove them outward and spawn new ones.
+        // Provide a deck with enough normal tiles for all cascades to extend.
+        var normalTile = new DeckEntry(HexTileType.Straight, IsZombieTile: false, IsExitTile: false);
+        var zombieTile = new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false);
+        // Zombie card triggers a cascade; plenty of normals for extends.
+        var deck = new List<DeckEntry> { zombieTile };
+        for (int i = 0; i < 20; i++) deck.Add(normalTile);
+
+        state = state with
+        {
+            Deck                     = deck,
+            ActiveSeat               = 0,
+            ActionPointsRemaining    = 3,
+            QualifyingActionsThisTurn = 0,
+        };
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var result = _module.Handle(ctx);
+
+        result.RejectionReason.Should().BeNull("DrawTile should succeed");
+        var s = GetState(result.NewState);
+
+        // M1 assertion: no two zombie tokens at the same cell.
+        int distinctPositions = s.Zombies.Select(z => z.Pos).Distinct().Count();
+        distinctPositions.Should().Be(s.Zombies.Count,
+            "SpawnHordeAtCentre must never produce two zombie tokens at the same cell (M1 double-occupancy bug)");
+    }
+
+    // ── FEATURE 2.2: GenerateStandard structural invariants ─────────────────
+
+    /// <summary>
+    /// FEATURE 2.2: GenerateStandard produces a level with correct structural invariants
+    /// for every player count 1..6.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void GenerateStandard_StructuralInvariants(int playerCount)
+    {
+        var level = HexEscapeLevels.GenerateStandard(playerCount);
+        var cellSet = new HashSet<string>(level.Cells);
+        var spawnSet = new HashSet<string>(level.SpawnZoneCells);
+        var exitSet = new HashSet<string>(level.ExitZoneCells);
+        var seedSet = new HashSet<string>(level.PrePlacedTiles.Select(t => t.Coord));
+
+        // Exit zone has exactly 3 cells.
+        level.ExitZoneCells.Should().HaveCount(3,
+            $"GenerateStandard({playerCount}): exit zone must have exactly 3 cells");
+
+        // Spawn zone has >= MaxPlayers (6) cells.
+        level.SpawnZoneCells.Count.Should().BeGreaterThanOrEqualTo(6,
+            $"GenerateStandard({playerCount}): spawn zone must have >= 6 cells");
+
+        // Zones are disjoint.
+        spawnSet.Intersect(exitSet).Should().BeEmpty(
+            $"GenerateStandard({playerCount}): spawn zone and exit zone must be disjoint");
+
+        // All zone cells are on-board.
+        foreach (var c in level.SpawnZoneCells)
+            cellSet.Should().Contain(c, $"GenerateStandard({playerCount}): spawn zone cell {c} must be on board");
+        foreach (var c in level.ExitZoneCells)
+            cellSet.Should().Contain(c, $"GenerateStandard({playerCount}): exit zone cell {c} must be on board");
+
+        // Seeds are present and fixed (Cross r=0).
+        level.PrePlacedTiles.Should().NotBeEmpty(
+            $"GenerateStandard({playerCount}): must have seed tiles");
+        foreach (var tile in level.PrePlacedTiles)
+        {
+            tile.TileType.Should().Be(HexTileType.Cross,
+                $"GenerateStandard({playerCount}): seed at {tile.Coord} must be Cross");
+            tile.Rotation.Should().Be(0,
+                $"GenerateStandard({playerCount}): seed at {tile.Coord} must have rotation 0");
+            cellSet.Should().Contain(tile.Coord,
+                $"GenerateStandard({playerCount}): seed at {tile.Coord} must be on board");
+            spawnSet.Should().NotContain(tile.Coord,
+                $"GenerateStandard({playerCount}): seed at {tile.Coord} must not be in spawn zone");
+            exitSet.Should().NotContain(tile.Coord,
+                $"GenerateStandard({playerCount}): seed at {tile.Coord} must not be in exit zone");
+        }
+
+        // Starting zombies match seeds.
+        level.StartingZombies.Select(sz => sz.Coord).Should()
+            .BeEquivalentTo(level.PrePlacedTiles.Select(t => t.Coord),
+            $"GenerateStandard({playerCount}): starting zombies must match seed positions");
+
+        // HordeOriginCells is empty (horde grows from drawn cards only).
+        level.HordeOriginCells.Should().BeEmpty(
+            $"GenerateStandard({playerCount}): HordeOriginCells must be empty");
+
+        // No pre-placed tiles in spawn or exit zone (H9).
+        foreach (var tile in level.PrePlacedTiles)
+        {
+            spawnSet.Should().NotContain(tile.Coord,
+                $"GenerateStandard({playerCount}): no pre-placed tile in spawn zone (H9)");
+            exitSet.Should().NotContain(tile.Coord,
+                $"GenerateStandard({playerCount}): no pre-placed tile in exit zone (H9)");
+        }
+    }
+
+    /// <summary>
+    /// FEATURE 2.2: GenerateStandard(1) must reproduce the tutorial-01 cell set, exit zone,
+    /// and seed positions exactly (so solo balance is preserved).
+    /// </summary>
+    [Fact]
+    public void GenerateStandard_Count1_MatchesTutorial01_CellsExitZoneAndSeeds()
+    {
+        var generated = HexEscapeLevels.GenerateStandard(1);
+        var tutorial  = HexEscapeLevels.Tutorial01;
+
+        // Same cell set.
+        generated.Cells.Should().BeEquivalentTo(tutorial.Cells,
+            "GenerateStandard(1) must have the same cell set as tutorial-01");
+
+        // Same exit zone.
+        generated.ExitZoneCells.Should().BeEquivalentTo(tutorial.ExitZoneCells,
+            "GenerateStandard(1) exit zone must match tutorial-01");
+
+        // Same seed positions.
+        generated.PrePlacedTiles.Select(t => t.Coord).Should()
+            .BeEquivalentTo(tutorial.PrePlacedTiles.Select(t => t.Coord),
+            "GenerateStandard(1) seed positions must match tutorial-01 ((0,0) and (2,0))");
+    }
+
+    /// <summary>
+    /// FEATURE 2.1 + 2.2 composition: a generated board automatically gets the right deck size.
+    /// Spot-check counts 1, 2, 3.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void GenerateStandard_DeckSizeComposesCorrectly(int playerCount)
+    {
+        var level = HexEscapeLevels.GenerateStandard(playerCount);
+        int expected = ComputePostDealSize(level, playerCount);
+
+        // Create initial state with null options (uses generated level).
+        var doc = ((IGameModule)_module).CreateInitialState(Players(playerCount), null);
+        var state = GetState(doc);
+
+        state.Deck.Should().HaveCount(expected,
+            $"GenerateStandard({playerCount}) deck size should be {expected} (FEATURE 2.1+2.2 composition)");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

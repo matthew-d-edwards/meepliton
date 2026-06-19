@@ -115,7 +115,31 @@ public static class HexEscapeConstants
     // ── Deck composition table (AD-OB-12) ────────────────────────────────────
     // postDealSize[count], zombieTiles[count] — indexed by player count 1–6.
 
-    /// <summary>Deck size (post-deal = after starting hands dealt). Index = player count 1–6.</summary>
+    /// <summary>
+    /// Fraction of buildable cells to target as the path-fill portion of the deck.
+    /// Formula: postDealSize = ceil(buildable * PathFillFactor) + 1 + extra + slack.
+    /// </summary>
+    public const double PathFillFactor = 0.6;
+
+    /// <summary>
+    /// Average number of deck cards consumed per zombie-card draw (draw itself + auto-drawn road tile).
+    /// Used to allocate extra deck slots so each zombie card's cascade has cards to auto-draw.
+    /// </summary>
+    public const int AvgAutoDrawPerZombie = 2;
+
+    /// <summary>
+    /// Extra slack cards added per player count to ensure the deck has enough cards for a
+    /// full game without running dry too early. Index = player count 1–6.
+    /// </summary>
+    public static readonly int[] SlackBuffer = [0, 6, 8, 10, 10, 12, 12];
+
+    /// <summary>
+    /// Deck size (post-deal = after starting hands dealt) — LEGACY lookup used as a test reference
+    /// and for the exit-band / zombie-spacing assertions. The actual postDealSize is now computed
+    /// from board geometry in BuildInitialState using PathFillFactor / AvgAutoDrawPerZombie / SlackBuffer.
+    /// This array is kept so existing unit tests that assert exact deck sizes can be updated to use
+    /// the formula instead of hardcoded values. Index = player count 1–6.
+    /// </summary>
     public static readonly int[] PostDealSize = [0, 30, 40, 50, 60, 70, 80];
 
     /// <summary>Zombie tile count in the deck (post-deal). Index = player count 1–6.</summary>

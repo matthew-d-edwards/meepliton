@@ -18,6 +18,8 @@ import styles from '../styles.module.css'
 const MIN_ACTIONS_PER_TURN = 2
 // Mirror of HexEscapeConstants.ApPoolSize — AP granted on claiming a turn, indexed by player count.
 const AP_POOL_SIZE = [0, 5, 4, 4, 4, 4, 4]
+// Mirror of HexEscapeConstants.HandSize — max tiles in hand (zombie tiles never enter the hand).
+const HAND_SIZE = 5
 const TILE_LABELS: Record<HexTileType, string> = {
   Straight: 'Straight',
   Elbow:    'Elbow',
@@ -326,11 +328,11 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   })()
 
   // Draw disabled
-  const drawDisabled = !isMyTurn || ap === 0 || hasZombieObligation || myHand.filter(h => !h.isZombieTile).length >= 3
+  const drawDisabled = !isMyTurn || ap === 0 || hasZombieObligation || myHand.filter(h => !h.isZombieTile).length >= HAND_SIZE
   const drawDisabledReason: string | null = (() => {
     if (!isMyTurn) return 'Not your turn'
     if (hasZombieObligation) return 'Place your zombie tile first'
-    if (myHand.filter(h => !h.isZombieTile).length >= 3) return 'Hand is full'
+    if (myHand.filter(h => !h.isZombieTile).length >= HAND_SIZE) return 'Hand is full'
     if (ap === 0) return 'No action points remaining'
     return null
   })()
