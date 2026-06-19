@@ -98,9 +98,11 @@ public static class HexEscapeConstants
     /// Exit tile placed randomly in the last X fraction of the deck (post-deal);
     /// higher fraction = earlier exit for low counts (DD2, F7, D2).
     /// Raised mid counts so exit surfaces earlier (3p fix: 0.30→0.40).
-    /// Index = player count (1–6). Balance TBD by playtest.
+    /// Solo lowered 0.50→0.40 (v11): a deeper exit forces more digging, which surfaces more zombie
+    /// cards and grows the horde during the exit hunt — the main lever that pressures skilled solo
+    /// play (a human wins trivially when the exit surfaces early). Index = player count (1–6).
     /// </summary>
-    public static readonly double[] ExitBandFraction = [0.0, 0.50, 0.40, 0.40, 0.35, 0.32, 0.30];
+    public static readonly double[] ExitBandFraction = [0.0, 0.40, 0.40, 0.40, 0.35, 0.32, 0.30];
 
     /// <summary>
     /// Minimum deck-position gap between any two zombie tiles in the middle band during
@@ -146,9 +148,11 @@ public static class HexEscapeConstants
     /// Zombie tile count in the deck (post-deal). Index = player count 1–6. This is the primary
     /// difficulty dial — every zombie card grows the horde from the centre seeds. Solo raised 3→5
     /// (v11) because a 3-card horde could not contest enough of the board to threaten a player using
-    /// the full-pipe slide; 5 keeps solo winnable but makes the rotate/sever lever actually matter.
+    /// the full-pipe slide; then 5→6 after a human still won easily at 5. Solo is the densest
+    /// challenge by design (no teammates, smallest board), so it intentionally carries more zombie
+    /// cards than 2p. Fits the deck middle-band spacing gate given the deeper solo exit band (0.40).
     /// </summary>
-    public static readonly int[] ZombieTileCount = [0, 5, 5, 7, 10, 12, 15];
+    public static readonly int[] ZombieTileCount = [0, 6, 5, 7, 10, 12, 15];
 }
 
 // ── Hex cell ─────────────────────────────────────────────────────────────────

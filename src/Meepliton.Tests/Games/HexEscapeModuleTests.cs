@@ -592,10 +592,11 @@ public class HexEscapeModuleTests
     }
 
     [Fact]
-    public void Constants_Solo_ExitBandFraction_HighestFraction()
+    public void Constants_Solo_ExitBandFraction_NoEarlierThanOthers()
     {
-        // Solo gets 0.50, highest of all player counts (F7)
-        HexEscapeConstants.ExitBandFraction[1].Should().Be(0.50);
+        // Solo lowered to 0.40 (v11) — a deeper exit makes solo harder (more digging → more horde).
+        // It must still be no earlier (no higher) than any other count: solo is the densest challenge.
+        HexEscapeConstants.ExitBandFraction[1].Should().Be(0.40);
         for (int n = 2; n <= 6; n++)
             HexEscapeConstants.ExitBandFraction[n].Should().BeLessThanOrEqualTo(HexEscapeConstants.ExitBandFraction[1]);
     }
