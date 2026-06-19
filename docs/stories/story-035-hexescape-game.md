@@ -3,7 +3,7 @@ id: story-035
 title: Add Hex Escape co-op game module (Outbreak — v2)
 status: in-review
 created: 2026-06-15
-updated: 2026-06-16
+updated: 2026-06-19
 ---
 
 ## What
@@ -20,11 +20,14 @@ The v1 implementation on branch `add-hexescape-game` is fully superseded. v2 rew
 
 ## Status note
 
-Implementation is complete and in review. The movement model and zombie-growth model were substantially reworked on branch `fix-hexescape-movement-and-zombie-spread`:
+Implementation is complete and in review. The movement model, zombie-growth model, and solo difficulty were substantially reworked on branch `fix-hexescape-movement-and-zombie-spread`:
 
-- **Movement:** `MoveCharacter` now slides the character the full length of the connected pipe network in one action (not one hex per action). Zombies block the tunnel.
-- **Zombie growth:** zombies spawn only when a zombie card is drawn, growing from the centre-seed Cross tiles, not from fixed horde-origin cells. `hordeOriginCells` is empty. There is no per-round horde spawn.
-- **Hand size:** `HandSize` cap is 5; `StartingHandSize` is 3.
+- **Movement:** `MoveCharacter` slides the character the full length of the connected pipe network in one action (not one hex per action). Zombies block the tunnel.
+- **Zombie chase (final model):** each round every zombie may both rotate one adjacent pipe tile AND step one tile toward the nearest survivor. Ending a turn adjacent to a zombie is lethal — the zombie can turn the pipe between them and step through in the same round. Movement is one tile per round (slide asymmetry stands).
+- **End-of-turn beat:** when the round boundary fires, the client shows a brief auto-dismissing message ("Your turn is over — the horde moves") with a one-line summary of what each zombie did, driven by `lastZombieRolls`.
+- **Zombie growth:** zombies spawn only when a zombie card is drawn, growing from the centre-seed Cross tiles. `hordeOriginCells` is empty. There is no per-round horde spawn.
+- **Solo difficulty (final values):** `ZombieTileCount[1] = 6` (solo horde maxes at 8 = 2 seeds + 6 cards; solo intentionally carries more zombie cards than 2p). `ExitBandFraction[1] = 0.40` (exit sits deeper so the player digs further, surfacing more zombie cards during the hunt). Playtested as balanced — a skilled player loses some, wins some.
+- **Hand size:** `HandSize` cap is 5; `StartingHandSize` is 1 (per D2 tuning).
 
 **This story cannot be marked `done` until:**
 - CI passes for the full build on this branch (build + `dotnet test`)
@@ -35,7 +38,7 @@ CI cannot run in this environment. Do not set `status: done` until CI is confirm
 
 ## Acceptance criteria
 
-See `docs/specs/hexescape.md` for the full Given/When/Then criteria (AC-v2-1 through AC-v2-79).
+See `docs/specs/hexescape.md` for the full Given/When/Then criteria (AC-v2-1 through AC-v2-54).
 
 ## Notes
 

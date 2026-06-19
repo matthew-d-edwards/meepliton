@@ -184,6 +184,12 @@ Your turn ends in one of two ways:
 
 After your turn ends, the next player may claim the active turn.
 
+When the last player's turn ends and zombie movement runs, the client shows a
+brief auto-dismissing message: **"Your turn is over — the horde moves"** followed
+by a one-line summary such as "3 zombies advanced · 2 turned a pipe to chase"
+or "The horde held its ground". The message dismisses automatically; you do not
+need to click anything.
+
 ---
 
 ## 7. Characters and movement
@@ -253,11 +259,28 @@ All containment decisions use a **frozen snapshot** of the board taken at the
 start of Phase 2. A breakout from one zombie does not change the containment
 verdict for later zombies in the same phase.
 
-**Phase 3 — Zombie rolls:** every zombie (including any spawned in Phase 2) rolls
-a d6. The die face maps to a direction: direction = die face mod 6. If the
-connection rule is satisfied between the zombie's current cell and its neighbour
-in that direction, the zombie moves there. Otherwise it stays put. Each roll and
-result (moved / blocked) is shown in the zombie-movement overlay.
+**Phase 3 — Chase and move:** every zombie (including any spawned in Phase 2)
+acts in stable id order. Each zombie may do **both** of the following in the
+same round:
+
+1. **Turn a pipe** — the zombie rotates one tile adjacent to it so that a pipe
+   opening points toward the nearest survivor (shortest path, breaking ties by
+   lowest direction index). This includes rotating the tile between itself and a
+   survivor on an *adjacent* cell — so **ending your turn on a tile next to a
+   zombie is dangerous even if no pipe currently connects them**. The zombie may
+   rotate a player-placed, non-fixed tile; pre-placed level tiles and the exit
+   tile are immune.
+2. **Step one tile** — if the connection rule is satisfied in the direction of
+   the nearest survivor, the zombie moves one tile toward them. If no connected
+   path exists toward the nearest survivor, the zombie stays put.
+
+Both the turn and the step happen in the same round — the zombie is not limited
+to one or the other. A zombie that is already adjacent to a survivor and cannot
+step closer rotates a pipe to set up an approach next round. A zombie that is
+fully isolated from all tiles (no neighbours at all) holds its position.
+
+Each zombie's action (which pipe it turned, whether it stepped, where it moved)
+is stored in `lastZombieRolls` and shown in the zombie-movement overlay.
 
 There is no separate per-round horde spawn — zombies only multiply via zombie
 cards drawn during players' turns.
@@ -330,13 +353,12 @@ qualifying actions — and ends his turn.
 **Round boundary:**
 
 Both seats have acted. Zombie movement begins. Any contained zombies break out
-first (Phase 2), then every zombie rolls a d6 (Phase 3). The zombie at `(0, 0)`
-rolls a 4 — direction 4 is SW `(-1, +1)`. The Cross tile at `(0, 0)` is open in
-direction 4. If the neighbouring cell `(-1, 1)` already has a tile (placed by
-Alice or Bob during the round) with direction 1 (NE, the opposite) open, the
-connection rule is satisfied and the zombie moves there. Otherwise it stays put.
-No per-round horde spawn occurs — zombies only grow when a zombie card is drawn.
-Round 2 starts.
+first (Phase 2), then every zombie chases (Phase 3). The zombie at `(0, 0)` may
+turn an adjacent pipe to open a path toward the nearest survivor, then step one
+tile in that direction if the connection rule is satisfied. If the connection
+rule is not yet satisfied (no open path exists), the zombie stays put — but the
+pipe it just turned means next round the path may be open. No per-round horde
+spawn occurs — zombies only grow when a zombie card is drawn. Round 2 starts.
 
 **Later — exit revealed:**
 

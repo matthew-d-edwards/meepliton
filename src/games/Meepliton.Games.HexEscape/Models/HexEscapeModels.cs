@@ -200,10 +200,15 @@ public record CharacterState(
 
 // ── Last zombie roll ──────────────────────────────────────────────────────────
 
-/// <summary>Result of a single zombie d6 roll during ZombieMovement phase.</summary>
+/// <summary>
+/// One zombie's action during the round-boundary chase, recorded so the client can show the
+/// horde-phase beat. There are no dice in the chase model: PipeTurned is whether the zombie rotated
+/// a pipe this round, Direction is the tile it stepped toward (-1 if it did not step), Moved is
+/// whether it advanced a tile.
+/// </summary>
 public record ZombieRoll(
     string ZombieId,
-    int DieFace,
+    bool PipeTurned,
     int Direction,
     bool Moved
 );

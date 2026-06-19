@@ -1320,7 +1320,7 @@ public class HexEscapeModule : IGameModule, IGameHandler
                 moved[zi] = moved[zi] with { Pos = bestN! };
                 state = state with { Zombies = moved };
                 state = EliminateCharactersAt(state, bestN!);
-                rolls.Add(new ZombieRoll(live.Id, 0, bestDir, Moved: true));
+                rolls.Add(new ZombieRoll(live.Id, PipeTurned: selfRot is not null || destRot is not null, bestDir, Moved: true));
                 continue;
             }
 
@@ -1352,12 +1352,12 @@ public class HexEscapeModule : IGameModule, IGameHandler
                 };
                 if (rotC is not null) newGrid[c] = rotC;
                 state = state with { Grid = newGrid };
-                rolls.Add(new ZombieRoll(live.Id, 0, rotDir, Moved: false));
+                rolls.Add(new ZombieRoll(live.Id, PipeTurned: true, rotDir, Moved: false));
                 continue;  // chases along the new connection next round
             }
 
             // Isolated — nothing to step onto or rotate. It holds (no self-multiply, no self-laid road).
-            rolls.Add(new ZombieRoll(live.Id, 0, -1, Moved: false));
+            rolls.Add(new ZombieRoll(live.Id, PipeTurned: false, -1, Moved: false));
         }
 
         return state with { LastZombieRolls = rolls };

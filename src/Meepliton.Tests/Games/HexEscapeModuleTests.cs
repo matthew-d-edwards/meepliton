@@ -1713,7 +1713,7 @@ public class HexEscapeModuleTests
     /// v11: after a round boundary the deterministic chase records one entry per zombie in
     /// lastZombieRolls so the client can show the horde-phase beat. A moved zombie has Direction in
     /// [0,5]; a zombie that only rotated or held has Moved=false (Direction -1 when it did nothing).
-    /// DieFace is unused (0) — there are no dice in the chase model.
+    /// PipeTurned flags whether it rotated a pipe — there are no dice in the chase model.
     /// </summary>
     [Fact]
     public void RoundBoundary_ZombieRolls_StructuralInvariants()
@@ -1778,10 +1778,8 @@ public class HexEscapeModuleTests
                         finalState.LastZombieRolls.Count.Should().BeGreaterThanOrEqualTo(0);
                         foreach (var roll in finalState.LastZombieRolls)
                         {
-                            roll.Direction.Should().BeInRange(0, 5,
-                                $"roll direction must be in [0,5] for zombie {roll.ZombieId}");
-                            roll.DieFace.Should().BeInRange(1, 6,
-                                $"die face must be in [1,6] for zombie {roll.ZombieId}");
+                            if (roll.Moved) roll.Direction.Should().BeInRange(0, 5, $"moved zombie has a direction ({roll.ZombieId})");
+                            else roll.Direction.Should().BeInRange(-1, 5, $"rotate/held zombie ({roll.ZombieId})");
                         }
                     }
                     return;
@@ -1813,7 +1811,7 @@ public class HexEscapeModuleTests
 
         // v11: the deterministic chase records one entry per zombie so the client can show the
         // horde-phase beat. A moved zombie has Direction 0-5; one that only rotated or held has
-        // Moved=false (Direction -1 when it did nothing). DieFace is unused (no dice).
+        // Moved=false (Direction -1 when it did nothing); PipeTurned flags a rotation. No dice.
         endState.LastZombieRolls.Should().NotBeEmpty("the chase records the horde's actions for the UI beat");
         foreach (var roll in endState.LastZombieRolls)
         {
