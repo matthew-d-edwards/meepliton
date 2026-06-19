@@ -39,17 +39,30 @@ public static class HexEscapeConstants
     /// <summary>Minimum qualifying actions per turn before EndTurn is legal (DD1, F1). Balance TBD.</summary>
     public const int MinActionsPerTurn = 2;
 
-    /// <summary>Maximum tiles in hand. Structurally fixed for v2.</summary>
-    public const int HandSize = 3;
+    /// <summary>
+    /// Maximum tiles in hand. Raised 3→5 (v10) so a bad draw (e.g. a Dead End) no longer deadlocks
+    /// the road and the player has room to stock tiles and pre-plan an opening before committing.
+    /// </summary>
+    public const int HandSize = 5;
 
-    /// <summary>Hexes per MoveCharacter action. Structurally fixed for v2.</summary>
+    /// <summary>
+    /// Per-action movement cap. v10: a MoveCharacter action now slides the character the FULL
+    /// clear length of the connected pipe network (zombies block the tunnel), so distance is no
+    /// longer capped at one hex — this constant is retained only for wire/back-compat and is not
+    /// consulted by the movement rule. The asymmetry is deliberate: the player travels far on one
+    /// AP while a zombie advances a single tile per round.
+    /// </summary>
     public const int MaxMoveDistance = 1;
 
     /// <summary>JSONB growth safety cap. Structurally fixed for v2.</summary>
     public const int MaxZombies = 200;
 
-    /// <summary>Non-zombie, non-exit tiles dealt per player at CreateInitialState (DD3, D2). Balance TBD.</summary>
-    public const int StartingHandSize = 1;
+    /// <summary>
+    /// Non-zombie, non-exit tiles dealt per player at CreateInitialState (DD3, D2). Raised 1→3 (v10)
+    /// so the player opens with enough tiles to pre-plan a route instead of placing blind. Dealt from
+    /// the guaranteed-safe top slots, so the opening hand is always zombie/exit-free. Balance TBD.
+    /// </summary>
+    public const int StartingHandSize = 3;
 
     /// <summary>Top fraction of raw pool guaranteed zombie/exit-free (DD3, F2, D2). Balance TBD.</summary>
     public const double SafeOpeningFraction = 0.20;
@@ -68,12 +81,28 @@ public static class HexEscapeConstants
     public static readonly int[] HordeRatePerRound = [0, 1, 1, 1, 2, 2, 2];
 
     /// <summary>
+    /// First round whose boundary spawns the horde. Round boundaries before this
+    /// spawn no horde zombies, giving players a safe window to lay an opening path
+    /// before pressure ramps. This complements the deck's <see cref="SafeOpeningFraction"/>:
+    /// the safe opening only guarantees the tiles you DRAW are zombie-free — it does
+    /// nothing about horde spawns, which previously began at the very first boundary
+    /// right beside the spawn zone (no real safe window). RoundNumber starts at 1 and is
+    /// the round being closed out (pre-increment), so a value of 3 keeps the round-1 and
+    /// round-2 boundaries horde-free and the first horde appears entering round 4.
+    /// This is the primary early-difficulty dial — balance TBD by playtest.
+    /// </summary>
+    public const int HordeStartRound = 3;
+
+
+    /// <summary>
     /// Exit tile placed randomly in the last X fraction of the deck (post-deal);
     /// higher fraction = earlier exit for low counts (DD2, F7, D2).
     /// Raised mid counts so exit surfaces earlier (3p fix: 0.30→0.40).
-    /// Index = player count (1–6). Balance TBD by playtest.
+    /// Solo lowered 0.50→0.40 (v11): a deeper exit forces more digging, which surfaces more zombie
+    /// cards and grows the horde during the exit hunt — the main lever that pressures skilled solo
+    /// play (a human wins trivially when the exit surfaces early). Index = player count (1–6).
     /// </summary>
-    public static readonly double[] ExitBandFraction = [0.0, 0.50, 0.40, 0.40, 0.35, 0.32, 0.30];
+    public static readonly double[] ExitBandFraction = [0.0, 0.40, 0.40, 0.40, 0.35, 0.32, 0.30];
 
     /// <summary>
     /// Minimum deck-position gap between any two zombie tiles in the middle band during
@@ -88,11 +117,42 @@ public static class HexEscapeConstants
     // ── Deck composition table (AD-OB-12) ────────────────────────────────────
     // postDealSize[count], zombieTiles[count] — indexed by player count 1–6.
 
-    /// <summary>Deck size (post-deal = after starting hands dealt). Index = player count 1–6.</summary>
+    /// <summary>
+    /// Fraction of buildable cells to target as the path-fill portion of the deck.
+    /// Formula: postDealSize = ceil(buildable * PathFillFactor) + 1 + extra + slack.
+    /// </summary>
+    public const double PathFillFactor = 0.6;
+
+    /// <summary>
+    /// Average number of deck cards consumed per zombie-card draw (draw itself + auto-drawn road tile).
+    /// Used to allocate extra deck slots so each zombie card's cascade has cards to auto-draw.
+    /// </summary>
+    public const int AvgAutoDrawPerZombie = 2;
+
+    /// <summary>
+    /// Extra slack cards added per player count to ensure the deck has enough cards for a
+    /// full game without running dry too early. Index = player count 1–6.
+    /// </summary>
+    public static readonly int[] SlackBuffer = [0, 6, 8, 10, 10, 12, 12];
+
+    /// <summary>
+    /// Deck size (post-deal = after starting hands dealt) — LEGACY lookup used as a test reference
+    /// and for the exit-band / zombie-spacing assertions. The actual postDealSize is now computed
+    /// from board geometry in BuildInitialState using PathFillFactor / AvgAutoDrawPerZombie / SlackBuffer.
+    /// This array is kept so existing unit tests that assert exact deck sizes can be updated to use
+    /// the formula instead of hardcoded values. Index = player count 1–6.
+    /// </summary>
     public static readonly int[] PostDealSize = [0, 30, 40, 50, 60, 70, 80];
 
-    /// <summary>Zombie tile count in the deck (post-deal). Index = player count 1–6.</summary>
-    public static readonly int[] ZombieTileCount = [0, 3, 5, 7, 10, 12, 15];
+    /// <summary>
+    /// Zombie tile count in the deck (post-deal). Index = player count 1–6. This is the primary
+    /// difficulty dial — every zombie card grows the horde from the centre seeds. Solo raised 3→5
+    /// (v11) because a 3-card horde could not contest enough of the board to threaten a player using
+    /// the full-pipe slide; then 5→6 after a human still won easily at 5. Solo is the densest
+    /// challenge by design (no teammates, smallest board), so it intentionally carries more zombie
+    /// cards than 2p. Fits the deck middle-band spacing gate given the deeper solo exit band (0.40).
+    /// </summary>
+    public static readonly int[] ZombieTileCount = [0, 6, 5, 7, 10, 12, 15];
 }
 
 // ── Hex cell ─────────────────────────────────────────────────────────────────
@@ -140,10 +200,15 @@ public record CharacterState(
 
 // ── Last zombie roll ──────────────────────────────────────────────────────────
 
-/// <summary>Result of a single zombie d6 roll during ZombieMovement phase.</summary>
+/// <summary>
+/// One zombie's action during the round-boundary chase, recorded so the client can show the
+/// horde-phase beat. There are no dice in the chase model: PipeTurned is whether the zombie rotated
+/// a pipe this round, Direction is the tile it stepped toward (-1 if it did not step), Moved is
+/// whether it advanced a tile.
+/// </summary>
 public record ZombieRoll(
     string ZombieId,
-    int DieFace,
+    bool PipeTurned,
     int Direction,
     bool Moved
 );

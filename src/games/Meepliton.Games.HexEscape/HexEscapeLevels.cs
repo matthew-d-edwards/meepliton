@@ -18,16 +18,13 @@ namespace Meepliton.Games.HexEscape;
 /// All authored levels satisfy AC-v2-5 catalogue invariants:
 ///   - spawnZoneCells.Count >= 6 (MaxPlayers)
 ///   - exitZoneCells non-empty
-///   - hordeOriginCells non-empty
+///   - hordeOriginCells is empty (horde grows from zombie cards at centre seeds only — no per-round fixed spawn)
 ///   - no pre-placed tiles in spawnZoneCells or exitZoneCells (H9)
 ///   - every starting zombie position has a pre-placed tile (C4)
-///   - every hordeOriginCell has a pre-placed tile (F3)
-///   - hordeOriginCells ∩ spawnZoneCells = ∅ (H7)
-///   - hordeOriginCells ∩ exitZoneCells = ∅
 ///   - spawnZoneCells ∩ exitZoneCells = ∅
 ///   - structurally solvable (exit cross r0 connects to ≥2 non-exit-zone approach cells
 ///     against the SINGLE DETERMINISTIC exit cell — AC-v2-19/AC-v2-5 v8)
-///   - every zombie-hosting cell and every hordeOriginCell has a Cross r0 pre-placed tile (v8 D1)
+///   - every zombie-hosting (centre seed) cell has a Cross r0 pre-placed tile
 ///   - ApPoolSize[n] >= MinActionsPerTurn for all n (checked in tests)
 ///
 /// "tutorial-01" MUST remain the first entry — it is the AC-v2-2 fallback target.
@@ -50,32 +47,23 @@ public static class HexEscapeLevels
     //     No pre-placed tiles in exit zone (H9). Server places exit tile here.
     //     The q=4 column is now NORMAL in-grid cells (players can tile and move there).
     //
-    //   Horde origin: (-3,-1), (-3,0), (-3,1) — NOT in spawn zone (spawn uses q=-4
-    //     and q=-3,r=-2 only). NOT in exit zone. All three have pre-placed Cross r0
-    //     tiles per v8 D1: Cross tiles (not Straight) mean zombies here are never
-    //     trivially bypassable by adjacent-row detours (AD-OB-12b round-5 rationale).
+    //   Horde origin: [] — empty. Zombie growth comes exclusively from zombie cards
+    //     drawn during play, which spawn from the centre seeds at (0,0) and (2,0).
+    //     There is no per-round fixed horde spawn.
     //
     // ── Zone disjointness (AC-v2-5) ──────────────────────────────────────────────
     //
-    //   spawnZoneCells  = {(-4,-2),(-4,-1),(-4,0),(-4,1),(-4,2),(-3,-2)}
-    //   exitZoneCells   = {(3,-1),(3,0),(3,1)}
-    //   hordeOriginCells = {(-3,-1),(-3,0),(-3,1)}
-    //   spawn ∩ exit   = ∅ ✓
-    //   spawn ∩ horde  = ∅ (horde uses q=-3 r={-1,0,1}; spawn uses q=-4 and (-3,-2)) ✓
-    //   horde ∩ exit   = ∅ (horde at q=-3; exit at q=3) ✓
+    //   spawnZoneCells   = {(-4,-2),(-4,-1),(-4,0),(-4,1),(-4,2),(-3,-2)}
+    //   exitZoneCells    = {(3,-1),(3,0),(3,1)}
+    //   hordeOriginCells = [] (empty — no fixed horde spawn)
+    //   spawn ∩ exit     = ∅ ✓
     //
-    // ── Pre-placed tiles (v8: ALL zombie/horde cells use Cross r0 — D1) ──────────
+    // ── Pre-placed tiles ──────────────────────────────────────────────────────────
     //
-    //   Horde-origin tiles (Cross r0 per v8 D1):
-    //     (-3,-1): Cross r0 — edges {E(0),NE(1),N(2),W(3)}.
-    //     (-3, 0): Cross r0 — edges {E(0),NE(1),N(2),W(3)}.
-    //     (-3, 1): Cross r0 — edges {E(0),NE(1),N(2),W(3)}.
-    //     Rationale (AD-OB-12b): Cross tiles prevent zombies from being trivially
-    //     bypassed by adjacent-row detours. The D1 break-out mechanic will rarely
-    //     fire on these cells in normal play (Cross tiles are almost never contained),
-    //     but the owner prioritises "zombies cannot be skipped" over reliable break-out.
+    //   Only the two centre seeds have pre-placed tiles. There are no horde-origin
+    //   pre-placed tiles — hordeOriginCells is empty.
     //
-    //   Route-blocking starting zombie tiles (Cross r0 per v8 D1):
+    //   Centre seed tiles (Cross r0 — each hosts a starting zombie):
     //     ( 0, 0): Cross r0 — edges {E(0),NE(1),N(2),W(3)}. Starting zombie #1 here.
     //              Not adjacent to spawn zone (spawn is q=-4 and q=-3,r=-2;
     //              (0,0)'s neighbours are (1,0),(1,-1),(0,-1),(-1,0),(-1,1),(0,1) —
@@ -150,7 +138,7 @@ public static class HexEscapeLevels
         [
             // q = -4 (spawn zone column — no pre-placed tiles per H9)
             C(-4, -2), C(-4, -1), C(-4,  0), C(-4,  1), C(-4,  2),
-            // q = -3 (horde origins at r={-1,0,1}; spawn overflow at r=-2)
+            // q = -3 (spawn overflow at r=-2; r={-1,0,1} are normal interior cells)
             C(-3, -2), C(-3, -1), C(-3,  0), C(-3,  1), C(-3,  2),
             // q = -2
             C(-2, -2), C(-2, -1), C(-2,  0), C(-2,  1), C(-2,  2),
@@ -169,17 +157,9 @@ public static class HexEscapeLevels
         ],
         PrePlacedTiles:
         [
-            // Horde origin cells (q=-3, r={-1,0,1}): Cross r0 per v8 D1.
-            // Cross tiles (edges {E(0),NE(1),N(2),W(3)}) ensure zombies here cannot be
-            // trivially bypassed by adjacent-row detours (AD-OB-12b round-5 rationale).
-            // The D1 break-out mechanic will rarely fire on these Cross cells (Cross tiles
-            // are almost never contained), but "cannot be skipped" is the design priority.
-            new PrePlacedTile(C(-3, -1), HexTileType.Cross, 0),
-            new PrePlacedTile(C(-3,  0), HexTileType.Cross, 0),
-            new PrePlacedTile(C(-3,  1), HexTileType.Cross, 0),
-            // Route-blocking starting zombie cells: Cross r0 on main E-W route (v8 D1).
-            // Starting zombies are placed here (below), forcing players to navigate/clear them.
-            // Cross tiles: edges open in 4 directions, cannot be bypassed via adjacent rows.
+            // Two centre seed tiles. Each holds a starting zombie. New zombies grow from these seeds
+            // when zombie cards are drawn — the server spawns at a seed and shoves the line outward.
+            // Cross r0 (edges {E(0),NE(1),N(2),W(3)}) on the main E–W route between spawn and exit.
             new PrePlacedTile(C( 0,  0), HexTileType.Cross, 0),
             new PrePlacedTile(C( 2,  0), HexTileType.Cross, 0),
         ],
@@ -197,11 +177,10 @@ public static class HexEscapeLevels
         [
             C( 3, -1), C( 3,  0), C( 3,  1),
         ],
-        // Horde origin: q=-3, r={-1,0,1}. All have pre-placed Cross r0 tiles (F3, v8 D1).
-        // Not in spawn zone (spawn uses q=-4 and q=-3,r=-2 only). Not in exit zone.
+        // No fixed horde — zombie growth comes from zombie cards drawn during play,
+        // spawning from the centre seed cells at (0,0) and (2,0). Empty = no per-round spawn.
         HordeOriginCells:
         [
-            C(-3, -1), C(-3,  0), C(-3,  1),
         ],
         // Starting zombies: 2 on main E–W route, not adjacent to spawn zone (D1, v8).
         // (0,0) and (2,0) both have pre-placed Cross r0 tiles (C4, D1 requirement).
@@ -222,6 +201,134 @@ public static class HexEscapeLevels
             new TilePoolEntry(HexTileType.Deadend,   5),
         ]
     );
+
+    // ── GenerateStandard: procedural level generation by player count ─────────────
+    //
+    // Geometry: parallelogram q ∈ [-W, +W], r ∈ [-H, +H] (inclusive both ends).
+    //   W = 4 + (count - 1),   H = 2 + (count - 1) / 2.
+    //   count=1 → W=4, H=2 → same 45-cell board as Tutorial01.
+    //
+    // Spawn zone: left column q = -W, ordered top-to-bottom (r from -H to +H).
+    //   Provides at least 2H+1 cells; must be >= MaxPlayers=6.
+    //   count=1 → q=-4, r∈{-2,-1,0,1,2} = 5 cells.
+    //   Tutorial01 uses 6 cells (adds (-3,-2)), so for count=1 we also append (-3,-2)
+    //   to match tutorial-01 exactly (required by Feature 2.2 spec).
+    //
+    // Exit zone: q = W-1, r ∈ {-1,0,1} = 3 cells.
+    //   count=1 → q=3, r∈{-1,0,1} — matches tutorial-01. ✓
+    //
+    // Centre seeds (fixed Cross r=0, each with a StartingZombie):
+    //   count=1 → (0,0) and (2,0) — matches tutorial-01. ✓
+    //   count>1 → place (1+count) seeds spaced along central row r=0.
+    //
+    // HordeOriginCells: [] (empty — horde grows from drawn zombie cards only).
+    // NormalTilePool: same weights as Tutorial01.
+
+    /// <summary>
+    /// Procedurally generate a standard level for the given player count.
+    /// count=1 reproduces the tutorial-01 geometry exactly (same cells, exit zone, seeds).
+    /// Higher counts scale the board outward and add more seeds.
+    /// </summary>
+    public static HexEscapeLevel GenerateStandard(int playerCount)
+    {
+        if (playerCount < 1 || playerCount > 6)
+            throw new ArgumentOutOfRangeException(nameof(playerCount), "Player count must be 1–6.");
+
+        int W = 4 + (playerCount - 1);
+        int H = 2 + (playerCount - 1) / 2;
+
+        // All cells: q ∈ [-W..W], r ∈ [-H..H]
+        var cells = new List<string>();
+        for (int q = -W; q <= W; q++)
+            for (int r = -H; r <= H; r++)
+                cells.Add(C(q, r));
+
+        // Exit zone: q = W-1, r ∈ {-1, 0, 1}
+        var exitZone = new List<string> { C(W - 1, -1), C(W - 1, 0), C(W - 1, 1) };
+        var exitZoneSet = new HashSet<string>(exitZone);
+
+        // Spawn zone: left column q = -W, r = -H..-H (top-to-bottom = r ascending)
+        // plus extra cell(s) to reach >= MaxPlayers(6) if the column alone isn't enough.
+        var spawnZone = new List<string>();
+        for (int r = -H; r <= H; r++)
+            spawnZone.Add(C(-W, r));
+        // If still fewer than 6, extend into the next column (q = -W+1) from the top
+        // (mirrors tutorial-01 which uses (-3,-2) as the 6th spawn cell).
+        int nextQ = -W + 1;
+        int nextR = -H;
+        while (spawnZone.Count < 6)
+        {
+            string candidate = C(nextQ, nextR);
+            if (!spawnZone.Contains(candidate) && !exitZoneSet.Contains(candidate))
+                spawnZone.Add(candidate);
+            nextR++;
+            if (nextR > H) { nextQ++; nextR = -H; }
+        }
+        var spawnZoneSet = new HashSet<string>(spawnZone);
+
+        // Centre seeds (fixed Cross r=0, each with a StartingZombie).
+        // count=1: (0,0) and (2,0) — matches tutorial-01 exactly.
+        // count>1: (1+count) seeds spaced along r=0 centred on q=0, avoiding spawn/exit zones.
+        var seedCoords = new List<string>();
+        if (playerCount == 1)
+        {
+            seedCoords.Add(C(0, 0));
+            seedCoords.Add(C(2, 0));
+        }
+        else
+        {
+            int seedCount = 1 + playerCount;
+            // Space seeds evenly across the interior (excluding spawn zone and exit zone columns).
+            // Interior q range: [-W+1 .. W-2] (leave spawn column and the two rightmost columns out).
+            int qMin = -W + 1;
+            int qMax = W - 2;
+            int qRange = qMax - qMin;
+            for (int i = 0; i < seedCount; i++)
+            {
+                int q = seedCount == 1
+                    ? 0
+                    : qMin + (int)Math.Round((double)i * qRange / (seedCount - 1));
+                // Clamp and avoid spawn/exit zones.
+                q = Math.Max(qMin, Math.Min(qMax, q));
+                string coord = C(q, 0);
+                if (!spawnZoneSet.Contains(coord) && !exitZoneSet.Contains(coord) && !seedCoords.Contains(coord))
+                    seedCoords.Add(coord);
+            }
+            // If deduplication left us short, add nearby cells.
+            for (int q = qMin; q <= qMax && seedCoords.Count < seedCount; q++)
+            {
+                string coord = C(q, 0);
+                if (!spawnZoneSet.Contains(coord) && !exitZoneSet.Contains(coord) && !seedCoords.Contains(coord))
+                    seedCoords.Add(coord);
+            }
+        }
+
+        var prePlacedTiles = seedCoords
+            .Select(coord => new PrePlacedTile(coord, HexTileType.Cross, 0))
+            .ToList();
+        var startingZombies = seedCoords
+            .Select(coord => new StartingZombie(coord))
+            .ToList();
+
+        return new HexEscapeLevel(
+            Id:              $"generated-{playerCount}p",
+            Name:            playerCount == 1 ? "The Outbreak" : $"The Outbreak ({playerCount}p)",
+            Cells:           cells,
+            PrePlacedTiles:  prePlacedTiles,
+            SpawnZoneCells:  spawnZone,
+            ExitZoneCells:   exitZone,
+            HordeOriginCells: [],
+            StartingZombies: startingZombies,
+            NormalTilePool:
+            [
+                new TilePoolEntry(HexTileType.Straight, 30),
+                new TilePoolEntry(HexTileType.Elbow,    30),
+                new TilePoolEntry(HexTileType.Tee,      25),
+                new TilePoolEntry(HexTileType.Cross,    10),
+                new TilePoolEntry(HexTileType.Deadend,   5),
+            ]
+        );
+    }
 
     // ── Public catalogue ──────────────────────────────────────────────────────────
 

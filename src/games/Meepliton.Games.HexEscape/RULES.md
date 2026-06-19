@@ -35,7 +35,7 @@ boards can be any shape.
 |---|---|
 | **Spawn zone** | Where characters begin. Each player gets a reserved cell here. Normal tiles may be placed in the spawn zone. |
 | **Exit zone** | Where the exit tile will appear. No player may place tiles here. |
-| **Horde origin** | Cells (pre-tiled by the level) where new zombies emerge at each round boundary. |
+| **Centre seeds** | Fixed Cross tiles placed at the centre of the board with a starting zombie on each. New zombies spawn from these seeds when a zombie card is drawn. |
 
 ### The six directions
 
@@ -112,15 +112,18 @@ the game with several important properties:
 - **Exit band:** the single exit tile is placed at a random position in the last
   portion of the deck, so the exit always appears late but not at the very end.
 
-Each player has their own **hand** (maximum 3 tiles). Draw a tile (costs 1 AP)
+Each player has their own **hand** (maximum 5 tiles, starting hand of 3). Draw a tile (costs 1 AP)
 to add it to your hand; then place it from your hand on the board (costs 1 AP).
 
-### Zombie tiles
+### Zombie cards
 
-If you draw a **zombie tile**, you must place it on the board before you can take
-any other action this turn. Choose any occupied, non-exit-zone cell that does not
-already have a zombie — a new zombie token spawns there immediately. If no valid
-cell exists, the zombie tile is discarded instead.
+Zombie cards never enter your hand. When a zombie card is drawn, the server handles it immediately:
+
+1. A new zombie spawns on one of the **centre seed** cells (the fixed Cross tiles at the middle of the board).
+2. That spawn shoves the existing line of zombies outward toward the nearest survivor. To make room, the server may move a zombie along existing road, rotate a pipe tile, or draw another tile from the deck automatically.
+3. If an auto-drawn tile is another zombie card, another spawn chains immediately. If it is the exit card, the exit is revealed.
+
+Players never hold zombie cards and never choose where a zombie spawns.
 
 ### The exit tile
 
@@ -148,20 +151,19 @@ depends on player count — fewer players get more AP per turn to compensate for
 fewer people). Each action costs exactly 1 AP. Unused AP are lost when your turn
 ends.
 
-### The five actions
+### The four actions
 
 | Action | Cost | Qualifying? |
 |---|:---:|:---:|
-| **Draw tile** — draw the top card of the deck into your hand | 1 AP | Yes |
+| **Draw tile** — draw the top card of the deck into your hand (zombie and exit cards are handled by the server automatically) | 1 AP | Yes |
 | **Place tile** — place a tile from your hand on an empty non-exit-zone cell | 1 AP | Yes |
-| **Place zombie tile** — resolve your zombie-tile obligation (see §5) | 1 AP | Yes |
-| **Move character** — move your character one hex along an open pipe connection | 1 AP | Yes |
+| **Move character** — slide your character the full length of the connected pipe network in one action. Zombies block the tunnel — the path may not pass through or land on a zombie. | 1 AP | Yes |
 | **Rotate tile** — re-orient any player-placed non-fixed tile on the board | 1 AP | **No** |
 
 ### The minimum-actions rule
 
 Before you may end your turn voluntarily, you must have taken at least **2
-qualifying actions** (the four actions marked "Yes" above). Rotating tiles does
+qualifying actions** (the three actions marked "Yes" above). Rotating tiles does
 not count toward this minimum.
 
 If fewer than 2 qualifying actions are actually available to you — for example,
@@ -171,16 +173,6 @@ then whatever actions are available to you is the new minimum.
 **Rotate tile never blocks you from ending your turn**, even if all your AP went
 on rotations and you took zero qualifying actions (provided no qualifying actions
 were actually available).
-
-### Forced zombie tile
-
-If you are holding a zombie tile, you **must** resolve it before doing anything
-else — including ending your turn. This takes priority over the minimum-actions
-rule.
-
-Special case: if you draw a zombie tile as your very last AP, the server resolves
-the obligation automatically and your turn ends immediately. You are never left
-holding a zombie tile with no AP to spend.
 
 ### Ending your turn
 
@@ -192,6 +184,12 @@ Your turn ends in one of two ways:
 
 After your turn ends, the next player may claim the active turn.
 
+When the last player's turn ends and zombie movement runs, the client shows a
+brief auto-dismissing message: **"Your turn is over — the horde moves"** followed
+by a one-line summary such as "3 zombies advanced · 2 turned a pipe to chase"
+or "The horde held its ground". The message dismisses automatically; you do not
+need to click anything.
+
 ---
 
 ## 7. Characters and movement
@@ -201,10 +199,14 @@ that tile. Your first tile must go in your **reserved spawn cell** — the cell
 assigned to you in the spawn zone at the start of the game. Subsequent tiles can
 go anywhere valid.
 
-Once your character is placed you can move it one hex per **Move character**
-action. Movement requires an open pipe connection in both directions: your tile
-must have an open edge pointing toward the destination, and the destination tile
-must have an open edge pointing back.
+Once your character is placed you can move it with a **Move character** action.
+One action slides your character the full length of the connected pipe network —
+not just one tile. The path follows open pipe connections in both directions: each
+tile on the route must have an open edge pointing toward the next, and the next
+must have an open edge pointing back. Zombies block the tunnel: the slide may not
+pass through or land on a zombie-occupied tile. This is the core asymmetry — a
+character travels far per action while a zombie advances only one tile per round,
+so building long tunnels is powerful.
 
 A character is **eliminated** the moment a zombie occupies the same cell — whether
 from a zombie move, a zombie spawn, or you walking into a zombie. Eliminated
@@ -217,12 +219,28 @@ player keeps taking turns and can still help by placing and rotating tiles.
 
 ### How they start
 
-Each level places one or more zombie tokens on the board at the start of the game,
-on cells that already have pre-placed tiles.
+Each level places zombie tokens at the **centre seed** cells — fixed Cross tiles
+near the middle of the board. These seeds are the origin point for the whole
+horde. In The Outbreak (1-player), two seeds are placed along the main path
+between the spawn zone and the exit.
+
+### How the horde grows (zombie cards)
+
+New zombies appear **only when a zombie card is drawn**, not once per round.
+When a zombie card is drawn, the server:
+
+1. Spawns a new zombie on a centre seed cell.
+2. Shoves the existing zombie line outward toward the nearest survivor. To make
+   room, the server may move a zombie along road, rotate a pipe, or auto-draw
+   another tile from the deck.
+3. If the auto-drawn tile is another zombie card, the process chains. If it is the
+   exit tile, the exit is revealed.
+
+Players never hold zombie cards and never choose where a zombie spawns.
 
 ### How they move (each round boundary)
 
-After every player has taken their turn, a round boundary runs through four phases:
+After every player has taken their turn, a round boundary runs through three phases:
 
 **Phase 1 — Transition:** the board enters zombie-movement mode (the phase tag in
 the UI changes to "Zombie Move").
@@ -241,17 +259,33 @@ All containment decisions use a **frozen snapshot** of the board taken at the
 start of Phase 2. A breakout from one zombie does not change the containment
 verdict for later zombies in the same phase.
 
-**Phase 3 — Zombie rolls:** every zombie (including any spawned in Phase 2) rolls
-a d6. The die face maps to a direction: direction = die face mod 6. If the
-connection rule is satisfied between the zombie's current cell and its neighbour
-in that direction, the zombie moves there. Otherwise it stays put. Each roll and
-result (moved / blocked) is shown in the zombie-movement overlay.
+**Phase 3 — Chase and move:** every zombie (including any spawned in Phase 2)
+acts in stable id order. Each zombie may do **both** of the following in the
+same round:
 
-**Phase 4 — Horde spawn:** one or more new zombies spawn from the horde-origin
-cells defined by the level. The number depends on player count — more players
-face a faster-growing horde.
+1. **Turn a pipe** — the zombie rotates one tile adjacent to it so that a pipe
+   opening points toward the nearest survivor (shortest path, breaking ties by
+   lowest direction index). This includes rotating the tile between itself and a
+   survivor on an *adjacent* cell — so **ending your turn on a tile next to a
+   zombie is dangerous even if no pipe currently connects them**. The zombie may
+   rotate a player-placed, non-fixed tile; pre-placed level tiles and the exit
+   tile are immune.
+2. **Step one tile** — if the connection rule is satisfied in the direction of
+   the nearest survivor, the zombie moves one tile toward them. If no connected
+   path exists toward the nearest survivor, the zombie stays put.
 
-After all four phases, the loss condition is checked. If any placed characters
+Both the turn and the step happen in the same round — the zombie is not limited
+to one or the other. A zombie that is already adjacent to a survivor and cannot
+step closer rotates a pipe to set up an approach next round. A zombie that is
+fully isolated from all tiles (no neighbours at all) holds its position.
+
+Each zombie's action (which pipe it turned, whether it stepped, where it moved)
+is stored in `lastZombieRolls` and shown in the zombie-movement overlay.
+
+There is no separate per-round horde spawn — zombies only multiply via zombie
+cards drawn during players' turns.
+
+After all three phases, the loss condition is checked. If any placed characters
 remain un-eliminated, the next round begins.
 
 ### Zombie co-location
@@ -287,7 +321,7 @@ The host chooses a level when creating the room. v2 ships one level:
 
 | ID | Name | Board | Description |
 |---|---|---|---|
-| `tutorial-01` | The Outbreak | 9 × 5 hex grid (45 cells) | Two starting zombies on the main route (at the centre and two steps east). Spawn zone on the left, exit zone set back from the right edge. Three horde-origin cells anchor the zombie supply. |
+| `tutorial-01` | The Outbreak | 9 × 5 hex grid (45 cells) | Two starting zombies on centre-seed Cross tiles along the main route. Spawn zone on the left, exit zone set back from the right edge. Board and deck scale with player count — count=1 reproduces this 45-cell layout exactly. |
 
 If no level is chosen, **The Outbreak** (`tutorial-01`) is used.
 
@@ -299,8 +333,8 @@ If no level is chosen, **The Outbreak** (`tutorial-01`) is used.
 
 - Alice (seat 0) is assigned spawn cell `(-4, 0)`.
 - Bob (seat 1) is assigned spawn cell `(-4, -1)`.
-- Both start with 1 tile in hand, dealt from the safe zone.
-- Two zombies start on the board: one at `(0, 0)` and one at `(2, 0)`, each on a pre-placed Cross tile.
+- Both start with 3 tiles in hand, dealt from the safe zone.
+- Two zombies start on the board: one at `(0, 0)` and one at `(2, 0)`, each on a pre-placed Cross tile (the centre seeds).
 
 **Round 1, Alice's turn:**
 
@@ -318,11 +352,13 @@ qualifying actions — and ends his turn.
 
 **Round boundary:**
 
-Both seats have acted. Zombie movement begins. The zombie at `(0, 0)` rolls a 4
-— direction 4 is SW `(-1, +1)`. The Cross tile at `(0, 0)` is open in direction
-4. If the neighbouring cell `(-1, 1)` already has a tile (placed by Alice or Bob
-during the round) with direction 1 (NE, the opposite) open, the connection rule
-is satisfied and the zombie moves there. Otherwise it stays put. Round 2 starts.
+Both seats have acted. Zombie movement begins. Any contained zombies break out
+first (Phase 2), then every zombie chases (Phase 3). The zombie at `(0, 0)` may
+turn an adjacent pipe to open a path toward the nearest survivor, then step one
+tile in that direction if the connection rule is satisfied. If the connection
+rule is not yet satisfied (no open path exists), the zombie stays put — but the
+pipe it just turned means next round the path may be open. No per-round horde
+spawn occurs — zombies only grow when a zombie card is drawn. Round 2 starts.
 
 **Later — exit revealed:**
 

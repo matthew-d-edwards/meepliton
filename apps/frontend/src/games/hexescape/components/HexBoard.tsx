@@ -80,6 +80,57 @@ export function parseCoord(key: string): { q: number; r: number } {
   return { q: parseInt(qs, 10), r: parseInt(rs, 10) }
 }
 
+/**
+ * Axial direction offsets (Δq, Δr), indexed the same as the backend's
+ * HexEscapeModule.Directions table: 0=E 1=NE 2=N 3=W 4=SW 5=S.
+ */
+export const DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
+  [+1, 0], [+1, -1], [0, -1], [-1, 0], [-1, +1], [0, +1],
+]
+
+/**
+ * Every cell the character can slide to from `fromCoord` in a single move: a flood-fill
+ * outward over shared open road edges (not just one hex). Mirrors the backend's
+ * HexEscapeModule.ConnectedReachable so the UI only offers moves the server will accept.
+ * Zombies block the tunnel — a zombie-occupied tile can be neither entered nor passed
+ * through — so pass the current zombie coords to route around them. Fixed tiles (e.g. the
+ * exit Cross) are valid targets; sliding onto the exit is how the game is won.
+ */
+export function connectedMoveTargets(
+  grid: Record<string, HexCell>,
+  cells: Set<string>,
+  fromCoord: string,
+  zombies?: Set<string>,
+): Set<string> {
+  const visited = new Set<string>()
+  if (!grid[fromCoord]) return visited
+  const blocked = zombies ?? new Set<string>()
+
+  visited.add(fromCoord)
+  const queue: string[] = [fromCoord]
+  while (queue.length > 0) {
+    const cur = queue.shift() as string
+    const curTile = grid[cur]
+    if (!curTile) continue
+    const curEdges = new Set(openEdges(curTile.tileType, curTile.rotation))
+    const { q, r } = parseCoord(cur)
+    for (let d = 0; d < 6; d++) {
+      if (!curEdges.has(d)) continue
+      const [dq, dr] = DIRECTIONS[d]
+      const toCoord = `${q + dq},${r + dr}`
+      if (visited.has(toCoord) || !cells.has(toCoord)) continue
+      const toTile = grid[toCoord]
+      if (!toTile) continue
+      if (!openEdges(toTile.tileType, toTile.rotation).includes((d + 3) % 6)) continue
+      if (blocked.has(toCoord)) continue // zombie blocks the pipe
+      visited.add(toCoord)
+      queue.push(toCoord)
+    }
+  }
+  visited.delete(fromCoord)
+  return visited
+}
+
 /** HEX_SIZE constant exported for use by TilePreview */
 export const HEX_PREVIEW_SIZE = HEX_SIZE
 
@@ -107,6 +158,9 @@ export interface HexBoardProps {
   /** Coords the active player can actually act on right now. When provided,
    *  cells not in the set are announced as disabled (focusable to read, but inert). */
   actionableCoords?: Set<string>
+  /** Coords the player's character can slide to in a single move.
+   *  Used to distinguish "slide here" from "place tile here" in aria-labels. */
+  moveTargetCoords?: Set<string>
   /** Show debug coordinate labels. Defaults to import.meta.env.DEV. */
   showCoords?: boolean
   /** When true, the exit cell renders a pulsing highlight (exit-just-revealed ceremony). */
@@ -128,6 +182,7 @@ export function HexBoard({
   onCellClick,
   canInteract,
   actionableCoords,
+  moveTargetCoords,
   showCoords = import.meta.env.DEV,
   exitJustRevealed = false,
 }: HexBoardProps) {
@@ -211,17 +266,24 @@ export function HexBoard({
           // user can read it, but only cells the player can actually act on fire
           // and are announced as enabled; the rest carry aria-disabled.
           const cellActionable = canInteract && (actionableCoords ? actionableCoords.has(key) : true)
+          const isMoveTarget = (moveTargetCoords?.has(key)) ?? false
+          // A cell is a place-target when it is actionable but not a move target and has no tile yet
+          const isPlaceTarget = cellActionable && !isMoveTarget && !cell && !isExitZone
           const cornersStr = hexCorners(x, y)
 
           return (
             <g
               key={key}
-              className={[styles.hexBase, cellActionable ? styles.hexClickable : ''].filter(Boolean).join(' ')}
+              className={[
+                styles.hexBase,
+                cellActionable ? styles.hexClickable : '',
+                isMoveTarget ? styles.hexMoveTarget : '',
+              ].filter(Boolean).join(' ')}
               onClick={cellActionable ? () => onCellClick(key) : undefined}
               role={canInteract ? 'button' : undefined}
               tabIndex={canInteract ? 0 : undefined}
               aria-disabled={canInteract && !cellActionable ? true : undefined}
-              aria-label={hexAriaLabel(key, isSpawnZone, isExitZone, isExitCell, cell, zombieCount, charsHere, myPlayerId, isMyReservedSpawn)}
+              aria-label={hexAriaLabel(key, isSpawnZone, isExitZone, isExitCell, cell, zombieCount, charsHere, myPlayerId, isMyReservedSpawn, isMoveTarget, isPlaceTarget)}
               onKeyDown={cellActionable ? (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
@@ -525,6 +587,8 @@ function hexAriaLabel(
   charsHere: string[],
   myPlayerId: string,
   isMyReservedSpawn: boolean,
+  isMoveTarget: boolean,
+  isPlaceTarget: boolean,
 ): string {
   const parts = [`Cell ${key}`]
   if (isMyReservedSpawn) parts.push('your reserved spawn')
@@ -541,5 +605,8 @@ function hexAriaLabel(
   if (zombieCount > 1) parts.push(`${zombieCount} zombies`)
   if (charsHere.includes(myPlayerId)) parts.push('your character')
   else if (charsHere.length > 0) parts.push(`${charsHere.length} character${charsHere.length > 1 ? 's' : ''}`)
+  // Announce what the player can do here — distinguishes slide targets from place targets
+  if (isMoveTarget) parts.push('reachable — select to slide here')
+  else if (isPlaceTarget) parts.push('select to place a tile')
   return parts.join(', ')
 }

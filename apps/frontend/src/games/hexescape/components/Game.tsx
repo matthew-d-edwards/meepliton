@@ -9,7 +9,7 @@ import type {
   CharacterState,
   PlayerSlot,
 } from '../types'
-import { HexBoard, openEdges, RoadTile, DIR_ANGLE_DEG } from './HexBoard'
+import { HexBoard, openEdges, RoadTile, DIR_ANGLE_DEG, connectedMoveTargets } from './HexBoard'
 import '../hexescape.css'
 import styles from '../styles.module.css'
 
@@ -18,6 +18,8 @@ import styles from '../styles.module.css'
 const MIN_ACTIONS_PER_TURN = 2
 // Mirror of HexEscapeConstants.ApPoolSize — AP granted on claiming a turn, indexed by player count.
 const AP_POOL_SIZE = [0, 5, 4, 4, 4, 4, 4]
+// Mirror of HexEscapeConstants.HandSize — max tiles in hand (zombie tiles never enter the hand).
+const HAND_SIZE = 5
 const TILE_LABELS: Record<HexTileType, string> = {
   Straight: 'Straight',
   Elbow:    'Elbow',
@@ -41,6 +43,9 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   const [picker, setPicker] = useState<PickerMode | null>(null)
   const [zombieAnimPhase, setZombieAnimPhase] = useState<'idle' | 'showing'>('idle')
   const [exitBannerVisible, setExitBannerVisible] = useState(false)
+  // "Zombie horde is growing!" toast — shown whenever the horde count rises, which (under the
+  // centre-spawn model) happens exactly when someone draws a zombie card.
+  const [hordeBanner, setHordeBanner] = useState<{ visible: boolean; amount: number }>({ visible: false, amount: 0 })
 
   // Trigger zombie animation when lastZombieRolls changes (round boundary).
   // The auto-dismiss timer only fires when the overlay is not focused — keyboard
@@ -88,12 +93,20 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   const prevMyCharEliminatedRef = useRef(
     state.characters.find(c => c.playerId === myPlayerId)?.eliminated ?? false
   )
+  const prevZombieCountRef = useRef(state.zombies.length)
 
   const myChar: CharacterState | undefined = state.characters.find(c => c.playerId === myPlayerId)
   const myCharPlaced = myChar !== null && myChar !== undefined && myChar.pos !== null
   const myReservedSpawn = state.reservedSpawnCells[myPlayerId] ?? null
 
   const myHand: HeldTile[] = state.hands[myPlayerId] ?? []
+  // NOTE (ally): Since the zombie-growth rework (v2), zombie tiles are never dealt to
+  // players — the horde grows automatically from centre seeds when a zombie card is
+  // drawn. myZombieTile will therefore always be null and hasZombieObligation always
+  // false. The placeZombie picker, zombie obligation banner, and related disabled-reason
+  // branches below are dead UX paths that can never render. They are safe to remove
+  // once the analyst confirms the hand-zombie mechanic is permanently retired.
+  // Tracked: docs/owner/TODO.md — ally flag 2026-06-19.
   const myZombieTile: HeldTile | null = myHand.find(t => t.isZombieTile) ?? null
   const hasZombieObligation = myZombieTile !== null && isMyActiveTurn
 
@@ -113,6 +126,19 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   // is updated below, so state.exitRevealed changing is the correct trigger.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.exitRevealed])
+
+  // Horde-growth toast: the zombie count only ever rises when a zombie card is drawn (the horde
+  // grows from the centre seeds), so a rising count is exactly the "you drew a zombie card" signal.
+  useEffect(() => {
+    const count = state.zombies.length
+    if (count > prevZombieCountRef.current) {
+      setHordeBanner({ visible: true, amount: count - prevZombieCountRef.current })
+      prevZombieCountRef.current = count
+      const timer = setTimeout(() => setHordeBanner(b => ({ ...b, visible: false })), 4000)
+      return () => clearTimeout(timer)
+    }
+    prevZombieCountRef.current = count
+  }, [state.zombies.length])
 
   // Update refs after deriving the "just changed" flags
   prevExitRevealedRef.current = state.exitRevealed
@@ -137,6 +163,17 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
 
   const zombieCoords = state.zombies.map(z => z.pos)
 
+  // Every cell my character can slide to right now: a flood-fill along connected open
+  // roads (mirrors the backend's ConnectedReachable), not just one hex. A single move
+  // slides the full clear length of the pipe — including onto the fixed exit Cross to
+  // win — and zombies block the tunnel, so they're passed in to route around them.
+  const canMoveNow =
+    isMyTurn && ap > 0 && !hasZombieObligation &&
+    myCharPlaced && myChar?.pos != null && !myCharEliminated
+  const moveTargets = canMoveNow
+    ? connectedMoveTargets(state.grid, new Set(state.cells), myChar!.pos!, new Set(zombieCoords))
+    : new Set<string>()
+
   // Cells the active player can actually act on right now — mirrors handleCellClick's
   // "opens a picker" branches. Drives aria-disabled on the board so keyboard/screen-reader
   // users aren't sent to dead cells with no feedback.
@@ -155,10 +192,14 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
         continue
       }
       if (inExitZone) continue
-      if ((myCharPlaced && myChar?.pos && !myCharEliminated) || hasPlaceableTile) {
+      // Empty cells are only actionable for placing a tile — characters never move
+      // onto empty cells, so character placement no longer makes them clickable.
+      if (hasPlaceableTile) {
         actionableCoords.add(coord)
       }
     }
+    // Connected adjacent tiles (incl. the fixed exit) are move destinations.
+    for (const t of moveTargets) actionableCoords.add(t)
   }
 
   // ── Dispatch helpers ─────────────────────────────────────────────────────────
@@ -193,11 +234,20 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
       return
     }
 
+    // Move takes priority: clicking any cell the character can reach along the
+    // connected pipe slides it the whole way there (not just one hex). This is the
+    // only way to reach the exit (a fixed tile), so it must win out over the rotate
+    // branch below — even when the clicked tile is non-fixed and far away.
+    if (moveTargets.has(coord)) {
+      setPicker({ kind: 'move', toCoord: coord })
+      return
+    }
+
     const cell = state.grid[coord]
     const isExitZone = state.exitZoneCells.includes(coord)
 
     if (cell) {
-      // Placed tile: offer rotate if non-fixed, and not in exit zone
+      // Placed tile that isn't a move target: offer rotate if non-fixed.
       if (!cell.fixed) {
         setPicker({ kind: 'rotate', coord, rotation: cell.rotation })
       }
@@ -209,19 +259,13 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
       return
     }
 
-    // Empty cell: check move vs place
-    // If my character is placed and adjacent cell is connected → offer move
-    if (myCharPlaced && myChar?.pos && !myCharEliminated) {
-      // Offer move (server validates connectivity)
-      setPicker({ kind: 'move', toCoord: coord })
-    } else {
-      // Offer place tile
-      const firstAvailable = TILE_TYPES.find(t =>
-        myHand.some(h => h.tileType === t && !h.isZombieTile)
-      ) ?? null
-      if (myHand.filter(h => !h.isZombieTile).length > 0) {
-        setPicker({ kind: 'place', coord, tileType: firstAvailable, rotation: 0 })
-      }
+    // Empty cell: place a tile. Characters never move onto empty cells, so there is
+    // no move branch here — movement is handled by the moveTargets check above.
+    const firstAvailable = TILE_TYPES.find(t =>
+      myHand.some(h => h.tileType === t && !h.isZombieTile)
+    ) ?? null
+    if (myHand.filter(h => !h.isZombieTile).length > 0) {
+      setPicker({ kind: 'place', coord, tileType: firstAvailable, rotation: 0 })
     }
   }
 
@@ -308,11 +352,11 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   })()
 
   // Draw disabled
-  const drawDisabled = !isMyTurn || ap === 0 || hasZombieObligation || myHand.filter(h => !h.isZombieTile).length >= 3
+  const drawDisabled = !isMyTurn || ap === 0 || hasZombieObligation || myHand.filter(h => !h.isZombieTile).length >= HAND_SIZE
   const drawDisabledReason: string | null = (() => {
     if (!isMyTurn) return 'Not your turn'
     if (hasZombieObligation) return 'Place your zombie tile first'
-    if (myHand.filter(h => !h.isZombieTile).length >= 3) return 'Hand is full'
+    if (myHand.filter(h => !h.isZombieTile).length >= HAND_SIZE) return 'Hand is full'
     if (ap === 0) return 'No action points remaining'
     return null
   })()
@@ -340,6 +384,14 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
       {/* Exit reveal ceremony banner — sighted players */}
       {exitBannerVisible && (
         <ExitRevealBanner onDismiss={() => setExitBannerVisible(false)} />
+      )}
+
+      {/* Zombie horde growth toast — fires when a zombie card is drawn */}
+      {hordeBanner.visible && (
+        <HordeGrowthBanner
+          amount={hordeBanner.amount}
+          onDismiss={() => setHordeBanner(b => ({ ...b, visible: false }))}
+        />
       )}
 
       {/* Zombie animation overlay */}
@@ -453,6 +505,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
             onCellClick={handleCellClick}
             canInteract={isMyTurn && ap > 0}
             actionableCoords={actionableCoords}
+            moveTargetCoords={moveTargets}
             exitJustRevealed={exitBannerVisible}
           />
         </div>
@@ -545,6 +598,35 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
 
 interface ExitRevealBannerProps {
   onDismiss: () => void
+}
+
+interface HordeGrowthBannerProps {
+  amount: number
+  onDismiss: () => void
+}
+
+function HordeGrowthBanner({ amount, onDismiss }: HordeGrowthBannerProps) {
+  return (
+    <div
+      className={styles.hordeBanner}
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+    >
+      <span className={styles.hordeBannerIcon} aria-hidden="true">Z</span>
+      <span className={styles.hordeBannerText}>
+        Zombie horde is growing!{amount > 1 ? ` +${amount}` : ''}
+      </span>
+      <button
+        className={styles.hordeBannerDismiss}
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss horde growth notification"
+      >
+        ✕
+      </button>
+    </div>
+  )
 }
 
 function ExitRevealBanner({ onDismiss }: ExitRevealBannerProps) {
@@ -886,8 +968,6 @@ interface ZombieRollOverlayProps {
   onFocusChange: (focused: boolean) => void
 }
 
-const DIR_NAMES = ['E', 'NE', 'N', 'W', 'SW', 'S']
-
 function ZombieRollOverlay({ rolls, onDone, onFocusChange }: ZombieRollOverlayProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const titleId = 'zombie-roll-overlay-title'
@@ -927,27 +1007,21 @@ function ZombieRollOverlay({ rolls, onDone, onFocusChange }: ZombieRollOverlayPr
       }}
     >
       <div className={styles.zombieOverlayCard} ref={cardRef}>
-        <div id={titleId} className={styles.zombieOverlayTitle}>Zombie movement</div>
-        <div className={styles.zombieRollList}>
-          {rolls.map((roll) => (
-            <div
-              key={roll.zombieId}
-              className={roll.moved ? styles.zombieRollMoved : styles.zombieRollStayed}
-              aria-label={`Zombie rolled ${roll.dieFace}, direction ${DIR_NAMES[roll.direction]}, ${roll.moved ? 'moved' : 'blocked'}`}
-            >
-              <span className={styles.zombieRollDie} aria-hidden="true">{roll.dieFace}</span>
-              <span className={styles.zombieRollDir} aria-hidden="true">{DIR_NAMES[roll.direction]}</span>
-              <span className={styles.zombieRollResult} aria-hidden="true">
-                {roll.moved ? 'moved' : 'blocked'}
-              </span>
-            </div>
-          ))}
+        <div id={titleId} className={styles.zombieOverlayTitle}>Your turn is over — the horde moves</div>
+        <div className={styles.zombiePhaseSummary}>
+          {(() => {
+            const moved = rolls.filter(r => r.moved).length
+            const turned = rolls.filter(r => !r.moved && r.direction >= 0).length
+            const parts: string[] = []
+            parts.push(moved > 0 ? `${moved} zombie${moved === 1 ? '' : 's'} advanced` : 'The horde held its ground')
+            if (turned > 0) parts.push(`${turned} turned a pipe to chase`)
+            return parts.join(' · ')
+          })()}
         </div>
         <button
           className={styles.btnDismiss}
           type="button"
           onClick={onDone}
-          autoFocus
         >
           Continue
         </button>

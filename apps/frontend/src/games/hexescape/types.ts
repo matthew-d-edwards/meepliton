@@ -47,11 +47,13 @@ export interface PlayerSlot {
   seatIndex: number
 }
 
-// ── Round boundary rolls ───────────────────────────────────────────────────────
+// ── Round-boundary horde-phase actions ─────────────────────────────────────────
 
 export interface ZombieRoll {
   zombieId: string
-  dieFace: number
+  /** Whether the zombie rotated a pipe this round (no dice in the chase model). */
+  pipeTurned: boolean
+  /** The direction it stepped toward, or -1 if it did not step. */
   direction: number
   moved: boolean
 }
