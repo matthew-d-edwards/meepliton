@@ -158,6 +158,9 @@ export interface HexBoardProps {
   /** Coords the active player can actually act on right now. When provided,
    *  cells not in the set are announced as disabled (focusable to read, but inert). */
   actionableCoords?: Set<string>
+  /** Coords the player's character can slide to in a single move.
+   *  Used to distinguish "slide here" from "place tile here" in aria-labels. */
+  moveTargetCoords?: Set<string>
   /** Show debug coordinate labels. Defaults to import.meta.env.DEV. */
   showCoords?: boolean
   /** When true, the exit cell renders a pulsing highlight (exit-just-revealed ceremony). */
@@ -179,6 +182,7 @@ export function HexBoard({
   onCellClick,
   canInteract,
   actionableCoords,
+  moveTargetCoords,
   showCoords = import.meta.env.DEV,
   exitJustRevealed = false,
 }: HexBoardProps) {
@@ -262,17 +266,24 @@ export function HexBoard({
           // user can read it, but only cells the player can actually act on fire
           // and are announced as enabled; the rest carry aria-disabled.
           const cellActionable = canInteract && (actionableCoords ? actionableCoords.has(key) : true)
+          const isMoveTarget = (moveTargetCoords?.has(key)) ?? false
+          // A cell is a place-target when it is actionable but not a move target and has no tile yet
+          const isPlaceTarget = cellActionable && !isMoveTarget && !cell && !isExitZone
           const cornersStr = hexCorners(x, y)
 
           return (
             <g
               key={key}
-              className={[styles.hexBase, cellActionable ? styles.hexClickable : ''].filter(Boolean).join(' ')}
+              className={[
+                styles.hexBase,
+                cellActionable ? styles.hexClickable : '',
+                isMoveTarget ? styles.hexMoveTarget : '',
+              ].filter(Boolean).join(' ')}
               onClick={cellActionable ? () => onCellClick(key) : undefined}
               role={canInteract ? 'button' : undefined}
               tabIndex={canInteract ? 0 : undefined}
               aria-disabled={canInteract && !cellActionable ? true : undefined}
-              aria-label={hexAriaLabel(key, isSpawnZone, isExitZone, isExitCell, cell, zombieCount, charsHere, myPlayerId, isMyReservedSpawn)}
+              aria-label={hexAriaLabel(key, isSpawnZone, isExitZone, isExitCell, cell, zombieCount, charsHere, myPlayerId, isMyReservedSpawn, isMoveTarget, isPlaceTarget)}
               onKeyDown={cellActionable ? (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
@@ -576,6 +587,8 @@ function hexAriaLabel(
   charsHere: string[],
   myPlayerId: string,
   isMyReservedSpawn: boolean,
+  isMoveTarget: boolean,
+  isPlaceTarget: boolean,
 ): string {
   const parts = [`Cell ${key}`]
   if (isMyReservedSpawn) parts.push('your reserved spawn')
@@ -592,5 +605,8 @@ function hexAriaLabel(
   if (zombieCount > 1) parts.push(`${zombieCount} zombies`)
   if (charsHere.includes(myPlayerId)) parts.push('your character')
   else if (charsHere.length > 0) parts.push(`${charsHere.length} character${charsHere.length > 1 ? 's' : ''}`)
+  // Announce what the player can do here — distinguishes slide targets from place targets
+  if (isMoveTarget) parts.push('reachable — select to slide here')
+  else if (isPlaceTarget) parts.push('select to place a tile')
   return parts.join(', ')
 }

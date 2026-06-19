@@ -18,16 +18,13 @@ namespace Meepliton.Games.HexEscape;
 /// All authored levels satisfy AC-v2-5 catalogue invariants:
 ///   - spawnZoneCells.Count >= 6 (MaxPlayers)
 ///   - exitZoneCells non-empty
-///   - hordeOriginCells non-empty
+///   - hordeOriginCells is empty (horde grows from zombie cards at centre seeds only — no per-round fixed spawn)
 ///   - no pre-placed tiles in spawnZoneCells or exitZoneCells (H9)
 ///   - every starting zombie position has a pre-placed tile (C4)
-///   - every hordeOriginCell has a pre-placed tile (F3)
-///   - hordeOriginCells ∩ spawnZoneCells = ∅ (H7)
-///   - hordeOriginCells ∩ exitZoneCells = ∅
 ///   - spawnZoneCells ∩ exitZoneCells = ∅
 ///   - structurally solvable (exit cross r0 connects to ≥2 non-exit-zone approach cells
 ///     against the SINGLE DETERMINISTIC exit cell — AC-v2-19/AC-v2-5 v8)
-///   - every zombie-hosting cell and every hordeOriginCell has a Cross r0 pre-placed tile (v8 D1)
+///   - every zombie-hosting (centre seed) cell has a Cross r0 pre-placed tile
 ///   - ApPoolSize[n] >= MinActionsPerTurn for all n (checked in tests)
 ///
 /// "tutorial-01" MUST remain the first entry — it is the AC-v2-2 fallback target.
@@ -50,32 +47,23 @@ public static class HexEscapeLevels
     //     No pre-placed tiles in exit zone (H9). Server places exit tile here.
     //     The q=4 column is now NORMAL in-grid cells (players can tile and move there).
     //
-    //   Horde origin: (-3,-1), (-3,0), (-3,1) — NOT in spawn zone (spawn uses q=-4
-    //     and q=-3,r=-2 only). NOT in exit zone. All three have pre-placed Cross r0
-    //     tiles per v8 D1: Cross tiles (not Straight) mean zombies here are never
-    //     trivially bypassable by adjacent-row detours (AD-OB-12b round-5 rationale).
+    //   Horde origin: [] — empty. Zombie growth comes exclusively from zombie cards
+    //     drawn during play, which spawn from the centre seeds at (0,0) and (2,0).
+    //     There is no per-round fixed horde spawn.
     //
     // ── Zone disjointness (AC-v2-5) ──────────────────────────────────────────────
     //
-    //   spawnZoneCells  = {(-4,-2),(-4,-1),(-4,0),(-4,1),(-4,2),(-3,-2)}
-    //   exitZoneCells   = {(3,-1),(3,0),(3,1)}
-    //   hordeOriginCells = {(-3,-1),(-3,0),(-3,1)}
-    //   spawn ∩ exit   = ∅ ✓
-    //   spawn ∩ horde  = ∅ (horde uses q=-3 r={-1,0,1}; spawn uses q=-4 and (-3,-2)) ✓
-    //   horde ∩ exit   = ∅ (horde at q=-3; exit at q=3) ✓
+    //   spawnZoneCells   = {(-4,-2),(-4,-1),(-4,0),(-4,1),(-4,2),(-3,-2)}
+    //   exitZoneCells    = {(3,-1),(3,0),(3,1)}
+    //   hordeOriginCells = [] (empty — no fixed horde spawn)
+    //   spawn ∩ exit     = ∅ ✓
     //
-    // ── Pre-placed tiles (v8: ALL zombie/horde cells use Cross r0 — D1) ──────────
+    // ── Pre-placed tiles ──────────────────────────────────────────────────────────
     //
-    //   Horde-origin tiles (Cross r0 per v8 D1):
-    //     (-3,-1): Cross r0 — edges {E(0),NE(1),N(2),W(3)}.
-    //     (-3, 0): Cross r0 — edges {E(0),NE(1),N(2),W(3)}.
-    //     (-3, 1): Cross r0 — edges {E(0),NE(1),N(2),W(3)}.
-    //     Rationale (AD-OB-12b): Cross tiles prevent zombies from being trivially
-    //     bypassed by adjacent-row detours. The D1 break-out mechanic will rarely
-    //     fire on these cells in normal play (Cross tiles are almost never contained),
-    //     but the owner prioritises "zombies cannot be skipped" over reliable break-out.
+    //   Only the two centre seeds have pre-placed tiles. There are no horde-origin
+    //   pre-placed tiles — hordeOriginCells is empty.
     //
-    //   Route-blocking starting zombie tiles (Cross r0 per v8 D1):
+    //   Centre seed tiles (Cross r0 — each hosts a starting zombie):
     //     ( 0, 0): Cross r0 — edges {E(0),NE(1),N(2),W(3)}. Starting zombie #1 here.
     //              Not adjacent to spawn zone (spawn is q=-4 and q=-3,r=-2;
     //              (0,0)'s neighbours are (1,0),(1,-1),(0,-1),(-1,0),(-1,1),(0,1) —
@@ -150,7 +138,7 @@ public static class HexEscapeLevels
         [
             // q = -4 (spawn zone column — no pre-placed tiles per H9)
             C(-4, -2), C(-4, -1), C(-4,  0), C(-4,  1), C(-4,  2),
-            // q = -3 (horde origins at r={-1,0,1}; spawn overflow at r=-2)
+            // q = -3 (spawn overflow at r=-2; r={-1,0,1} are normal interior cells)
             C(-3, -2), C(-3, -1), C(-3,  0), C(-3,  1), C(-3,  2),
             // q = -2
             C(-2, -2), C(-2, -1), C(-2,  0), C(-2,  1), C(-2,  2),
@@ -169,8 +157,8 @@ public static class HexEscapeLevels
         ],
         PrePlacedTiles:
         [
-            // v9: only the two central SEED tiles. Each holds a starting zombie; the entire horde
-            // grows from these two seeds spreading/multiplying via break-out (no fixed horde spawn).
+            // Two centre seed tiles. Each holds a starting zombie. New zombies grow from these seeds
+            // when zombie cards are drawn — the server spawns at a seed and shoves the line outward.
             // Cross r0 (edges {E(0),NE(1),N(2),W(3)}) on the main E–W route between spawn and exit.
             new PrePlacedTile(C( 0,  0), HexTileType.Cross, 0),
             new PrePlacedTile(C( 2,  0), HexTileType.Cross, 0),
@@ -189,8 +177,8 @@ public static class HexEscapeLevels
         [
             C( 3, -1), C( 3,  0), C( 3,  1),
         ],
-        // v9: NO fixed horde — the per-round horde-origin spawn is removed. All zombie growth comes
-        // from the two starting seeds spreading/multiplying via break-out. Empty = no horde spawn.
+        // No fixed horde — zombie growth comes from zombie cards drawn during play,
+        // spawning from the centre seed cells at (0,0) and (2,0). Empty = no per-round spawn.
         HordeOriginCells:
         [
         ],

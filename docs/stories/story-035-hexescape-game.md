@@ -20,11 +20,15 @@ The v1 implementation on branch `add-hexescape-game` is fully superseded. v2 rew
 
 ## Status note
 
-Implementation is complete and in review on branch `claude/hex-pipe-zombie-coop-mtlx2m`.
+Implementation is complete and in review. The movement model and zombie-growth model were substantially reworked on branch `fix-hexescape-movement-and-zombie-spread`:
+
+- **Movement:** `MoveCharacter` now slides the character the full length of the connected pipe network in one action (not one hex per action). Zombies block the tunnel.
+- **Zombie growth:** zombies spawn only when a zombie card is drawn, growing from the centre-seed Cross tiles, not from fixed horde-origin cells. `hordeOriginCells` is empty. There is no per-round horde spawn.
+- **Hand size:** `HandSize` cap is 5; `StartingHandSize` is 3.
 
 **This story cannot be marked `done` until:**
 - CI passes for the full build on this branch (build + `dotnet test`)
-- All 79 acceptance criteria (AC-v2-1 through AC-v2-79 in `docs/specs/hexescape.md`) are covered by passing tests
+- All acceptance criteria in `docs/specs/hexescape.md` are covered by passing tests
 - architect, ally, and docs review gates are cleared
 
 CI cannot run in this environment. Do not set `status: done` until CI is confirmed green.

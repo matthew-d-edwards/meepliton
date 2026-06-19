@@ -96,6 +96,13 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
   const myReservedSpawn = state.reservedSpawnCells[myPlayerId] ?? null
 
   const myHand: HeldTile[] = state.hands[myPlayerId] ?? []
+  // NOTE (ally): Since the zombie-growth rework (v2), zombie tiles are never dealt to
+  // players — the horde grows automatically from centre seeds when a zombie card is
+  // drawn. myZombieTile will therefore always be null and hasZombieObligation always
+  // false. The placeZombie picker, zombie obligation banner, and related disabled-reason
+  // branches below are dead UX paths that can never render. They are safe to remove
+  // once the analyst confirms the hand-zombie mechanic is permanently retired.
+  // Tracked: docs/owner/TODO.md — ally flag 2026-06-19.
   const myZombieTile: HeldTile | null = myHand.find(t => t.isZombieTile) ?? null
   const hasZombieObligation = myZombieTile !== null && isMyActiveTurn
 
@@ -473,6 +480,7 @@ export default function Game({ state, myPlayerId, dispatch }: GameContext<HexEsc
             onCellClick={handleCellClick}
             canInteract={isMyTurn && ap > 0}
             actionableCoords={actionableCoords}
+            moveTargetCoords={moveTargets}
             exitJustRevealed={exitBannerVisible}
           />
         </div>
