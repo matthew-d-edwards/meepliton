@@ -2013,6 +2013,43 @@ public class HexEscapeModuleTests
     }
 
     /// <summary>
+    /// v11 cascade: when making room for a centre spawn the engine auto-draws to extend the zombie
+    /// road, and an auto-drawn ZOMBIE card chains another spawn — so one player draw grows the horde
+    /// by more than one and eats several deck cards.
+    /// </summary>
+    [Fact]
+    public void DrawZombieCard_AutoDrawHitsZombieCard_Chains()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+        int zombiesBefore = state.Zombies.Count;   // 2 seed zombies (centre isolated → spawns must EXTEND)
+        int deckBefore = 12;
+
+        // Deck: player draws a zombie card; making room auto-draws another zombie card (chain) then
+        // tiles to lay road. Plenty of straights to satisfy both extends.
+        var z = new DeckEntry(HexTileType.Straight, IsZombieTile: true, IsExitTile: false);
+        var s = new DeckEntry(HexTileType.Straight, IsZombieTile: false, IsExitTile: false);
+        state = state with
+        {
+            Deck = new List<DeckEntry> { z, z, s, s, s, s, s, s, s, s, s, s },  // 12
+            ActiveSeat = 0,
+            ActionPointsRemaining = 3,
+            QualifyingActionsThisTurn = 0,
+        };
+
+        var ctx = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.DrawTile), players[0].Id);
+        var result = _module.Handle(ctx);
+        result.RejectionReason.Should().BeNull();
+
+        var ns = GetState(result.NewState);
+        ns.Zombies.Count.Should().BeGreaterThanOrEqualTo(zombiesBefore + 2,
+            "the drawn zombie spawns one, and the auto-drawn zombie card chains a second");
+        ns.Hands[players[0].Id].Should().NotContain(t => t.IsZombieTile, "the cascade never hands the player a zombie tile");
+        var deckAfter = ns.DeckSize ?? ns.Deck.Count;
+        deckAfter.Should().BeLessThan(deckBefore - 2, "the cascade eats several deck cards (the draw, the chained zombie, and road tiles)");
+    }
+
+    /// <summary>
     /// v9: players may rotate zombie-laid road tiles (Fixed:false, IsZombieTile:true) to redirect
     /// the spread / deny a zombie a contained break-out. (Fixed pre-placed tiles stay locked —
     /// covered by Containment_BreakOut_SkipsRotation_ForFixedLevelTile.)

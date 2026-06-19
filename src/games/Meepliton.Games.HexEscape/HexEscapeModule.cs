@@ -1587,12 +1587,14 @@ public class HexEscapeModule : IGameModule, IGameHandler
 
     /// <summary>
     /// A drawn zombie card grows the horde from the centre spawn tiles (the fixed seeds), not the
-    /// player's hand. One zombie spawns on a seed; if a zombie already sits there it is SHOVED one
-    /// step outward along the connected road toward the nearest survivor. If it has nowhere to go,
-    /// the spawn MAKES ROOM — rotating an adjacent non-fixed pipe, or, failing that, laying a new
-    /// zombie road tile toward the survivor (so the spawn tile "places a tile to help the move").
-    /// The new zombie then takes the seed. If both seeds are hopelessly boxed, the growth is skipped.
-    /// Pressure grows from the middle and spreads outward toward the player.
+    /// player's hand. A fresh zombie takes a seed; the zombie already there is SHOVED outward toward
+    /// the nearest survivor. It MOVES along existing connected road, or ROTATES an adjacent pipe to
+    /// reach one (both free). If it can do neither it must EXTEND the road — and that costs a card:
+    /// the engine AUTO-DRAWS from the deck until a tile turns up, lays it as zombie road, and the
+    /// zombie advances onto it. An auto-drawn ZOMBIE card chains another centre spawn this resolution
+    /// (the "exciting" cascade); an auto-drawn EXIT card reveals the exit. So the horde grows from the
+    /// middle, spreads outward, and eats the deck as it goes — a single draw can cascade into several
+    /// spawns. Bounded by MaxZombies and the deck running dry.
     /// </summary>
     private HexEscapeState SpawnHordeAtCentre(HexEscapeState state)
     {
@@ -1617,6 +1619,9 @@ public class HexEscapeModule : IGameModule, IGameHandler
             .ThenBy(k => ParseCoord(k).Q).ThenBy(k => ParseCoord(k).R)
             .ToList();
         if (seeds.Count == 0) return state;
+
+        int pending = 1;   // the zombie card the player drew; auto-drawn zombie cards add more
+        int safety  = 0;   // backstop against a pathological cascade
 
         // Slide the zombie at `from` one step in `dir`, running over any character it lands on.
         void Shove(string from, int dir)
@@ -1675,8 +1680,9 @@ public class HexEscapeModule : IGameModule, IGameHandler
                 return true;
             }
 
-            // 3) LAY a zombie road tile on an empty neighbour toward the survivor, then move onto it.
-            int layDir = -1, layBest = int.MaxValue;
+            // 3) EXTEND the zombie road outward — this needs a fresh tile, which the engine AUTO-DRAWS
+            //    from the deck. Choose the outward empty neighbour nearest a survivor to lay it on.
+            int extDir = -1, extBest = int.MaxValue;
             for (int d = 0; d < 6; d++)
             {
                 if (cFixed && !cEdges.Contains(d)) continue;
@@ -1684,37 +1690,52 @@ public class HexEscapeModule : IGameModule, IGameHandler
                 if (!cellSet.Contains(n) || exitZoneSet.Contains(n)) continue;
                 if (state.Grid.ContainsKey(n)) continue;
                 var (nq, nr) = ParseCoord(n); int nd = Dist(nq, nr);
-                if (nd < layBest) { layBest = nd; layDir = d; }
+                if (nd < extBest) { extBest = nd; extDir = d; }
             }
-            if (layDir >= 0)
+            if (extDir < 0) return false;   // boxed: nowhere to extend
+
+            // Auto-draw until a placeable tile turns up. A zombie card chains another centre spawn
+            // (the "exciting" cascade); an exit card reveals the exit. Both consume the deck.
+            while (state.Deck.Count > 0)
             {
-                var (dq, dr) = Directions[layDir]; var n = CoordKey(cq + dq, cr + dr);
-                int rot = layDir < 3 ? layDir : layDir - 3;
+                var card = state.Deck[0];
+                state = state with { Deck = state.Deck.Skip(1).ToList() };
+                if (card.IsZombieTile) { pending++; continue; }
+                if (card.IsExitTile)   { if (!state.ExitRevealed) state = PlaceExitTileServerSide(state); continue; }
+
+                var (dq, dr) = Directions[extDir]; var n = CoordKey(cq + dq, cr + dr);
+                int back = (extDir + 3) % 6;
                 var newGrid = new Dictionary<string, HexCell>(state.Grid)
                 {
-                    [n] = new HexCell(HexTileType.Straight, rot, Fixed: false, IsZombieTile: true)
+                    [n] = new HexCell(card.TileType, RotationToOpen(card.TileType, back), Fixed: false, IsZombieTile: true)
                 };
-                if (!cFixed && !cEdges.Contains(layDir))
-                    newGrid[cell] = cTile with { Rotation = RotationToOpen(cTile.TileType, layDir) };
+                if (!cFixed && !cEdges.Contains(extDir))
+                    newGrid[cell] = cTile with { Rotation = RotationToOpen(cTile.TileType, extDir) };
                 state = state with { Grid = newGrid };
-                Shove(cell, layDir);
+                Shove(cell, extDir);
                 return true;
             }
-
-            return false;  // hopelessly boxed
+            return false;   // deck ran dry before a tile came up
         }
 
-        foreach (var seed in seeds)
+        while (pending > 0 && state.Zombies.Count < HexEscapeConstants.MaxZombies && safety++ < 256)
         {
-            if (Vacate(seed))
+            pending--;
+            bool placed = false;
+            foreach (var seed in seeds)
             {
-                state = SpawnZombieAt(state, seed, out var nz);
-                state = state with { Zombies = nz };
-                state = EliminateCharactersAt(state, seed);
-                return state;
+                if (Vacate(seed))
+                {
+                    state = SpawnZombieAt(state, seed, out var nz);
+                    state = state with { Zombies = nz };
+                    state = EliminateCharactersAt(state, seed);
+                    placed = true;
+                    break;
+                }
             }
+            if (!placed) break;   // can't place anywhere (deck dry / boxed) — end the cascade
         }
-        return state;  // both seeds boxed — skip this growth
+        return state;
     }
 
     // ── Reserved cell helpers ─────────────────────────────────────────────────
