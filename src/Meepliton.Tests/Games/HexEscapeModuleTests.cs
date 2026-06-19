@@ -1710,11 +1710,10 @@ public class HexEscapeModuleTests
     // ── 3b. Round-boundary zombie rolls — structural invariants ──────────────
 
     /// <summary>
-    /// After a complete round boundary (all seats act then EndTurn), lastZombieRolls:
-    ///   - has exactly one entry per zombie alive at phase start
-    ///   - each entry's direction is in [0,5]
-    ///   - if moved, destination is a valid neighbour of the start position
-    /// Does NOT assert exact RNG outcomes.
+    /// v11: after a round boundary the deterministic chase records one entry per zombie in
+    /// lastZombieRolls so the client can show the horde-phase beat. A moved zombie has Direction in
+    /// [0,5]; a zombie that only rotated or held has Moved=false (Direction -1 when it did nothing).
+    /// DieFace is unused (0) — there are no dice in the chase model.
     /// </summary>
     [Fact]
     public void RoundBoundary_ZombieRolls_StructuralInvariants()
@@ -1812,12 +1811,16 @@ public class HexEscapeModuleTests
         endState.Phase.Should().Be(HexEscapePhase.Actions, "round boundary advances phase back to Actions");
         endState.RoundNumber.Should().Be(2, "round number increments after boundary");
 
+        // v11: the deterministic chase records one entry per zombie so the client can show the
+        // horde-phase beat. A moved zombie has Direction 0-5; one that only rotated or held has
+        // Moved=false (Direction -1 when it did nothing). DieFace is unused (no dice).
+        endState.LastZombieRolls.Should().NotBeEmpty("the chase records the horde's actions for the UI beat");
         foreach (var roll in endState.LastZombieRolls)
         {
-            roll.Direction.Should().BeInRange(0, 5,
-                $"roll direction must be in [0,5] for zombie {roll.ZombieId}");
-            roll.DieFace.Should().BeInRange(1, 6,
-                $"die face must be in [1,6] for zombie {roll.ZombieId}");
+            if (roll.Moved)
+                roll.Direction.Should().BeInRange(0, 5, $"a moved zombie has a real direction ({roll.ZombieId})");
+            else
+                roll.Direction.Should().BeInRange(-1, 5, $"a rotate/held zombie has dir 0-5 or -1 ({roll.ZombieId})");
         }
     }
 
@@ -1900,11 +1903,12 @@ public class HexEscapeModuleTests
     }
 
     /// <summary>
-    /// Zombie ROTATE step: a blocked zombie next to a non-fixed player pipe turns that pipe to splice
-    /// onto the network (opening a path toward the survivor); it does not move this round.
+    /// v11 turn-and-move: a blocked zombie next to a non-fixed player pipe TURNS that pipe (and its
+    /// own tile) to splice onto the network AND steps onto it the same round — moving one tile closer
+    /// to the survivor. (Movement is still one tile per round.)
     /// </summary>
     [Fact]
-    public void Zombie_Blocked_RotatesPlayerPipeToConnect()
+    public void Zombie_Blocked_TurnsPipeAndMovesOntoIt()
     {
         var players = Players(1);
         var state = GetInitialState(players);
@@ -1937,9 +1941,53 @@ public class HexEscapeModuleTests
         rEnd.RejectionReason.Should().BeNull();
         var s = GetState(rEnd.NewState);
 
-        s.Zombies.Single().Pos.Should().Be(zc, "rotating a pipe is the action — the zombie does not move this round");
-        HexEscapeModule.AreConnected(s.Grid, cellSet, zc, 0).Should().BeTrue(
-            "the zombie rotated the player's pipe (and its own tile) to splice onto the network toward the survivor");
+        s.Zombies.Single().Pos.Should().Be(pipe,
+            "the zombie turns the shut pipe (and its own tile) and steps onto it — one tile closer to the survivor");
+        s.Characters.Single().Eliminated.Should().BeFalse("the survivor is still one cell beyond the pipe this round");
+    }
+
+    /// <summary>
+    /// v11 turn-and-move attack: a survivor who ends ADJACENT to a zombie can be attacked even through
+    /// a SHUT pipe — the zombie turns the pipe (its own tile and the survivor's) and steps onto them
+    /// the same round, eliminating them.
+    /// </summary>
+    [Fact]
+    public void Zombie_AdjacentToSurvivor_TurnsShutPipeAndAttacks()
+    {
+        var players = Players(1);
+        var state = GetInitialState(players);
+
+        const string zc = "-1,1", sc = "0,1";  // survivor is directly E of the zombie
+        foreach (var c in new[] { zc, sc }) state.Cells.Should().Contain(c);
+
+        var grid = new Dictionary<string, HexCell>
+        {
+            [zc] = new HexCell(HexTileType.Deadend, 2, Fixed: false, IsZombieTile: true),   // opens N only — shut toward the survivor (E)
+            [sc] = new HexCell(HexTileType.Deadend, 0, Fixed: false, IsZombieTile: false),  // opens E only — shut toward the zombie (W)
+        };
+        state = state with
+        {
+            Grid = grid,
+            Zombies = [new ZombieToken("z", zc)],
+            Characters = [new CharacterState(players[0].Id, sc, Eliminated: false)],
+            RoundNumber = 1,
+            ActiveSeat = 0,
+            ActionPointsRemaining = 1,
+            QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
+            SeatsActedThisRound = [],
+        };
+
+        var cellSet = new HashSet<string>(state.Cells);
+        HexEscapeModule.AreConnected(state.Grid, cellSet, zc, 0).Should().BeFalse("the pipe between zombie and survivor starts shut");
+
+        var rEnd = _module.Handle(MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id));
+        rEnd.RejectionReason.Should().BeNull();
+        var s = GetState(rEnd.NewState);
+
+        s.Characters.Single().Eliminated.Should().BeTrue(
+            "the zombie turns the shut pipe and steps onto the adjacent survivor — ending next to a zombie is lethal");
+        s.Phase.Should().Be(HexEscapePhase.GameOver, "the only survivor was eliminated");
+        s.Outcome.Should().Be(HexEscapeOutcome.Overrun);
     }
 
     /// <summary>
@@ -2120,13 +2168,13 @@ public class HexEscapeModuleTests
     // ── 4. Containment break-out / MF-2 frozen snapshot ──────────────────────
 
     /// <summary>
-    /// v10: a contained zombie (on a non-fixed tile with no valid move, nothing to rotate onto) does
-    /// NOT break out. There is no spread and no multiply — the board is unchanged across the round
-    /// boundary. The horde grows only from drawn zombie cards, so its size is bounded by the deck.
+    /// v11: the horde never MULTIPLIES at a round boundary and never lays new road — new zombies come
+    /// only from drawn zombie cards, so the count is bounded by the deck. Zombies may turn-and-move
+    /// (so a "contained" zombie no longer stays frozen), but the chase adds no tiles and no zombies.
     /// We drive this via a full round-boundary by completing all seats' turns.
     /// </summary>
     [Fact]
-    public void Containment_NoBreakOut_HordeBoundedByDeck()
+    public void RoundBoundary_HordeDoesNotMultiplyOrLayTiles()
     {
         // Use 1-player game for simplest round boundary.
         var players = Players(1);
@@ -2209,6 +2257,7 @@ public class HexEscapeModuleTests
             QualifyingActionsThisTurn = HexEscapeConstants.MinActionsPerTurn,
         };
 
+        int gridCountBefore = state.Grid.Count;
         var ctxEnd = MakeContext(ToDoc(state), new HexEscapeAction(HexActionType.EndTurn), players[0].Id);
         var result = _module.Handle(ctxEnd);
 
@@ -2217,12 +2266,12 @@ public class HexEscapeModuleTests
         var newState = GetState(result.NewState);
         if (newState.Phase == HexEscapePhase.GameOver) return; // loss fired; skip
 
-        // v10: a contained zombie does NOT break out — it lays no tile and does not multiply, so the
-        // zombie-tile count and the zombie count are both unchanged and it stays put.
-        newState.Grid.Values.Count(t => t.IsZombieTile).Should().Be(zombieTilesBefore,
-            "a contained zombie lays no new tile (no break-out spread)");
-        newState.Zombies.Count.Should().Be(zombieCountBefore, "a contained zombie does not multiply");
-        newState.Zombies.Should().Contain(z => z.Pos == zombieCell, "the contained zombie stays put");
+        // v11: the horde never multiplies or lays road at a round boundary (new zombies come only from
+        // drawn cards). Zombies may turn-and-move, so we don't assert the zombie stays put — only that
+        // the count and the board tiles are unchanged.
+        newState.Zombies.Count.Should().Be(zombieCountBefore, "the horde does not multiply at the round boundary");
+        newState.Grid.Values.Count(t => t.IsZombieTile).Should().Be(zombieTilesBefore, "no new zombie road tiles are laid");
+        newState.Grid.Count.Should().Be(gridCountBefore, "the chase rotates and moves but lays no tiles");
     }
 
     /// <summary>

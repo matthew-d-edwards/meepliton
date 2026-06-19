@@ -968,8 +968,6 @@ interface ZombieRollOverlayProps {
   onFocusChange: (focused: boolean) => void
 }
 
-const DIR_NAMES = ['E', 'NE', 'N', 'W', 'SW', 'S']
-
 function ZombieRollOverlay({ rolls, onDone, onFocusChange }: ZombieRollOverlayProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const titleId = 'zombie-roll-overlay-title'
@@ -1009,27 +1007,21 @@ function ZombieRollOverlay({ rolls, onDone, onFocusChange }: ZombieRollOverlayPr
       }}
     >
       <div className={styles.zombieOverlayCard} ref={cardRef}>
-        <div id={titleId} className={styles.zombieOverlayTitle}>Zombie movement</div>
-        <div className={styles.zombieRollList}>
-          {rolls.map((roll) => (
-            <div
-              key={roll.zombieId}
-              className={roll.moved ? styles.zombieRollMoved : styles.zombieRollStayed}
-              aria-label={`Zombie rolled ${roll.dieFace}, direction ${DIR_NAMES[roll.direction]}, ${roll.moved ? 'moved' : 'blocked'}`}
-            >
-              <span className={styles.zombieRollDie} aria-hidden="true">{roll.dieFace}</span>
-              <span className={styles.zombieRollDir} aria-hidden="true">{DIR_NAMES[roll.direction]}</span>
-              <span className={styles.zombieRollResult} aria-hidden="true">
-                {roll.moved ? 'moved' : 'blocked'}
-              </span>
-            </div>
-          ))}
+        <div id={titleId} className={styles.zombieOverlayTitle}>Your turn is over — the horde moves</div>
+        <div className={styles.zombiePhaseSummary}>
+          {(() => {
+            const moved = rolls.filter(r => r.moved).length
+            const turned = rolls.filter(r => !r.moved && r.direction >= 0).length
+            const parts: string[] = []
+            parts.push(moved > 0 ? `${moved} zombie${moved === 1 ? '' : 's'} advanced` : 'The horde held its ground')
+            if (turned > 0) parts.push(`${turned} turned a pipe to chase`)
+            return parts.join(' · ')
+          })()}
         </div>
         <button
           className={styles.btnDismiss}
           type="button"
           onClick={onDone}
-          autoFocus
         >
           Continue
         </button>

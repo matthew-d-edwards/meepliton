@@ -1212,12 +1212,9 @@ public class HexEscapeModule : IGameModule, IGameHandler
         // AC-v2-32b: Phase 1 — transition to ZombieMovement
         state = state with { Phase = HexEscapePhase.ZombieMovement, LastZombieRolls = [] };
 
-        // Phase 2 — the two centre spawners grow the horde from the middle (v9 spawner model).
+        // Phase 2 — existing zombies chase the survivors (turn-and-move). This records each zombie's
+        // action into LastZombieRolls so the client shows the horde-phase beat after the player's turn.
         state = RunPhase2HordeGrowth(state);
-
-        // (v9) Zombies no longer wander each round: the horde grows as a connected mass out of the
-        // centre and the players navigate/rotate through it, rather than zombies dispersing across
-        // the board. LastZombieRolls stays empty (cleared above), so no zombie-movement overlay.
 
         // Phase 4 — legacy horde-origin spawn (tutorial-01 defines no origins → no-op here).
         state = RunPhase4HordeSpawn(state);
@@ -1244,19 +1241,19 @@ public class HexEscapeModule : IGameModule, IGameHandler
         };
     }
 
-    // ── Zombie phase (v10 chase model — bounded horde) ────────────────────────
+    // ── Zombie phase (v11 chase model — bounded horde, turn-and-move) ─────────
     //
     // Existing zombies HUNT the nearest survivor along the SHARED road network (the streets the
-    // players built). They never multiply on their own and never lay their own road. Each, in order:
-    //   1. MOVE one step along a connected, unoccupied road that gets it closer to a survivor.
-    //   2. ROTATE an adjacent NON-FIXED pipe (a player's tile) to splice itself onto that network —
-    //      opening a path toward a survivor — when it cannot move; it chases along it next round.
-    // An isolated zombie with nothing to move onto or rotate simply waits. New zombies enter ONLY
-    // when a zombie card is drawn — which grows the horde from the centre seeds (see
-    // SpawnHordeAtCentre), shoving the line outward and laying road to make room — so the horde is
-    // bounded by deck composition rather than the clock. Players' counter: re-rotate pipes to cut the
-    // chasers off while keeping a clear road to the exit. (Movement is deterministic → LastZombieRolls
-    // stays empty.) The method name is historical; it no longer grows the horde.
+    // players built). They never multiply on their own and never lay their own road. Each round a
+    // zombie may TURN one pipe AND MOVE one tile toward a survivor: it can rotate the pipe between
+    // itself and an adjacent survivor (its own tile and/or the survivor's, if non-fixed) and step
+    // onto them — so a survivor who ends adjacent to a zombie can be attacked even through a shut
+    // pipe. Movement is still one tile per round (the slide asymmetry stands). If it cannot step
+    // closer, it rotates a pipe to set up an approach next round; fully isolated, it holds. New
+    // zombies enter ONLY when a zombie card is drawn — which grows the horde from the centre seeds
+    // (see SpawnHordeAtCentre) — so the horde is bounded by deck composition rather than the clock.
+    // Each zombie's action is recorded into LastZombieRolls for the client's horde-phase beat.
+    // The method name is historical; it no longer grows the horde.
     private HexEscapeState RunPhase2HordeGrowth(HexEscapeState state)
     {
         var cellSet     = new HashSet<string>(state.Cells);
@@ -1271,7 +1268,13 @@ public class HexEscapeModule : IGameModule, IGameHandler
             ? HexDistance(q, r, eq, er)
             : survivors.Min(s => HexDistance(q, r, s.Q, s.R));
 
-        // ── Chase: snapshot the current zombies; each acts once (move / rotate / place) ──
+        // ── Chase: snapshot the current zombies; each TURNS-and-MOVES once toward a survivor ──
+        // A zombie may rotate one pipe AND step one tile in the same round (v11): it can turn the
+        // pipe between itself and an adjacent survivor — its own tile and/or the survivor's tile, if
+        // non-fixed — and move onto them, eliminating them. So ending a turn on a tile next to a
+        // zombie is dangerous even if the pipe is currently shut. Movement is still ONE tile per round
+        // (the slide asymmetry stands). Each zombie's action is recorded for the UI horde-phase beat.
+        var rolls = new List<ZombieRoll>();
         foreach (var snap in state.Zombies.ToList().OrderBy(z => z.Id))
         {
             var live = state.Zombies.FirstOrDefault(z => z.Id == snap.Id);
@@ -1284,32 +1287,45 @@ public class HexEscapeModule : IGameModule, IGameHandler
             var occ = new HashSet<string>(state.Zombies.Where(z => z.Id != live.Id).Select(z => z.Pos));
             int curDist = Dist(cq, cr);
 
-            // 1) MOVE along a connected, unoccupied road to the neighbour closest to a survivor.
-            int moveDir = -1, moveDist = curDist;
+            // MOVE one tile toward the nearest survivor — onto a tile we can already reach, OR one we
+            // can reach by turning a non-fixed pipe (our tile and/or the destination). Prefer the cell
+            // closest to a survivor, then the one needing the fewest rotations.
+            int bestDir = -1, bestDist = curDist, bestRot = 99;
+            int? selfRot = null, destRot = null; string? bestN = null;
             for (int d = 0; d < 6; d++)
             {
-                if (!cEdges.Contains(d)) continue;
                 var (dq, dr) = Directions[d]; var n = CoordKey(cq + dq, cr + dr);
                 if (!cellSet.Contains(n) || exitZoneSet.Contains(n)) continue;
-                if (!state.Grid.TryGetValue(n, out var nT)) continue;
-                if (!OpenEdges(nT.TileType, nT.Rotation).Contains((d + 3) % 6)) continue;
-                if (occ.Contains(n)) continue;
+                if (!state.Grid.TryGetValue(n, out var nT)) continue;   // must step onto a placed tile
+                if (occ.Contains(n)) continue;                          // never onto another zombie
+                int rot = 0; int? sR = null, dR = null;
+                if (!cEdges.Contains(d)) { if (cFixed) continue; sR = RotationToOpen(cTile.TileType, d); rot++; }
+                int op = (d + 3) % 6;
+                if (!OpenEdges(nT.TileType, nT.Rotation).Contains(op)) { if (nT.Fixed) continue; dR = RotationToOpen(nT.TileType, op); rot++; }
                 var (nq, nr) = ParseCoord(n); int nd = Dist(nq, nr);
-                if (nd < moveDist) { moveDist = nd; moveDir = d; }
+                if (nd >= curDist) continue;                            // only step if it gets closer (attack = nd 0)
+                if (nd < bestDist || (nd == bestDist && rot < bestRot))
+                { bestDist = nd; bestRot = rot; bestDir = d; selfRot = sR; destRot = dR; bestN = n; }
             }
-            if (moveDir >= 0)
+            if (bestDir >= 0)
             {
-                var (dq, dr) = Directions[moveDir]; var n = CoordKey(cq + dq, cr + dr);
+                if (selfRot is not null || destRot is not null)
+                {
+                    var ng = new Dictionary<string, HexCell>(state.Grid);
+                    if (selfRot is not null) ng[c] = cTile with { Rotation = selfRot.Value };
+                    if (destRot is not null) ng[bestN!] = state.Grid[bestN!] with { Rotation = destRot.Value };
+                    state = state with { Grid = ng };
+                }
                 var moved = state.Zombies.ToList(); int zi = moved.FindIndex(z => z.Id == live.Id);
-                moved[zi] = moved[zi] with { Pos = n };
+                moved[zi] = moved[zi] with { Pos = bestN! };
                 state = state with { Zombies = moved };
-                state = EliminateCharactersAt(state, n);
+                state = EliminateCharactersAt(state, bestN!);
+                rolls.Add(new ZombieRoll(live.Id, 0, bestDir, Moved: true));
                 continue;
             }
 
-            // 2) ROTATE a player's pipe: an adjacent NON-FIXED, unoccupied tile we can turn so the
-            //    zombie gains a connected move toward a survivor (turning our own tile too if it is
-            //    non-fixed and shut that way). Pick the neighbour that gets closest.
+            // Could not step closer this round — rotate an adjacent non-fixed pipe (and our own tile,
+            // if non-fixed) to open a path toward the survivor, setting up an approach next round.
             int rotDir = -1, rotDist = curDist; HexCell? rotC = null;
             for (int d = 0; d < 6; d++)
             {
@@ -1336,17 +1352,15 @@ public class HexEscapeModule : IGameModule, IGameHandler
                 };
                 if (rotC is not null) newGrid[c] = rotC;
                 state = state with { Grid = newGrid };
+                rolls.Add(new ZombieRoll(live.Id, 0, rotDir, Moved: false));
                 continue;  // chases along the new connection next round
             }
 
-            // (v10) No step 3 and no spawner population: zombies never lay their own road and never
-            // multiply on their own. An isolated zombie with nothing to move onto or rotate simply
-            // waits — it chases only once the player's road reaches it. New zombies enter ONLY from
-            // drawn zombie cards (handled by SpawnHordeAtCentre), which are prefilled into
-            // the deck per player count, so the horde size is bounded by deck composition.
+            // Isolated — nothing to step onto or rotate. It holds (no self-multiply, no self-laid road).
+            rolls.Add(new ZombieRoll(live.Id, 0, -1, Moved: false));
         }
 
-        return state;
+        return state with { LastZombieRolls = rolls };
     }
 
     // ── Phase 4: Horde spawn (AC-v2-32e, D2b) ────────────────────────────────
